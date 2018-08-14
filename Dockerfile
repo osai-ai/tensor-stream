@@ -15,4 +15,4 @@ RUN rm -rf build && \
 WORKDIR /app/build
 RUN cmake .. && make
 
-RUN ./VideoReader
+ENTRYPOINT ["./VideoReader"]
