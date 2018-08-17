@@ -19,7 +19,7 @@ int main()
 	//no need to allocate if we don't want to add some callbacks or information (e.g. WxH) for raw input
 	AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx_v = NULL;
 
-	const char *in_filename = "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4";
+	const char *in_filename = "rtmp://b.sportlevel.com:22881/mylive/389fb14108f868b2dde44907aaf55622488059da?sign=OTc4Ojk0Nzc5OjE5MDg2NzM0OTU6MTUzNDUyMTg5Mzo4YThkMmNiM2FkMDdmMTg4M2YwYjgxOWMxZWQ3NTY0ZQ==";//"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4";
 	const char *out_filename_v = "sample.h264";
 
 	av_register_all();
@@ -103,8 +103,12 @@ int main()
 		It will split what is stored in the file into frames and return one for each call.
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
-		if (av_read_frame(ifmt_ctx, &pkt) < 0)
+		sts = av_read_frame(ifmt_ctx, &pkt);
+		if (sts < 0) {
+			char err[256];
+			printf("%s\n", av_make_error_string(err, 256, sts));
 			break;
+		}
 		in_stream = ifmt_ctx->streams[pkt.stream_index];
 
 
@@ -134,10 +138,8 @@ int main()
 		}
 
 		printf("Write %8d frames to output file\n", frame_index);
-		av_free_packet(&pkt);
+		av_packet_unref(&pkt);
 		frame_index++;
-		if (frame_index == 2)
-			break;
 	}
 	//Flush buffered data
 	av_write_trailer(ofmt_ctx_v);
