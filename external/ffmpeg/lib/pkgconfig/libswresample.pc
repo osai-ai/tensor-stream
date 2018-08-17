@@ -1,0 +1,14 @@
+prefix=/c/ffmpeg3.3/DLLS
+exec_prefix=${prefix}
+libdir=/c/ffmpeg3.3/DLLS/lib
+includedir=/c/ffmpeg3.3/DLLS/include
+
+Name: libswresample
+Description: FFmpeg audio resampling library
+Version: 3.2.100
+Requires: 
+Requires.private: libavutil >= 56.19.100
+Conflicts:
+Libs: -L${libdir}  -lswresample 
+Libs.private: 
+Cflags: -I${includedir}

@@ -6,11 +6,9 @@
 
 extern "C"
 {
-#include <avcodec.h>
-#include <avformat.h>
-#include <avio.h>
-#include <swscale.h>
-#include <timestamp.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/timestamp.h>
 }
 
 #define USE_H264BSF 1

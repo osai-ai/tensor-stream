@@ -1,0 +1,14 @@
+prefix=/c/ffmpeg3.3/DLLS
+exec_prefix=${prefix}
+libdir=/c/ffmpeg3.3/DLLS/lib
+includedir=/c/ffmpeg3.3/DLLS/include
+
+Name: libavcodec
+Description: FFmpeg codec library
+Version: 58.22.101
+Requires: 
+Requires.private: libswresample >= 3.2.100, libavutil >= 56.19.100
+Conflicts:
+Libs: -L${libdir}  -lavcodec 
+Libs.private: ole32.lib user32.lib
+Cflags: -I${includedir}

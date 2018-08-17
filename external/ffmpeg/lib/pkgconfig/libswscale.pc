@@ -1,0 +1,14 @@
+prefix=/c/ffmpeg3.3/DLLS
+exec_prefix=${prefix}
+libdir=/c/ffmpeg3.3/DLLS/lib
+includedir=/c/ffmpeg3.3/DLLS/include
+
+Name: libswscale
+Description: FFmpeg image rescaling library
+Version: 5.2.100
+Requires: 
+Requires.private: libavutil >= 56.19.100
+Conflicts:
+Libs: -L${libdir}  -lswscale 
+Libs.private: 
+Cflags: -I${includedir}
