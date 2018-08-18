@@ -14,12 +14,18 @@ extern "C"
 #include <libavutil/timestamp.h>
 }
 
+#define DUMP 1
+
 int main()
 {
+#ifdef DUMP
+	FILE * dump;
+	dump = fopen("sample_own.h264", "wb");
+#endif
 	//no need to allocate if we don't want to add some callbacks or information (e.g. WxH) for raw input
 	AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx_v = NULL;
 
-	const char *in_filename = "rtmp://b.sportlevel.com:22881/mylive/389fb14108f868b2dde44907aaf55622488059da?sign=OTc4Ojk0Nzc5OjE5MDg2NzM0OTU6MTUzNDUyMTg5Mzo4YThkMmNiM2FkMDdmMTg4M2YwYjgxOWMxZWQ3NTY0ZQ==";//"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4";
+	const char *in_filename = "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4";
 	const char *out_filename_v = "sample.h264";
 
 	av_register_all();
@@ -114,7 +120,7 @@ int main()
 
 		if (pkt.stream_index == videoindex) {
 			out_stream = ofmt_ctx_v->streams[0];
-			printf("Write Video Packet. size:%d\tpts:%lld\n", pkt.size, pkt.pts);
+			printf("Write Video Packet. size:%d\tpts:%lld\tdts:%lld\n", pkt.size, pkt.pts, pkt.dts);
 		}
 		else {
 			continue;
@@ -136,7 +142,13 @@ int main()
 			printf("Error muxing packet\n");
 			break;
 		}
-
+#ifdef DUMP
+		int written = fwrite(pkt.data, sizeof(uint8_t), pkt.size, dump);
+		if (written != pkt.size) {
+			printf("Error during dumping\n");
+			break;
+		}
+#endif
 		printf("Write %8d frames to output file\n", frame_index);
 		av_packet_unref(&pkt);
 		frame_index++;
@@ -155,5 +167,10 @@ end:
 		printf("Error occurred.\n");
 		return -1;
 	}
+
+#ifdef DUMP
+	fclose(dump);
+#endif
+
 	return 0;
 }
