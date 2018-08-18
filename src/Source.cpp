@@ -14,11 +14,9 @@ extern "C"
 #include <libavutil/timestamp.h>
 }
 
-#define DUMP 1
-
 int main()
 {
-#ifdef DUMP
+#ifdef DUMP 
 	FILE * dump;
 	dump = fopen("sample_own.h264", "wb");
 #endif
@@ -101,20 +99,14 @@ int main()
 	Encoded package. For video, it should typically contain one compressed frame
 	*/
 	AVPacket pkt;
-	while (1) {
-		AVStream *in_stream, *out_stream;
+	AVStream *in_stream, *out_stream;
+	while (sts = av_read_frame(ifmt_ctx, &pkt) >= 0) {
 		/*
 		Get an AVPacket containing encoded data for one AVStream, identified by AVPacket.stream_index (Return the next frame of a audio/video stream)
 		This function returns what is stored in the file, and does not validate that what is there are valid frames for the decoder.
 		It will split what is stored in the file into frames and return one for each call.
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
-		sts = av_read_frame(ifmt_ctx, &pkt);
-		if (sts < 0) {
-			char err[256];
-			printf("%s\n", av_make_error_string(err, 256, sts));
-			break;
-		}
 		in_stream = ifmt_ctx->streams[pkt.stream_index];
 
 
@@ -152,6 +144,11 @@ int main()
 		printf("Write %8d frames to output file\n", frame_index);
 		av_packet_unref(&pkt);
 		frame_index++;
+	} 
+	if (sts < 0) {
+		char err[256];
+		printf("%s\n", av_make_error_string(err, 256, sts));
+		goto end;
 	}
 	//Flush buffered data
 	av_write_trailer(ofmt_ctx_v);
