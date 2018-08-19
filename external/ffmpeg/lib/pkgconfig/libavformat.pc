@@ -1,7 +1,7 @@
-prefix=/c/ffmpeg3.3/DLLS
+prefix=/d/ffmpeg/
 exec_prefix=${prefix}
-libdir=/c/ffmpeg3.3/DLLS/lib
-includedir=/c/ffmpeg3.3/DLLS/include
+libdir=/d/ffmpeg//lib
+includedir=/d/ffmpeg//include
 
 Name: libavformat
 Description: FFmpeg container format library

@@ -14,6 +14,18 @@ extern "C"
 #include <libavutil/timestamp.h>
 }
 
+AVHWAccel *ff_find_hwaccel(enum AVCodecID codec_id, enum AVPixelFormat pix_fmt)
+{
+	AVHWAccel *hwaccel = NULL;
+
+	while ((hwaccel = av_hwaccel_next(hwaccel))) {
+		if (hwaccel->id == codec_id
+			&& hwaccel->pix_fmt == pix_fmt)
+			return hwaccel;
+}
+	return NULL;
+}
+
 int main()
 {
 #ifdef DUMP 
@@ -92,6 +104,11 @@ int main()
 		printf("Error occurred when opening video output file\n");
 		goto end;
 	}
+	/*AVCodecContext *dec_ctx = ifmt_ctx->streams[videoindex]->codec;
+	sts = avcodec_open2(dec_ctx, dec, &opts)
+	*/
+	//AVHWAccel* hw_accel = find_hwaccel(ifmt_ctx->streams[videoindex]->codec->codec_id, ifmt_ctx->streams[videoindex]->codec->pix_fmt);
+	AVCodec * pVideoCodec = avcodec_find_decoder_by_name("h264_cuvid");
 
 	//current frame index
 	int frame_index = 0;
