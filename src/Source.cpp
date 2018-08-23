@@ -6,6 +6,7 @@
 // basic file operations
 #include <iostream>
 #include <fstream>
+#include "cuda.h"
 
 extern "C"
 {
@@ -16,6 +17,9 @@ extern "C"
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
 }
+
+void kernel_wrapper(int *a);
+void change_pixels(unsigned char* Y, unsigned char* UV);
 
 FILE *fDump;
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
@@ -55,7 +59,10 @@ void SaveAvFrame(AVFrame *avFrame)
 
 int main()
 {
-	fDump = fopen("raw.yuv", "ab");
+	int a = 9;
+	kernel_wrapper(&a);
+	printf("%d\n", a);
+	fDump = fopen("raw.yuv", "wb+");
 	//FILE* output_file = fopen("raw.yuv", "w+");
 	//no need to allocate if we don't want to add some callbacks or information (e.g. WxH) for raw input
 	AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx_v = NULL;
@@ -221,6 +228,31 @@ repeat:
 				<< "; width: " << outFrame->width << "; height: " << outFrame->height << "; pict_type: " << outFrame->pict_type << std::endl;
 			AVFrame* sw_frame = av_frame_alloc();
 			sw_frame->format = AV_PIX_FMT_NV12;
+
+			/*for (int i = 0; i < FF_ARRAY_ELEMS(outFrame->data) && outFrame->data[i]; i++) {
+				CUDA_MEMCPY2D cpy;
+				cpy.srcMemoryType = CU_MEMORYTYPE_DEVICE,
+				cpy.dstMemoryType = CU_MEMORYTYPE_HOST,
+				cpy.srcDevice = (CUdeviceptr)outFrame->data[i],
+				cpy.dstHost = sw_frame->data[i],
+				cpy.srcPitch = outFrame->linesize[i],
+				cpy.dstPitch = sw_frame->linesize[i],
+				cpy.WidthInBytes = FFMIN(outFrame->linesize[i], sw_frame->linesize[i]),
+				cpy.Height = src->height >> (i ? priv->shift_height : 0),
+
+				err = cu->cuMemcpy2DAsync(&cpy, device_hwctx->stream);
+				if (err != CUDA_SUCCESS) {
+					av_log(ctx, AV_LOG_ERROR, "Error transferring the data from the CUDA frame\n");
+					return AVERROR_UNKNOWN;
+				}
+			}
+			*/
+			
+			//AVHWFramesContext* test = (AVHWFramesContext*)outFrame->hw_frames_ctx->data;
+			//CUcontext *device_hwctx = (CUcontext *)test->device_ctx->hwctx;
+			//cuCtxPushCurrent(*device_hwctx);
+			change_pixels(outFrame->data[0], outFrame->data[1]);
+
 			if (outFrame->format == AV_PIX_FMT_CUDA) {
 				/* retrieve data from GPU to CPU */
 				if ((sts = av_hwframe_transfer_data(sw_frame, outFrame, 0)) < 0) {
@@ -234,28 +266,6 @@ repeat:
 				av_frame_unref(sw_frame);
 				goto end;
 			}
-			/*
-			int size = av_image_get_buffer_size((AVPixelFormat)sw_frame->format, sw_frame->width,
-			sw_frame->height, 1);
-			uint8_t* buffer = (uint8_t*)av_malloc(size);
-			if (!buffer) {
-			fprintf(stderr, "Can not alloc buffer\n");
-			sts = AVERROR(ENOMEM);
-			goto end;
-			}
-			sts = av_image_copy_to_buffer(buffer, size,
-			(const uint8_t * const *)sw_frame->data,
-			(const int *)sw_frame->linesize, (AVPixelFormat)sw_frame->format,
-			sw_frame->width, sw_frame->height, 1);
-			if (sts < 0) {
-			fprintf(stderr, "Can not copy image to buffer\n");
-			goto end;
-			}
-			if ((sts = fwrite(buffer, sizeof(uint8_t), size, output_file)) < 0) {
-			fprintf(stderr, "Failed to dump raw data.\n");
-			goto end;
-			}
-			*/
 			SaveAvFrame(sw_frame);
 		}
 

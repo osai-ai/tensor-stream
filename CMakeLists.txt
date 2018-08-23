@@ -19,6 +19,10 @@ include_directories("external/ffmpeg/include")
 #include headers to project (so they will be shown in include folder)
 add_executable(VideoReader ${APP_HEADERS} ${APP_SOURCE})
 
+enable_language(CUDA)
+set_target_properties(VideoReader PROPERTIES
+                            CUDA_SEPERABLE_COMPILATION ON)
+
 FILE(GLOB_RECURSE FFMPEG_LIBS "external/ffmpeg/bin/*.lib")
 target_link_libraries(VideoReader ${FFMPEG_LIBS})
 
