@@ -16,10 +16,11 @@ extern "C"
 #include <libavutil/frame.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
+#include <libavutil/hwcontext_cuda.h>
 }
 
 void kernel_wrapper(int *a);
-void change_pixels(unsigned char* Y, unsigned char* UV);
+void change_pixels(AVFrame* src, AVFrame* dst);
 
 FILE *fDump;
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
@@ -37,7 +38,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 }
 //#define DUMP_DEMUX
 
-void SaveAvFrame(AVFrame *avFrame)
+void SaveNV12(AVFrame *avFrame)
 {
 	uint32_t pitchY = avFrame->linesize[0];
 	uint32_t pitchUV = avFrame->linesize[1];
@@ -228,31 +229,7 @@ repeat:
 				<< "; width: " << outFrame->width << "; height: " << outFrame->height << "; pict_type: " << outFrame->pict_type << std::endl;
 			AVFrame* sw_frame = av_frame_alloc();
 			sw_frame->format = AV_PIX_FMT_NV12;
-
-			/*for (int i = 0; i < FF_ARRAY_ELEMS(outFrame->data) && outFrame->data[i]; i++) {
-				CUDA_MEMCPY2D cpy;
-				cpy.srcMemoryType = CU_MEMORYTYPE_DEVICE,
-				cpy.dstMemoryType = CU_MEMORYTYPE_HOST,
-				cpy.srcDevice = (CUdeviceptr)outFrame->data[i],
-				cpy.dstHost = sw_frame->data[i],
-				cpy.srcPitch = outFrame->linesize[i],
-				cpy.dstPitch = sw_frame->linesize[i],
-				cpy.WidthInBytes = FFMIN(outFrame->linesize[i], sw_frame->linesize[i]),
-				cpy.Height = src->height >> (i ? priv->shift_height : 0),
-
-				err = cu->cuMemcpy2DAsync(&cpy, device_hwctx->stream);
-				if (err != CUDA_SUCCESS) {
-					av_log(ctx, AV_LOG_ERROR, "Error transferring the data from the CUDA frame\n");
-					return AVERROR_UNKNOWN;
-				}
-			}
-			*/
-			
-			//AVHWFramesContext* test = (AVHWFramesContext*)outFrame->hw_frames_ctx->data;
-			//CUcontext *device_hwctx = (CUcontext *)test->device_ctx->hwctx;
-			//cuCtxPushCurrent(*device_hwctx);
-			change_pixels(outFrame->data[0], outFrame->data[1]);
-
+		
 			if (outFrame->format == AV_PIX_FMT_CUDA) {
 				/* retrieve data from GPU to CPU */
 				if ((sts = av_hwframe_transfer_data(sw_frame, outFrame, 0)) < 0) {
@@ -266,7 +243,24 @@ repeat:
 				av_frame_unref(sw_frame);
 				goto end;
 			}
-			SaveAvFrame(sw_frame);
+			SaveNV12(sw_frame);
+
+			/*need to allocate RGB output frame and dump it via own kernel*/
+			AVHWFramesContext* test = (AVHWFramesContext*)outFrame->hw_frames_ctx->data;
+			AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)test->device_ctx->hwctx;
+			AVFrame* rgbFrame = av_frame_alloc();
+			rgbFrame->width = outFrame->width;
+			rgbFrame->height = outFrame->height;
+			rgbFrame->format = AV_PIX_FMT_RGB24;
+			sts = av_frame_get_buffer(rgbFrame, 32);
+			if (sts < 0)
+				goto end;
+			
+			//cuCtxPushCurrent(*device_hwctx);
+			change_pixels(outFrame, rgbFrame);
+			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
+			//because we must wait until operation competion
+			sts = cuStreamSynchronize(device_hwctx->stream);
 		}
 
 		av_frame_free(&outFrame);
