@@ -1,4 +1,5 @@
 #include <libavutil/frame.h>
+#include "cuda.h"
 
 __global__ void kernel(int *a)
 {
@@ -21,7 +22,7 @@ void kernel_wrapper(int *a)
 }
 
 
-__global__ void change(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height) {
+void change(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB) {
 	/*
 		R = 1.164(Y - 16) + 1.596(V - 128)
 		B = 1.164(Y - 16)                   + 2.018(U - 128)
@@ -31,34 +32,89 @@ __global__ void change(unsigned char* Y, unsigned char* UV, unsigned char* RGB, 
 	in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	*/
 	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
+		for (int j = 0, jRGB = 0; j < width; j++, jRGB += 3) {
 			int UVRow = i / 2;
 			int UVCol = j % 2 == 0 ? j : j - 1;
-			int UIndex = UVRow * width + UVCol;
-			int VIndex = UVRow * width + UIndex + 1;
+			int UIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol;
+			int VIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol + 1;
 			unsigned char U = UV[UIndex];
 			unsigned char V = UV[VIndex];
-			int index = j + i * width;
-			unsigned char YVal = Y[index];
-			unsigned char RVal = 1.164 * (YVal - 16) + 1.596*(V - 128);
-			unsigned char GVal = 1.164 * (YVal - 16) + 2.018*(U - 128);
-			unsigned char BVal = 1.164 * (YVal - 16) - 0.813*(V - 128) - 0.391*(U - 128);
-			RGB[index + 0 /*R*/] = RVal;
-			RGB[index + 1 /*G*/] = GVal;
-			RGB[index + 2 /*B*/] = BVal;
+			int indexNV12 = j + i * pitchNV12; /*indexNV12 and indexRGB with/without pitch*/
+			unsigned char YVal = Y[indexNV12];
+			int RVal = 1.164f*(YVal - 16) + 1.596f*(V - 128);
+			if (RVal > 255)
+				RVal = 255;
+			if (RVal < 0)
+				RVal = 0;
+			int BVal = 1.164f*(YVal - 16) + 2.018f*(U - 128);
+			if (BVal > 255)
+				BVal = 255;
+			if (BVal < 0)
+				BVal = 0;
+			int GVal = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
+			if (GVal > 255)
+				GVal = 255;
+			if (GVal < 0)
+				GVal = 0;
+			RGB[jRGB + i * pitchRGB + 0/*R*/] = (unsigned char)RVal;
+			RGB[jRGB + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
+			RGB[jRGB + i * pitchRGB + 2/*B*/] = (unsigned char)BVal;
 		}
 	}
 }
 
-void change_pixels(AVFrame* src, AVFrame* dst) {
+__global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB) {
+	/*
+		R = 1.164(Y - 16) + 1.596(V - 128)
+		B = 1.164(Y - 16)                   + 2.018(U - 128)
+		G = 1.164(Y - 16) - 0.813(V - 128)  - 0.391(U - 128)
+	*/
+	/*
+	in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
+	*/
+	for (int i = 0; i < height; i++) {
+		for (int j = 0, jRGB = 0; j < width; j++, jRGB += 3) {
+			int UVRow = i / 2;
+			int UVCol = j % 2 == 0 ? j : j - 1;
+			int UIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol;
+			int VIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol + 1;
+			unsigned char U = UV[UIndex];
+			unsigned char V = UV[VIndex];
+			int indexNV12 = j + i * pitchNV12; /*indexNV12 and indexRGB with/without pitch*/
+			unsigned char YVal = Y[indexNV12];
+			int RVal = 1.164f*(YVal - 16) + 1.596f*(V - 128);
+			if (RVal > 255)
+				RVal = 255;
+			if (RVal < 0)
+				RVal = 0;
+			int BVal = 1.164f*(YVal - 16) + 2.018f*(U - 128);
+			if (BVal > 255)
+				BVal = 255;
+			if (BVal < 0)
+				BVal = 0;
+			int GVal = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
+			if (GVal > 255)
+				GVal = 255;
+			if (GVal < 0)
+				GVal = 0;
+			RGB[jRGB + i * pitchRGB + 0/*R*/] = (unsigned char)RVal;
+			RGB[jRGB + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
+			RGB[jRGB + i * pitchRGB + 2/*B*/] = (unsigned char)BVal;
+		}
+	}
+}
+
+
+void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
 	int width = dst->width;
 	int height = dst->height;
+	//change(src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
 	unsigned char* RGB;
-	cudaMalloc(&RGB, width * height * sizeof(unsigned char));
-	cudaMemcpy(RGB, dst->data[0], width * height * sizeof(unsigned char), cudaMemcpyHostToDevice);
-	change << <1, 1 >> > (src->data[0], src->data[1], RGB, width, height);
-	cudaMemcpy(dst->data[0], RGB, width * height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	cudaError err = cudaMalloc(&RGB, width * height * 3 * sizeof(unsigned char));
+	change_gpu << <2500, 128, 128 * sizeof(unsigned int), stream >> > (src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
+	err = cudaMemcpy(dst->data[0], RGB, width * height * 3 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	printf("stop");
 }

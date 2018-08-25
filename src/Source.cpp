@@ -20,9 +20,10 @@ extern "C"
 }
 
 void kernel_wrapper(int *a);
-void change_pixels(AVFrame* src, AVFrame* dst);
+void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream);
 
-FILE *fDump;
+FILE* fDump;
+FILE* fDumpRGB;
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 	const enum AVPixelFormat *pix_fmts)
 {
@@ -40,6 +41,8 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 
 void SaveNV12(AVFrame *avFrame)
 {
+
+
 	uint32_t pitchY = avFrame->linesize[0];
 	uint32_t pitchUV = avFrame->linesize[1];
 
@@ -58,11 +61,23 @@ void SaveNV12(AVFrame *avFrame)
 	fflush(fDump);
 }
 
+void SaveRGB24(AVFrame *avFrame)
+{
+	uint8_t *RGB = avFrame->data[0];
+	for (uint32_t i = 0; i < avFrame->height; i++) {
+		fwrite(RGB, avFrame->width * 3, 1, fDumpRGB);
+		RGB += avFrame->linesize[0];
+	}
+	fflush(fDumpRGB);
+
+}
+
 int main()
 {
 	int a = 9;
 	kernel_wrapper(&a);
 	printf("%d\n", a);
+	fDumpRGB = fopen("rawRGB.yuv", "wb+");
 	fDump = fopen("raw.yuv", "wb+");
 	//FILE* output_file = fopen("raw.yuv", "w+");
 	//no need to allocate if we don't want to add some callbacks or information (e.g. WxH) for raw input
@@ -256,11 +271,13 @@ repeat:
 			if (sts < 0)
 				goto end;
 			
-			//cuCtxPushCurrent(*device_hwctx);
-			change_pixels(outFrame, rgbFrame);
+			cuCtxPushCurrent(device_hwctx->cuda_ctx);
+			change_pixels(outFrame, rgbFrame, device_hwctx->stream);
+			//change_pixels(sw_frame, rgbFrame);
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);
+			SaveRGB24(rgbFrame);
 		}
 
 		av_frame_free(&outFrame);
