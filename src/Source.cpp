@@ -271,9 +271,7 @@ repeat:
 			if (sts < 0)
 				goto end;
 			
-			cuCtxPushCurrent(device_hwctx->cuda_ctx);
 			change_pixels(outFrame, rgbFrame, device_hwctx->stream);
-			//change_pixels(sw_frame, rgbFrame);
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);

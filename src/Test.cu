@@ -114,7 +114,6 @@ void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	//change(src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
 	unsigned char* RGB;
 	cudaError err = cudaMalloc(&RGB, width * height * 3 * sizeof(unsigned char));
-	change_gpu << <2500, 128, 128 * sizeof(unsigned int), stream >> > (src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
+	change_gpu << <16,8 >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
 	err = cudaMemcpy(dst->data[0], RGB, width * height * 3 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-	printf("stop");
 }
