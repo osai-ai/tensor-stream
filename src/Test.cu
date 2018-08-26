@@ -3,20 +3,22 @@
 
 __global__ void kernel(int *a)
 {
-	*a = *a * 5;
-	*a = *a + 2;
+	//unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	//unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+	//printf("i: %d, j: %d\n", i, j);
 }
 
 void kernel_wrapper(int *a)
 {
 	int* d_a;
-
 	cudaMalloc(&d_a, sizeof(int));
 
 	cudaMemcpy(d_a, a, sizeof(int), cudaMemcpyHostToDevice);
-
+	//assume we have 8x16 image
+	dim3 threadsPerBlock(8, 16);
+	//dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
 	// Perform SAXPY on 1M elements
-	kernel <<<1,1>> > (d_a);
+	kernel <<<1,threadsPerBlock>> > (d_a);
 
 	cudaMemcpy(a, d_a, sizeof(int), cudaMemcpyDeviceToHost);
 }
@@ -109,13 +111,15 @@ void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
+	cudaDeviceProp prop;
+	cudaGetDeviceProperties(&prop, 0);
 	int width = dst->width;
 	int height = dst->height;
 	//change(src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
 	unsigned char* RGB;
 	cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
 	//need to execute for width and height
-	dim3 threadsPerBlock(32, 32);
+	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
 	dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
 	change_gpu << <numBlocks, threadsPerBlock, 0, stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
 	err = cudaMemcpy(dst->data[0], RGB, dst->linesize[0] * dst->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
