@@ -271,16 +271,22 @@ repeat:
 			if (sts < 0)
 				goto end;
 			
+			cuCtxPushCurrent(device_hwctx->cuda_ctx); //TODO: why can't take ffmpeg memory without it?
 			change_pixels(outFrame, rgbFrame, device_hwctx->stream);
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);
+			cuCtxPopCurrent(&device_hwctx->cuda_ctx);
 			SaveRGB24(rgbFrame);
 		}
 
 		av_frame_free(&outFrame);
 		av_packet_unref(&pkt);
 	}
+	printf("Read frame returned no package\n");
+	char err[256];
+	printf("%s\n", av_make_error_string(err, 256, sts));
+
 	if (sts < 0) {
 		char err[256];
 		printf("%s\n", av_make_error_string(err, 256, sts));
