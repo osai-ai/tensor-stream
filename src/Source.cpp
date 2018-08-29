@@ -6,7 +6,20 @@
 // basic file operations
 #include <iostream>
 #include <fstream>
-#include "cuda.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
+#ifdef _DEBUG
+#undef _DEBUG
+#include <torch/torch.h>
+#include <THC/THC.h>
+#include <ATen/ATen.h>
+#define _DEBUG
+#else
+#include <torch/torch.h>
+#include <THC/THC.h>
+#include <ATen/ATen.h>
+#endif
+
 
 extern "C"
 {
@@ -93,14 +106,14 @@ int main()
 	int sts = avformat_open_input(&ifmt_ctx, in_filename, 0, 0);
 	if (sts < 0) {
 		printf("Could not open input file.");
-		goto end;
+		//goto end;
 	}
 
 	sts = avformat_find_stream_info(ifmt_ctx, 0);
 	//if no header, information will be obtained by these call by decoding several frames
 	if (sts < 0) {
 		printf("Failed to retrieve input stream information");
-		goto end;
+		//goto end;
 	}
 
 	int videoindex = -1;
@@ -158,7 +171,6 @@ int main()
 		fprintf(stderr, "Failed to open codec \n");
 		return -1;
 	}
-
 #ifdef DUMP_DEMUX 
 	//Output
 	avformat_alloc_output_context2(&ofmt_ctx_v, NULL, NULL, out_filename_v);
@@ -188,6 +200,7 @@ int main()
 		goto end;
 	}
 #endif
+
 	//current frame index
 	int frame_index = 0;
 	/*
