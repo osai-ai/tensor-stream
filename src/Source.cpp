@@ -33,7 +33,8 @@ extern "C"
 }
 
 void kernel_wrapper(int *a);
-void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream);
+unsigned char* change_pixels(AVFrame* src, AVFrame* dst, unsigned char* t,  CUstream stream);
+void test_python(float* test);
 
 FILE* fDump;
 FILE* fDumpRGB;
@@ -85,9 +86,20 @@ void SaveRGB24(AVFrame *avFrame)
 
 }
 
-int main()
-{
+
+at::Tensor load() {
+	//CUdeviceptr data_done;
+	//cudaError_t err2 = cudaMalloc(reinterpret_cast<void**>(&data_done), 16 * sizeof(float));
+	float *device_array = 0;
+	cudaMalloc((void**)&device_array, 1088*608*sizeof(unsigned char));
+	test_python(device_array);
+	auto f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(device_array), { 1088 * 608 });
+	return f;
+}
+
+at::Tensor start(int max_frames) {
 	int a = 9;
+	at::Tensor f;
 	kernel_wrapper(&a);
 	printf("%d\n", a);
 	fDumpRGB = fopen("rawRGB.yuv", "wb+");
@@ -121,7 +133,6 @@ int main()
 	sts = av_find_best_stream(ifmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &pVideoCodec, 0);
 	if (sts < 0) {
 		fprintf(stderr, "Cannot find a video stream in the input file\n");
-		return -1;
 	}
 	videoindex = sts;
 	enum AVHWDeviceType type = av_hwdevice_find_type_by_name("cuda");
@@ -152,24 +163,24 @@ int main()
 	*/
 
 	AVCodecContext * decoder_ctx;
-	if (!(decoder_ctx = avcodec_alloc_context3(pVideoCodec)))
-		return AVERROR(ENOMEM);
+	if (!(decoder_ctx = avcodec_alloc_context3(pVideoCodec))) {
+		printf("error");
+	}
+		
 
 	if (avcodec_parameters_to_context(decoder_ctx, ifmt_ctx->streams[videoindex]->codecpar) < 0)
-		return -1;
+		printf("error");
 
 	//decoder_ctx->get_format = get_hw_format;
 	AVBufferRef *hw_device_ctx = NULL;
 	if ((sts = av_hwdevice_ctx_create(&hw_device_ctx, type,
 		NULL, NULL, 0)) < 0) {
 		fprintf(stderr, "Failed to create specified HW device.\n");
-		return sts;
 	}
 	decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
 
 	if ((sts = avcodec_open2(decoder_ctx, pVideoCodec, NULL)) < 0) {
 		fprintf(stderr, "Failed to open codec \n");
-		return -1;
 	}
 #ifdef DUMP_DEMUX 
 	//Output
@@ -212,13 +223,14 @@ repeat:
 #ifdef DUMP_DEMUX
 	AVStream *out_stream;
 #endif
-	while (sts = av_read_frame(ifmt_ctx, &pkt) >= 0) {
+	while (sts = av_read_frame(ifmt_ctx, &pkt) >= 0 && max_frames > frame_index) {
 		/*
 		Get an AVPacket containing encoded data for one AVStream, identified by AVPacket.stream_index (Return the next frame of a audio/video stream)
 		This function returns what is stored in the file, and does not validate that what is there are valid frames for the decoder.
 		It will split what is stored in the file into frames and return one for each call.
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
+		frame_index++;
 		if (pkt.stream_index != videoindex) {
 			continue;
 		}
@@ -257,7 +269,7 @@ repeat:
 				<< "; width: " << outFrame->width << "; height: " << outFrame->height << "; pict_type: " << outFrame->pict_type << std::endl;
 			AVFrame* sw_frame = av_frame_alloc();
 			sw_frame->format = AV_PIX_FMT_NV12;
-		
+
 			if (outFrame->format == AV_PIX_FMT_CUDA) {
 				/* retrieve data from GPU to CPU */
 				if ((sts = av_hwframe_transfer_data(sw_frame, outFrame, 0)) < 0) {
@@ -283,18 +295,26 @@ repeat:
 			sts = av_frame_get_buffer(rgbFrame, 32);
 			if (sts < 0)
 				goto end;
-			
+			unsigned char* RGB;
+			cudaError err = cudaMalloc(&RGB, rgbFrame->linesize[0] * rgbFrame->height * sizeof(unsigned char));
 			cuCtxPushCurrent(device_hwctx->cuda_ctx); //TODO: why can't take ffmpeg memory without it?
-			change_pixels(outFrame, rgbFrame, device_hwctx->stream);
+			change_pixels(outFrame, rgbFrame, RGB, device_hwctx->stream);
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);
 			cuCtxPopCurrent(&device_hwctx->cuda_ctx);
 			SaveRGB24(rgbFrame);
+			if (frame_index > 30) {
+				f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
+				return f;
+			}
+			cudaFree(RGB);
 		}
 
 		av_frame_free(&outFrame);
 		av_packet_unref(&pkt);
+
+		frame_index++;
 	}
 	printf("Read frame returned no package\n");
 	char err[256];
@@ -324,5 +344,15 @@ end:
 	}
 	fclose(output_file);
 #endif
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+	m.def("load", &load, "load data");
+	m.def("get", &start, "get data");
+}
+
+int main()
+{
+	start(60);
 	return 0;
 }

@@ -107,7 +107,7 @@ __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* R
 }
 
 
-void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
+unsigned char* change_pixels(AVFrame* src, AVFrame* dst, unsigned char* RGB, CUstream stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -116,12 +116,23 @@ void change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	int width = dst->width;
 	int height = dst->height;
 	//change(src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
-	unsigned char* RGB;
-	cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
+	//cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
 	dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
 	change_gpu << <numBlocks, threadsPerBlock, 0, stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
-	err = cudaMemcpy(dst->data[0], RGB, dst->linesize[0] * dst->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	cudaMemcpy(dst->data[0], RGB, dst->linesize[0] * dst->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
+	return RGB;
+}
+
+__global__ void test_kernel(float* test) {
+	for (int j = 0; j < 30; j++)
+		for (int i = 1; i < 16000; i++) {
+			test[i] = i + test[i-1];
+		}
+}
+
+void test_python(float* test) {
+	test_kernel << <1, 1 >> > (test);
 }

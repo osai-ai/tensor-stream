@@ -1,19 +1,43 @@
-from setuptools import setup
+from setuptools import setup, Extension
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+import torch
+
+include_path = []
+include_path = torch.utils.cpp_extension.include_paths(cuda=True)
+include_path += ["C:\\Users\\Home\\Desktop\\VideoReader\\external\\ffmpeg\\include"]
+
+library_path = torch.utils.cpp_extension.library_paths(cuda=True)
+library_path += ["C:\\Users\\Home\\Desktop\\VideoReader\\external\\ffmpeg\\bin\\"]
+library = ["cudart"]
+library += ["cuda"]
+library += ["cudadevrt"]
+library += ["cudart_static"]
+library += ["caffe2"]
+library += ["torch"]
+library += ["caffe2_gpu"]
+library += ["_C"]
+library +=  ["avcodec"]
+library += ["avdevice"]
+library += ["avfilter"]
+library += ["avformat"]
+library += ["avutil"]
+library += ["swresample"]
+library += ["swscale"]
 
 setup(
-    name='Parser',
+    name='Source',
     ext_modules=[
-         CUDAExtension(
-        	name='Parser', 
-        	sources=['Parser.cpp'],
-        	#extra_compile_args={'cxx': ['-IC:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v9.0\\include', 
-        	#							'/LIBPATH:C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v9.0\\lib\\x64',
-        	#							'/link cuda.lib',
-        	#							'/link python36.lib',
-        	#							'/link _C.cp36-win_amd64.lib',
-        	#							'/link _nvrtc.cp36-win_amd64.lib']}
-        								)
+    	Extension(
+   			name='Source',
+   			sources=["Source.cpp", "Test.cu"],
+   			include_dirs=include_path,
+   			library_dirs=library_path,
+   			libraries=library,
+   			language='c++')
+        #CUDAExtension(
+        #	name='Parser', 
+        #	sources=['Parser.cpp'],
+        #			  ),
     ],
     cmdclass={
         'build_ext': BuildExtension
