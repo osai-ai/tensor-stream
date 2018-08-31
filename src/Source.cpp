@@ -33,11 +33,12 @@ extern "C"
 }
 
 void kernel_wrapper(int *a);
-unsigned char* change_pixels(AVFrame* src, AVFrame* dst, unsigned char* t,  CUstream stream);
+unsigned char* change_pixels(AVFrame* src, AVFrame* dst,  CUstream stream);
 void test_python(float* test);
 
 FILE* fDump;
 FILE* fDumpRGB;
+unsigned char* RGB;
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 	const enum AVPixelFormat *pix_fmts)
 {
@@ -90,18 +91,16 @@ void SaveRGB24(AVFrame *avFrame)
 at::Tensor load() {
 	//CUdeviceptr data_done;
 	//cudaError_t err2 = cudaMalloc(reinterpret_cast<void**>(&data_done), 16 * sizeof(float));
-	float *device_array = 0;
-	cudaMalloc((void**)&device_array, 1088*608*sizeof(unsigned char));
-	test_python(device_array);
-	auto f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(device_array), { 1088 * 608 });
+	at::Tensor f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
 	return f;
 }
 
-at::Tensor start(int max_frames) {
-	int a = 9;
-	at::Tensor f;
-	kernel_wrapper(&a);
-	printf("%d\n", a);
+void start(int max_frames) {
+	//int a = 9;
+	//kernel_wrapper(&a);
+	//printf("%d\n", a);
+	//TODO: find better way to init Aten/Torch CUDA to avoid delays during memory sharing
+	//at::Tensor gt_target = at::empty(torch::CUDA(at::kByte), { 1 });
 	fDumpRGB = fopen("rawRGB.yuv", "wb+");
 	fDump = fopen("raw.yuv", "wb+");
 	//FILE* output_file = fopen("raw.yuv", "w+");
@@ -173,12 +172,22 @@ at::Tensor start(int max_frames) {
 
 	//decoder_ctx->get_format = get_hw_format;
 	AVBufferRef *hw_device_ctx = NULL;
+	//TODO: disable HW context creation AT ALL. For now we create it and rewrite by runtime
 	if ((sts = av_hwdevice_ctx_create(&hw_device_ctx, type,
 		NULL, NULL, 0)) < 0) {
 		fprintf(stderr, "Failed to create specified HW device.\n");
 	}
 	decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
 
+	AVHWDeviceContext* tmp = (AVHWDeviceContext*)hw_device_ctx->data;
+	AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)tmp->hwctx;
+	unsigned int version;
+	auto cu_err = cuCtxGetApiVersion(device_hwctx->cuda_ctx, &version);
+	//cuCtxPushCurrent(device_hwctx->cuda_ctx);
+	cudaFree(0);
+	CUcontext test_cu;
+	cu_err = cuCtxGetCurrent(&test_cu);
+	device_hwctx->cuda_ctx = test_cu;
 	if ((sts = avcodec_open2(decoder_ctx, pVideoCodec, NULL)) < 0) {
 		fprintf(stderr, "Failed to open codec \n");
 	}
@@ -230,7 +239,7 @@ repeat:
 		It will split what is stored in the file into frames and return one for each call.
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
-		frame_index++;
+		cu_err = cuCtxGetCurrent(&test_cu);
 		if (pkt.stream_index != videoindex) {
 			continue;
 		}
@@ -251,27 +260,31 @@ repeat:
 #endif
 		//TODO: avctx->active_thread_type & FF_THREAD_FRAME
 		AVFrame* outFrame = av_frame_alloc();
+		cu_err = cuCtxGetCurrent(&test_cu);
 		int sts = avcodec_send_packet(decoder_ctx, &pkt);
 		if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 			char err[256];
 			printf("%s\n", av_make_error_string(err, 256, sts));
 			goto end;
 		}
+		cu_err = cuCtxGetCurrent(&test_cu);
 		while (sts >= 0) {
 			sts = avcodec_receive_frame(decoder_ctx, outFrame);
+			cu_err = cuCtxGetCurrent(&test_cu);
 			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 				char err[256];
 				printf("%s\n", av_make_error_string(err, 256, sts));
 				av_frame_free(&outFrame);
 				goto repeat;
 			}
+			frame_index++;
 			std::cout << "frame: " << decoder_ctx->frame_number << "; pix fmt: " << av_get_pix_fmt_name((AVPixelFormat)outFrame->format)
 				<< "; width: " << outFrame->width << "; height: " << outFrame->height << "; pict_type: " << outFrame->pict_type << std::endl;
 			AVFrame* sw_frame = av_frame_alloc();
+			cu_err = cuCtxGetCurrent(&test_cu);
 			sw_frame->format = AV_PIX_FMT_NV12;
 
 			if (outFrame->format == AV_PIX_FMT_CUDA) {
-				/* retrieve data from GPU to CPU */
 				if ((sts = av_hwframe_transfer_data(sw_frame, outFrame, 0)) < 0) {
 					fprintf(stderr, "Error transferring the data to system memory\n");
 					goto end;
@@ -286,8 +299,6 @@ repeat:
 			SaveNV12(sw_frame);
 
 			/*need to allocate RGB output frame and dump it via own kernel*/
-			AVHWFramesContext* test = (AVHWFramesContext*)outFrame->hw_frames_ctx->data;
-			AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)test->device_ctx->hwctx;
 			AVFrame* rgbFrame = av_frame_alloc();
 			rgbFrame->width = outFrame->width;
 			rgbFrame->height = outFrame->height;
@@ -295,20 +306,20 @@ repeat:
 			sts = av_frame_get_buffer(rgbFrame, 32);
 			if (sts < 0)
 				goto end;
-			unsigned char* RGB;
-			cudaError err = cudaMalloc(&RGB, rgbFrame->linesize[0] * rgbFrame->height * sizeof(unsigned char));
-			cuCtxPushCurrent(device_hwctx->cuda_ctx); //TODO: why can't take ffmpeg memory without it?
-			change_pixels(outFrame, rgbFrame, RGB, device_hwctx->stream);
+			cu_err = cuCtxGetCurrent(&test_cu);
+			//cuCtxPushCurrent(device_hwctx->cuda_ctx); //TODO: why can't take ffmpeg memory without it?
+			cudaPointerAttributes attrib;
+			cudaPointerAttributes attrib2;
+			cu_err = cuCtxGetCurrent(&test_cu);
+			cudaFree(RGB);
+			RGB = change_pixels(outFrame, rgbFrame, device_hwctx->stream);
+			cu_err = cuCtxGetCurrent(&test_cu);
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);
-			cuCtxPopCurrent(&device_hwctx->cuda_ctx);
+			cu_err = cuCtxGetCurrent(&test_cu);
+			//cuCtxPopCurrent(&device_hwctx->cuda_ctx);
 			SaveRGB24(rgbFrame);
-			if (frame_index > 30) {
-				f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
-				return f;
-			}
-			cudaFree(RGB);
 		}
 
 		av_frame_free(&outFrame);
@@ -354,5 +365,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 int main()
 {
 	start(60);
+	load();
 	return 0;
 }

@@ -107,7 +107,7 @@ __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* R
 }
 
 
-unsigned char* change_pixels(AVFrame* src, AVFrame* dst, unsigned char* RGB, CUstream stream) {
+unsigned char* change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -116,7 +116,8 @@ unsigned char* change_pixels(AVFrame* src, AVFrame* dst, unsigned char* RGB, CUs
 	int width = dst->width;
 	int height = dst->height;
 	//change(src->data[0], src->data[1], dst->data[0], width, height, src->linesize[0], dst->linesize[0]);
-	//cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
+	unsigned char* RGB;
+	cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
 	dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
