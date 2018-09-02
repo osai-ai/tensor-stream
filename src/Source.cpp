@@ -87,20 +87,34 @@ void SaveRGB24(AVFrame *avFrame)
 
 }
 
+void printContext() {
+	CUcontext test_cu;
+	auto cu_err = cuCtxGetCurrent(&test_cu);
+	printf("Context %x\n", test_cu);
+}
+
 
 at::Tensor load() {
 	//CUdeviceptr data_done;
 	//cudaError_t err2 = cudaMalloc(reinterpret_cast<void**>(&data_done), 16 * sizeof(float));
+	printContext();
 	at::Tensor f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
 	return f;
+}
+
+int device_create(AVHWDeviceContext *ctx, const char *device,
+	AVDictionary *opts, int flags) {
+	printf("own");
+	return 0;
 }
 
 void start(int max_frames) {
 	//int a = 9;
 	//kernel_wrapper(&a);
 	//printf("%d\n", a);
-	//TODO: find better way to init Aten/Torch CUDA to avoid delays during memory sharing
-	//at::Tensor gt_target = at::empty(torch::CUDA(at::kByte), { 1 });
+	//TODO: find better way to init Aten/Torch CUDA to avoid delays during memory sharing (avoid lazy init)
+	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
+	printContext();
 	fDumpRGB = fopen("rawRGB.yuv", "wb+");
 	fDump = fopen("raw.yuv", "wb+");
 	//FILE* output_file = fopen("raw.yuv", "w+");
@@ -112,7 +126,7 @@ void start(int max_frames) {
 	const char *out_filename_v = "sample.h264";
 #endif
 	av_register_all();
-
+	printContext();
 	//Open input file and export information from file header (if exists) to AVFormatContext variable
 	int sts = avformat_open_input(&ifmt_ctx, in_filename, 0, 0);
 	if (sts < 0) {
@@ -126,7 +140,7 @@ void start(int max_frames) {
 		printf("Failed to retrieve input stream information");
 		//goto end;
 	}
-
+	printContext();
 	int videoindex = -1;
 	AVCodec * pVideoCodec;
 	sts = av_find_best_stream(ifmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &pVideoCodec, 0);
@@ -170,24 +184,57 @@ void start(int max_frames) {
 	if (avcodec_parameters_to_context(decoder_ctx, ifmt_ctx->streams[videoindex]->codecpar) < 0)
 		printf("error");
 
+	AVBufferRef* device_ref = av_hwdevice_ctx_alloc(type);
+	AVHWDeviceContext* device_ctx = (AVHWDeviceContext*)device_ref->data;
+
+/*	auto err = cuInit(0);
+	if (err != CUDA_SUCCESS) {
+		printf("error");
+	}
+	CUdevice cu_device;
+	int device_idx = 0;
+	err = cuDeviceGet(&cu_device, device_idx);
+	if (err != CUDA_SUCCESS) {
+		printf("error");
+	}
+	AVCUDADeviceContext *device_hwctx = (AVCUDADeviceContext *) device_ctx->hwctx;
+	err = cuCtxCreate(&device_hwctx->cuda_ctx, CU_CTX_SCHED_BLOCKING_SYNC, cu_device);
+	if (err != CUDA_SUCCESS) {
+		printf("error");
+	}
+*/
+	AVCUDADeviceContext *device_hwctx = (AVCUDADeviceContext *)device_ctx->hwctx;
+//	cudaFree(0);
+	auto cu_err = cuCtxGetCurrent(&device_hwctx->cuda_ctx);
+	auto ret = av_hwdevice_ctx_init(device_ref);
+	if (ret < 0)
+		printf("error");
+
+	/* deinit
+	av_buffer_unref(&device_ref);
+	*pdevice_ref = NULL;
+	*/
+
+
+
 	//decoder_ctx->get_format = get_hw_format;
-	AVBufferRef *hw_device_ctx = NULL;
+	/*AVBufferRef *hw_device_ctx = NULL;
 	//TODO: disable HW context creation AT ALL. For now we create it and rewrite by runtime
 	if ((sts = av_hwdevice_ctx_create(&hw_device_ctx, type,
 		NULL, NULL, 0)) < 0) {
 		fprintf(stderr, "Failed to create specified HW device.\n");
 	}
-	decoder_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+	*/
+	decoder_ctx->hw_device_ctx = av_buffer_ref(device_ref);
 
-	AVHWDeviceContext* tmp = (AVHWDeviceContext*)hw_device_ctx->data;
-	AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)tmp->hwctx;
+	//AVHWDeviceContext* tmp = (AVHWDeviceContext*)hw_device_ctx->data;
+	//AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)tmp->hwctx;
 	unsigned int version;
-	auto cu_err = cuCtxGetApiVersion(device_hwctx->cuda_ctx, &version);
+	cu_err = cuCtxGetApiVersion(device_hwctx->cuda_ctx, &version);
+	printContext();
 	//cuCtxPushCurrent(device_hwctx->cuda_ctx);
-	cudaFree(0);
-	CUcontext test_cu;
-	cu_err = cuCtxGetCurrent(&test_cu);
-	device_hwctx->cuda_ctx = test_cu;
+	printContext();
+//	device_hwctx->cuda_ctx = test_cu;
 	if ((sts = avcodec_open2(decoder_ctx, pVideoCodec, NULL)) < 0) {
 		fprintf(stderr, "Failed to open codec \n");
 	}
@@ -239,7 +286,7 @@ repeat:
 		It will split what is stored in the file into frames and return one for each call.
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
-		cu_err = cuCtxGetCurrent(&test_cu);
+		printContext();
 		if (pkt.stream_index != videoindex) {
 			continue;
 		}
@@ -260,17 +307,17 @@ repeat:
 #endif
 		//TODO: avctx->active_thread_type & FF_THREAD_FRAME
 		AVFrame* outFrame = av_frame_alloc();
-		cu_err = cuCtxGetCurrent(&test_cu);
+		printContext();
 		int sts = avcodec_send_packet(decoder_ctx, &pkt);
 		if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 			char err[256];
 			printf("%s\n", av_make_error_string(err, 256, sts));
 			goto end;
 		}
-		cu_err = cuCtxGetCurrent(&test_cu);
+		printContext();
 		while (sts >= 0) {
 			sts = avcodec_receive_frame(decoder_ctx, outFrame);
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 				char err[256];
 				printf("%s\n", av_make_error_string(err, 256, sts));
@@ -281,7 +328,7 @@ repeat:
 			std::cout << "frame: " << decoder_ctx->frame_number << "; pix fmt: " << av_get_pix_fmt_name((AVPixelFormat)outFrame->format)
 				<< "; width: " << outFrame->width << "; height: " << outFrame->height << "; pict_type: " << outFrame->pict_type << std::endl;
 			AVFrame* sw_frame = av_frame_alloc();
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			sw_frame->format = AV_PIX_FMT_NV12;
 
 			if (outFrame->format == AV_PIX_FMT_CUDA) {
@@ -306,18 +353,18 @@ repeat:
 			sts = av_frame_get_buffer(rgbFrame, 32);
 			if (sts < 0)
 				goto end;
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			//cuCtxPushCurrent(device_hwctx->cuda_ctx); //TODO: why can't take ffmpeg memory without it?
 			cudaPointerAttributes attrib;
 			cudaPointerAttributes attrib2;
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			cudaFree(RGB);
 			RGB = change_pixels(outFrame, rgbFrame, device_hwctx->stream);
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			//we should use the same stream as ffmpeg for copying data from vid to sys due to conflicts
 			//because we must wait until operation competion
 			sts = cuStreamSynchronize(device_hwctx->stream);
-			cu_err = cuCtxGetCurrent(&test_cu);
+			printContext();
 			//cuCtxPopCurrent(&device_hwctx->cuda_ctx);
 			SaveRGB24(rgbFrame);
 		}
@@ -328,12 +375,12 @@ repeat:
 		frame_index++;
 	}
 	printf("Read frame returned no package\n");
-	char err[256];
-	printf("%s\n", av_make_error_string(err, 256, sts));
+	char error[256];
+	printf("%s\n", av_make_error_string(error, 256, sts));
 
 	if (sts < 0) {
-		char err[256];
-		printf("%s\n", av_make_error_string(err, 256, sts));
+		char error[256];
+		printf("%s\n", av_make_error_string(error, 256, sts));
 		goto end;
 	}
 #ifdef DUMP_DEMUX
