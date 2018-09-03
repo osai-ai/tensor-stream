@@ -102,12 +102,6 @@ at::Tensor load() {
 	return f;
 }
 
-int device_create(AVHWDeviceContext *ctx, const char *device,
-	AVDictionary *opts, int flags) {
-	printf("own");
-	return 0;
-}
-
 void start(int max_frames) {
 	//int a = 9;
 	//kernel_wrapper(&a);
