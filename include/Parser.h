@@ -50,6 +50,11 @@ public:
 	Close all existing handles, deallocate recources.
 	*/
 	int Close();
+
+	/*
+	Get input format context. Needed for internal interactions.
+	*/
+	AVFormatContext* getFormatContext();
 private:
 	/*
 	State of Parser object it was initialized/reseted with.
@@ -61,9 +66,9 @@ private:
 	std::map<std::string, std::shared_ptr<FILE> > dumpFrame;
 	/*
 	Should be initialized during Init.
-	Buffer which stores read frames and their indexes.
+	Buffer which stores read frames.
 	*/
-	std::vector<std::pair<std::shared_ptr<AVPacket>, unsigned int> > framesBuffer;
+	std::vector<std::shared_ptr<AVPacket> > framesBuffer;
 	/*
 	Index of latest given frame.
 	*/

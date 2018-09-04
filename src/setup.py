@@ -29,7 +29,7 @@ setup(
     ext_modules=[
     	Extension(
    			name='Source',
-   			sources=["Source.cpp", "Test.cu"],
+   			sources=["Source.cpp", "VPP.cu"],
    			include_dirs=include_path,
    			library_dirs=library_path,
    			libraries=library,

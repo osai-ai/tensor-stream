@@ -56,8 +56,6 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 
 void SaveNV12(AVFrame *avFrame)
 {
-
-
 	uint32_t pitchY = avFrame->linesize[0];
 	uint32_t pitchUV = avFrame->linesize[1];
 
@@ -93,6 +91,11 @@ void printContext() {
 	printf("Context %x\n", test_cu);
 }
 
+void test(at::Tensor input) {
+	printContext();
+	float* data = (float*) input.data_ptr();
+	test_python(data);
+}
 
 at::Tensor load() {
 	//CUdeviceptr data_done;
@@ -107,7 +110,8 @@ void start(int max_frames) {
 	//kernel_wrapper(&a);
 	//printf("%d\n", a);
 	//TODO: find better way to init Aten/Torch CUDA to avoid delays during memory sharing (avoid lazy init)
-	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
+	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1100, 1100 });
+	test(gt_target);
 	printContext();
 	fDumpRGB = fopen("rawRGB.yuv", "wb+");
 	fDump = fopen("raw.yuv", "wb+");
@@ -401,6 +405,7 @@ end:
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("load", &load, "load data");
 	m.def("get", &start, "get data");
+	m.def("test", &test, "change");
 }
 
 int main()

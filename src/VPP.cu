@@ -129,8 +129,8 @@ unsigned char* change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 
 __global__ void test_kernel(float* test) {
 	for (int j = 0; j < 30; j++)
-		for (int i = 1; i < 16000; i++) {
-			test[i] = i + test[i-1];
+		for (int i = 1; i < 30; i++) {
+			test[i+j*100] = 25;
 		}
 }
 
