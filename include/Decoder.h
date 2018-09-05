@@ -37,7 +37,7 @@ public:
 	/*
 	Close all existing handles, deallocate recources.
 	*/
-	int Close();
+	void Close();
 private:
 	/*
 	It help understand whether allowed or not return frame. If some frame was reported to current consumer and no any new frames were decoded need to wait.
@@ -51,13 +51,18 @@ private:
 	/*
 	Index of latest decoded frame.
 	*/
-	unsigned int currentFrame;
+	unsigned int currentFrame = 0;
 	/*
-	Pointer to Parser instance.
+	The map with file descriptors for dumping intermediate frames.
 	*/
-	std::shared_ptr<Parser> parser;
+	std::map<std::string, std::shared_ptr<FILE> > dumpFrame;
 	/*
-	FFmpeg internal stuff, decoder context
+	Internal decoder's state
 	*/
-	AVCodecContext * decoder_ctx;
+	DecoderParameters state;
+	/*
+	FFmpeg internal stuff
+	*/
+	AVCodecContext * decoderContext = nullptr;
+	AVBufferRef* deviceReference = nullptr;
 };

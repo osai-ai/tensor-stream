@@ -3,9 +3,10 @@
 #include <vector>
 #include <memory>
 
-/*should it be under extern clause?*/
+extern "C"
+{
 #include <libavformat/avformat.h>
-
+}
 
 /*
 Structure with initialization/reset parameters.
@@ -49,21 +50,18 @@ public:
 	/*
 	Close all existing handles, deallocate recources.
 	*/
-	int Close();
+	void Close();
 
 	/*
 	Get input format context. Needed for internal interactions.
 	*/
 	AVFormatContext* getFormatContext();
+	AVStream* getStreamHandle();
 private:
 	/*
 	State of Parser object it was initialized/reseted with.
 	*/
 	ParserParameters state;
-	/*
-	The map with file descriptors for dumping intermediate frames.
-	*/
-	std::map<std::string, std::shared_ptr<FILE> > dumpFrame;
 	/*
 	Should be initialized during Init.
 	Buffer which stores read frames.
@@ -72,9 +70,21 @@ private:
 	/*
 	Index of latest given frame.
 	*/
-	unsigned int currentFrame;
+	unsigned int currentFrame = 0;
 	/*
 	FFmpeg internal stuff, input file context, contains iterator which allow read frames one by one without pointing to frame's number.
 	*/
-	AVFormatContext *ifmt_ctx;
+	AVFormatContext *formatContext = nullptr;
+	/*
+	Video stream in container. Contains info about codec, etc
+	*/
+	AVStream * videoStream = nullptr;
+	/*
+	Is used only in case of dumping to .bin data
+	*/
+	AVFormatContext *dumpContext = nullptr;
+	/*
+	Position of video in container
+	*/
+	int videoIndex = -1;
 };
