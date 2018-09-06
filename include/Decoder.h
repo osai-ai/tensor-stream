@@ -6,9 +6,13 @@
 Structure with initialization/reset parameters.
 */
 struct DecoderParameters {
-	bool enableDumps = false;
-	unsigned int bufferDeep = 10;
+	DecoderParameters(std::shared_ptr<Parser> _parser = nullptr, bool _enableDumps = false, unsigned int _bufferDeep = 10) :
+		parser(_parser), enableDumps(_enableDumps), bufferDeep(_bufferDeep) {
+
+	}
 	std::shared_ptr<Parser> parser;
+	bool enableDumps;
+	unsigned int bufferDeep;
 };
 
 /*
@@ -16,10 +20,11 @@ The class takes input from reader, decode frames in NV12 format and return frame
 */
 class Decoder {
 public:
+	Decoder();
 	/*
 	Initialize decoder with corresponding parameters. Allocate all neccessary resources.
 	*/
-	int Init(DecoderParameters& input);
+	int Init(DecoderParameters* input);
 
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
@@ -59,7 +64,7 @@ private:
 	/*
 	Internal decoder's state
 	*/
-	DecoderParameters state;
+	DecoderParameters* state = nullptr;
 	/*
 	FFmpeg internal stuff
 	*/

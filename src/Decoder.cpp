@@ -6,12 +6,16 @@ extern "C" {
 	#include <libavutil/hwcontext_cuda.h>
 }
 
-int Decoder::Init(DecoderParameters& input) {
+Decoder::Decoder() {
+
+}
+
+int Decoder::Init(DecoderParameters* input) {
 	state = input;
 	int sts;
 
-	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
-	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
+	decoderContext = avcodec_alloc_context3(state->parser->getStreamHandle()->codec->codec);
+	sts = avcodec_parameters_to_context(decoderContext, state->parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	/*
 	CUDA device initialization
@@ -27,10 +31,10 @@ int Decoder::Init(DecoderParameters& input) {
 	sts = av_hwdevice_ctx_init(deviceReference);
 	CHECK_STATUS(sts);
 	decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
-	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state->parser->getStreamHandle()->codec->codec, NULL);
 	CHECK_STATUS(sts);
 
-	if (state.enableDumps) {
+	if (state->enableDumps) {
 		dumpFrame.insert(std::make_pair(std::string("NV12"), std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"))));
 		dumpFrame.insert(std::make_pair(std::string("RGB"), std::shared_ptr<FILE>(fopen("RGB.yuv", "wb+"))));
 	}

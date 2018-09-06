@@ -19,7 +19,10 @@
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 #endif
-
+#include "memory"
+#include "Parser.h"
+#include "Decoder.h"
+#include "Common.h"
 
 extern "C"
 {
@@ -104,180 +107,27 @@ at::Tensor load() {
 	at::Tensor f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
 	return f;
 }
-
+std::shared_ptr<Parser> parser;
+std::shared_ptr<Decoder> decoder;
 void start(int max_frames) {
-	//int a = 9;
-	//kernel_wrapper(&a);
-	//printf("%d\n", a);
-	//TODO: find better way to init Aten/Torch CUDA to avoid delays during memory sharing (avoid lazy init)
-	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1100, 1100 });
-	test(gt_target);
-	printContext();
-	fDumpRGB = fopen("rawRGB.yuv", "wb+");
-	fDump = fopen("raw.yuv", "wb+");
-	//FILE* output_file = fopen("raw.yuv", "w+");
-	//no need to allocate if we don't want to add some callbacks or information (e.g. WxH) for raw input
-	AVFormatContext *ifmt_ctx = NULL, *ofmt_ctx_v = NULL;
+	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
+	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
+	parser = std::make_shared<Parser>();
+	decoder = std::make_shared<Decoder>();
+	ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" , true };
+	int sts = parser->Init(&parserArgs);
+	DecoderParameters decoderArgs = { parser, true };
 
-	const char *in_filename = "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4";//"rtmp://b.sportlevel.com/relay/pooltop";
-#ifdef DUMP_DEMUX
-	const char *out_filename_v = "sample.h264";
-#endif
-	av_register_all();
-	printContext();
-	//Open input file and export information from file header (if exists) to AVFormatContext variable
-	int sts = avformat_open_input(&ifmt_ctx, in_filename, 0, 0);
-	if (sts < 0) {
-		printf("Could not open input file.");
-		//goto end;
-	}
+	sts = decoder->Init(&decoderArgs);
+	for (int i = 0; i < 500; i ++)
+		sts = parser->Read();
 
-	sts = avformat_find_stream_info(ifmt_ctx, 0);
-	//if no header, information will be obtained by these call by decoding several frames
-	if (sts < 0) {
-		printf("Failed to retrieve input stream information");
-		//goto end;
-	}
-	printContext();
-	int videoindex = -1;
-	AVCodec * pVideoCodec;
-	sts = av_find_best_stream(ifmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &pVideoCodec, 0);
-	if (sts < 0) {
-		fprintf(stderr, "Cannot find a video stream in the input file\n");
-	}
-	videoindex = sts;
-	enum AVHWDeviceType type = av_hwdevice_find_type_by_name("cuda");
-	//AV_PIX_FMT_CUDA
+	auto test = std::make_shared<AVPacket>();
+	parser->Get(test);
+	parser->Get(test);
+	parser->Close();
 
-	/*
-	//List of available HW devices
-	enum AVHWDeviceType type1 = AV_HWDEVICE_TYPE_NONE;
-	while ((type1 = av_hwdevice_iterate_types(type1)) != AV_HWDEVICE_TYPE_NONE)
-	fprintf(stderr, " %s", av_hwdevice_get_type_name(type1));
-	*/
-	/*
-	//Get pix_fmt for approriate HW device
-	static enum AVPixelFormat hw_pix_fmt;
-	for (int i = 0;; i++) {
-	const AVCodecHWConfig *config = avcodec_get_hw_config(pVideoCodec, i);
-	if (!config) {
-	fprintf(stderr, "Decoder %s does not support device type %s.\n",
-	pVideoCodec->name, av_hwdevice_get_type_name(type));
-	return -1;
-	}
-	if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
-	config->device_type == type) {
-	hw_pix_fmt = config->pix_fmt;
-	break;
-	}
-	}
-	*/
-
-	AVCodecContext * decoder_ctx;
-	if (!(decoder_ctx = avcodec_alloc_context3(pVideoCodec))) {
-		printf("error");
-	}
-		
-
-	if (avcodec_parameters_to_context(decoder_ctx, ifmt_ctx->streams[videoindex]->codecpar) < 0)
-		printf("error");
-
-	AVBufferRef* device_ref = av_hwdevice_ctx_alloc(type);
-	AVHWDeviceContext* device_ctx = (AVHWDeviceContext*)device_ref->data;
-
-/*	auto err = cuInit(0);
-	if (err != CUDA_SUCCESS) {
-		printf("error");
-	}
-	CUdevice cu_device;
-	int device_idx = 0;
-	err = cuDeviceGet(&cu_device, device_idx);
-	if (err != CUDA_SUCCESS) {
-		printf("error");
-	}
-	AVCUDADeviceContext *device_hwctx = (AVCUDADeviceContext *) device_ctx->hwctx;
-	err = cuCtxCreate(&device_hwctx->cuda_ctx, CU_CTX_SCHED_BLOCKING_SYNC, cu_device);
-	if (err != CUDA_SUCCESS) {
-		printf("error");
-	}
-*/
-	AVCUDADeviceContext *device_hwctx = (AVCUDADeviceContext *)device_ctx->hwctx;
-//	cudaFree(0);
-	auto cu_err = cuCtxGetCurrent(&device_hwctx->cuda_ctx);
-	auto ret = av_hwdevice_ctx_init(device_ref);
-	if (ret < 0)
-		printf("error");
-
-	/* deinit
-	av_buffer_unref(&device_ref);
-	*pdevice_ref = NULL;
-	*/
-
-
-
-	//decoder_ctx->get_format = get_hw_format;
-	/*AVBufferRef *hw_device_ctx = NULL;
-	//TODO: disable HW context creation AT ALL. For now we create it and rewrite by runtime
-	if ((sts = av_hwdevice_ctx_create(&hw_device_ctx, type,
-		NULL, NULL, 0)) < 0) {
-		fprintf(stderr, "Failed to create specified HW device.\n");
-	}
-	*/
-	decoder_ctx->hw_device_ctx = av_buffer_ref(device_ref);
-
-	//AVHWDeviceContext* tmp = (AVHWDeviceContext*)hw_device_ctx->data;
-	//AVCUDADeviceContext* device_hwctx = (AVCUDADeviceContext *)tmp->hwctx;
-	unsigned int version;
-	cu_err = cuCtxGetApiVersion(device_hwctx->cuda_ctx, &version);
-	printContext();
-	//cuCtxPushCurrent(device_hwctx->cuda_ctx);
-	printContext();
-//	device_hwctx->cuda_ctx = test_cu;
-	if ((sts = avcodec_open2(decoder_ctx, pVideoCodec, NULL)) < 0) {
-		fprintf(stderr, "Failed to open codec \n");
-	}
-#ifdef DUMP_DEMUX 
-	//Output
-	avformat_alloc_output_context2(&ofmt_ctx_v, NULL, NULL, out_filename_v);
-	if (!ofmt_ctx_v) {
-		printf("Could not create output context\n");
-		sts = AVERROR_UNKNOWN;
-		goto end;
-	}
-
-	AVStream * outStream = avformat_new_stream(ofmt_ctx_v, pVideoCodec);
-	if (avcodec_copy_context(outStream->codec, decoder_ctx) < 0) {
-		printf("Failed to copy context from input to output stream codec context\n");
-		goto end;
-	}
-
-	//Open output file
-	if (!(ofmt_ctx_v->oformat->flags & AVFMT_NOFILE)) {
-		if (avio_open(&ofmt_ctx_v->pb, out_filename_v, AVIO_FLAG_WRITE) < 0) {
-			printf("Could not open output file '%s'", out_filename_v);
-			goto end;
-		}
-	}
-
-	//Write file header
-	if (avformat_write_header(ofmt_ctx_v, NULL) < 0) {
-		printf("Error occurred when opening video output file\n");
-		goto end;
-	}
-#endif
-
-	//current frame index
-	int frame_index = 0;
-	/*
-	Encoded package. For video, it should typically contain one compressed frame
-	*/
-repeat:
-	AVPacket pkt;
-	AVStream *in_stream;
-#ifdef DUMP_DEMUX
-	AVStream *out_stream;
-#endif
-	while (sts = av_read_frame(ifmt_ctx, &pkt) >= 0 && max_frames > frame_index) {
+	while (sts = av_read_frame(ifmt_ctx, pkt) >= 0 && max_frames > frame_index) {
 		/*
 		Get an AVPacket containing encoded data for one AVStream, identified by AVPacket.stream_index (Return the next frame of a audio/video stream)
 		This function returns what is stored in the file, and does not validate that what is there are valid frames for the decoder.
@@ -285,10 +135,10 @@ repeat:
 		It will not omit invalid data between valid frames so as to give the decoder the maximum information possible for decoding.
 		*/
 		printContext();
-		if (pkt.stream_index != videoindex) {
+		if (pkt->stream_index != videoindex) {
 			continue;
 		}
-		in_stream = ifmt_ctx->streams[pkt.stream_index];
+		in_stream = ifmt_ctx->streams[pkt->stream_index];
 #ifdef DUMP_DEMUX
 		out_stream = ofmt_ctx_v->streams[0];
 #endif
@@ -306,7 +156,7 @@ repeat:
 		//TODO: avctx->active_thread_type & FF_THREAD_FRAME
 		AVFrame* outFrame = av_frame_alloc();
 		printContext();
-		int sts = avcodec_send_packet(decoder_ctx, &pkt);
+		int sts = avcodec_send_packet(decoder_ctx, pkt);
 		if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 			char err[256];
 			printf("%s\n", av_make_error_string(err, 256, sts));
@@ -368,7 +218,7 @@ repeat:
 		}
 
 		av_frame_free(&outFrame);
-		av_packet_unref(&pkt);
+		av_packet_unref(pkt);
 
 		frame_index++;
 	}
@@ -411,6 +261,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 int main()
 {
 	start(60);
-	load();
+
 	return 0;
 }

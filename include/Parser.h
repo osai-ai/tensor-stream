@@ -12,29 +12,33 @@ extern "C"
 Structure with initialization/reset parameters.
 */
 struct ParserParameters {
+	ParserParameters(std::string _inputFile = "", bool _enableDumps = false) :
+		inputFile(_inputFile), enableDumps(_enableDumps) {
+
+	}
+
 	/*
 	Path to input file, no matter where it's placed: remotely or locally.
 	*/
 	std::string inputFile;
-	bool enableDumps = false;
-	unsigned int bufferDeep = 10;
+	bool enableDumps;
 };
 
 /*
 The class allows to read frames from defined stream.
-Buffer with frames is used inside to avoide some internet lags/packet loss/any other issues.
 */
 class Parser {
 public:
+	Parser();
 	/*
 	Initialization of parser. Initialize work with rtmp, allocate recources.
 	*/
-	int Init(ParserParameters& input);
+	int Init(ParserParameters* input);
 
 	/*
 	The main function which read rtmp stream and write result to buffer. Should be executed in different thread.
 	*/
-	int Start();
+	int Read();
 	
 	/*
 	Returns next parsed frame. Frames will be returned as their appeared in bitstream without any loss.
@@ -61,12 +65,11 @@ private:
 	/*
 	State of Parser object it was initialized/reseted with.
 	*/
-	ParserParameters state;
+	ParserParameters* state;
 	/*
-	Should be initialized during Init.
-	Buffer which stores read frames.
+	Latest parsed frame and index indicated if this frame was passed to decoder
 	*/
-	std::vector<std::shared_ptr<AVPacket> > framesBuffer;
+	std::pair<std::shared_ptr<AVPacket>, bool> lastFrame;
 	/*
 	Index of latest given frame.
 	*/
