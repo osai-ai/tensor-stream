@@ -29,15 +29,15 @@ public:
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
 	*/
-	int Start();
+	int Decode(AVPacket* pkt);
 
 	/*
 	Blocked call, returns whether already decoded frame from cache or latest decoded frame which hasn't been reported yet.
 	Arguments: 
 		int index: index of desired frame.
-			Return: last frame if index > 0, frame from cache in case of index < cacheDepth.
+			Return: bufferDepth + index - 1 index.
 	*/
-	int GetFrame(int index, std::string consumerName, uint8_t* outputFrame);
+	int GetFrame(int index, std::string consumerName, AVFrame* outputFrame);
 
 	/*
 	Close all existing handles, deallocate recources.
@@ -52,7 +52,7 @@ private:
 	/*
 	Buffer stores already decoded frames in CUDA memory (frame index can be found in container)
 	*/
-	std::vector<std::shared_ptr<AVFrame> > framesBuffer;
+	std::vector<AVFrame* > framesBuffer;
 	/*
 	Index of latest decoded frame.
 	*/
@@ -60,7 +60,7 @@ private:
 	/*
 	The map with file descriptors for dumping intermediate frames.
 	*/
-	std::map<std::string, std::shared_ptr<FILE> > dumpFrame;
+	std::shared_ptr<FILE> dumpFrame;
 	/*
 	Internal decoder's state
 	*/

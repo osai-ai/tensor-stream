@@ -4,7 +4,6 @@
 int Parser::Init(ParserParameters* input) {
 	state = input;
 	int sts = OK;
-
 	sts = avformat_open_input(&formatContext, input->inputFile.c_str(), 0, 0);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
@@ -33,7 +32,6 @@ int Parser::Init(ParserParameters* input) {
 	}
 
 	lastFrame = std::make_pair(std::make_shared<AVPacket>(), false);
-
 	return sts;
 }
 
@@ -42,26 +40,28 @@ Parser::Parser() {
 }
 
 int Parser::Read() {
-	std::shared_ptr<AVPacket> pkt = lastFrame.first;
-	bool videoFrame = false;
 	int sts = OK;
+	AVPacket* pkt = lastFrame.first.get();
+
+	bool videoFrame = false;
+
 	while (videoFrame == false) {
-		sts = av_read_frame(formatContext, pkt.get());
+		sts = av_read_frame(formatContext, pkt);
 		CHECK_STATUS(sts);
 		if (pkt->stream_index != videoIndex)
 			continue;
 
 		videoFrame = true;
 		currentFrame++;
-		/*
-		critical section + need to uninit?
-		*/
-		lastFrame = std::make_pair(pkt, false);
+
+		//critical section + need to uninit?
+
+		lastFrame = std::make_pair(std::shared_ptr<AVPacket>(pkt), false);
 
 		if (state->enableDumps) {
 			//in our output file only 1 stream is available with index 0
 			pkt->stream_index = 0;
-			sts = av_write_frame(dumpContext, pkt.get());
+			sts = av_write_frame(dumpContext, pkt);
 			CHECK_STATUS(sts);
 			pkt->stream_index = videoIndex;
 		}
@@ -69,22 +69,17 @@ int Parser::Read() {
 	return sts;
 }
 
-int Parser::Get(std::shared_ptr<AVPacket> output) {
-	/*
-	Critical section
-	*/
+int Parser::Get(AVPacket* output) {
+	//Critical section
 	if (lastFrame.second == false) {
-		/*
-		decoder is responsible for deallocating
-		*/
-		av_copy_packet(output.get(), lastFrame.first.get());
+
+		//decoder is responsible for deallocating
+		av_copy_packet(output, lastFrame.first.get());
 		lastFrame.second = true;
 	}
 	else {
 		0;
-		/*
-		need to wait until frame is available
-		*/
+		//need to wait until frame is available
 	}
 	return OK;
 }
@@ -106,4 +101,5 @@ void Parser::Close() {
 			avio_close(dumpContext->pb);
 		avformat_free_context(dumpContext);
 	}
+	av_free_packet(lastFrame.first.get());
 }

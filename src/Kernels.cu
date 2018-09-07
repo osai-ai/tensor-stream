@@ -1,5 +1,6 @@
 #include <libavutil/frame.h>
 #include "cuda.h"
+#include "VideoProcessor.h"
 
 __global__ void kernel(int *a)
 {
@@ -106,8 +107,10 @@ __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* R
 	}
 }
 
-
-unsigned char* change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
+/*
+should use CUStream?
+*/
+int NV12ToRGB24(AVFrame* src, AVFrame* dst) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -121,10 +124,10 @@ unsigned char* change_pixels(AVFrame* src, AVFrame* dst, CUstream stream) {
 	//need to execute for width and height
 	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
 	dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
-	change_gpu << <numBlocks, threadsPerBlock, 0, stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
+	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
 	cudaMemcpy(dst->data[0], RGB, dst->linesize[0] * dst->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
-	return RGB;
+	return err;
 }
 
 __global__ void test_kernel(float* test) {

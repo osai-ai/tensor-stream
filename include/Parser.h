@@ -44,7 +44,7 @@ public:
 	Returns next parsed frame. Frames will be returned as their appeared in bitstream without any loss.
 	Arguments: Pointer to AVPacket structure where is demuxed frame will be stored.
 	*/
-	int Get(std::shared_ptr<AVPacket> outputFrame);
+	int Get(AVPacket* outputFrame);
 
 	/*
 	Soft re-init of current Parser entity with new parameters.
