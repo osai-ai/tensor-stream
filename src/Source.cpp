@@ -57,7 +57,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 	fprintf(stderr, "Failed to get HW surface format.\n");
 	return AV_PIX_FMT_NONE;
 }
-//#define DUMP_DEMUX
+#define DEBUG_INFO
 
 void SaveNV12(AVFrame *avFrame)
 {
@@ -118,20 +118,22 @@ void start(int max_frames) {
 	sts = decoder->Init(&decoderArgs);
 	VPPParameters VPPArgs = { 0, 0, NV12, true };
 	sts = vpp->Init(&VPPArgs);
-	AVPacket parsed;
-	AVFrame* decoded;
+	AVPacket* parsed = new AVPacket();
+	AVFrame* decoded = nullptr;
 	AVFrame* rgbFrame = av_frame_alloc();
 	for (int i = 0; i < 500; i++) {
 		sts = parser->Read();
-		parser->Get(&parsed);
-		decoder->Decode(&parsed);
-		decoder->GetFrame(0, "main", decoded);
-		rgbFrame->width = decoded->width;
-		rgbFrame->height = decoded->height;
-		rgbFrame->format = AV_PIX_FMT_RGB24;
-		sts = av_frame_get_buffer(rgbFrame, 32);
+		parser->Get(parsed);
+		sts = decoder->Decode(parsed);
+		//Need more data for decoding
+		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
+			continue;
+		decoder->GetFrame(0, "main", &decoded);
 		vpp->Convert(decoded, rgbFrame);
 	}
+	parser->Close();
+	decoder->Close();
+	vpp->Close();
 	av_frame_free(&rgbFrame);
 }
 

@@ -69,7 +69,7 @@ private:
 	/*
 	Latest parsed frame and index indicated if this frame was passed to decoder
 	*/
-	std::pair<std::shared_ptr<AVPacket>, bool> lastFrame;
+	std::pair<AVPacket*, bool> lastFrame;
 	/*
 	Index of latest given frame.
 	*/

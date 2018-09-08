@@ -25,6 +25,7 @@ struct VPPParameters {
 };
 
 int NV12ToRGB24(AVFrame* src, AVFrame* dst);
+int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst);
 
 class VideoProcessor {
 public:
@@ -35,6 +36,7 @@ public:
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
 	int Convert(AVFrame* input, AVFrame* output);
+	void Close();
 private:
 	VPPParameters* state;
 	std::shared_ptr<FILE> dumpFrame;

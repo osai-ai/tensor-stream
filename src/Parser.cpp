@@ -31,7 +31,8 @@ int Parser::Init(ParserParameters* input) {
 		sts = avformat_write_header(dumpContext, NULL);
 	}
 
-	lastFrame = std::make_pair(std::make_shared<AVPacket>(), false);
+	lastFrame = std::make_pair(new AVPacket(), false);
+	//to manage data by myself without "smart" logic inside ffmpeg
 	return sts;
 }
 
@@ -41,29 +42,34 @@ Parser::Parser() {
 
 int Parser::Read() {
 	int sts = OK;
-	AVPacket* pkt = lastFrame.first.get();
 
 	bool videoFrame = false;
 
 	while (videoFrame == false) {
-		sts = av_read_frame(formatContext, pkt);
+		sts = av_read_frame(formatContext, lastFrame.first);
 		CHECK_STATUS(sts);
-		if (pkt->stream_index != videoIndex)
+		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;
 
 		videoFrame = true;
 		currentFrame++;
 
 		//critical section + need to uninit?
-
-		lastFrame = std::make_pair(std::shared_ptr<AVPacket>(pkt), false);
+		lastFrame.second = false;
 
 		if (state->enableDumps) {
+#ifdef DEBUG_INFO
+			static int count = 0;
+#endif
 			//in our output file only 1 stream is available with index 0
-			pkt->stream_index = 0;
-			sts = av_write_frame(dumpContext, pkt);
+			lastFrame.first->stream_index = 0;
+			sts = av_write_frame(dumpContext, lastFrame.first);
 			CHECK_STATUS(sts);
-			pkt->stream_index = videoIndex;
+			lastFrame.first->stream_index = videoIndex;
+#ifdef DEBUG_INFO
+			count++;
+			printf("Bitstream %d\n", count);
+#endif
 		}
 	}
 	return sts;
@@ -71,10 +77,10 @@ int Parser::Read() {
 
 int Parser::Get(AVPacket* output) {
 	//Critical section
-	if (lastFrame.second == false) {
-
+	if (lastFrame.second == false && lastFrame.first->stream_index == videoIndex) {
 		//decoder is responsible for deallocating
-		av_copy_packet(output, lastFrame.first.get());
+		av_packet_ref(output, lastFrame.first);
+		av_packet_unref(lastFrame.first);
 		lastFrame.second = true;
 	}
 	else {
@@ -101,5 +107,6 @@ void Parser::Close() {
 			avio_close(dumpContext->pb);
 		avformat_free_context(dumpContext);
 	}
-	av_free_packet(lastFrame.first.get());
+	av_packet_unref(lastFrame.first);
+	delete lastFrame.first;
 }

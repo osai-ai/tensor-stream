@@ -37,7 +37,7 @@ public:
 		int index: index of desired frame.
 			Return: bufferDepth + index - 1 index.
 	*/
-	int GetFrame(int index, std::string consumerName, AVFrame* outputFrame);
+	int GetFrame(int index, std::string consumerName, AVFrame** outputFrame);
 
 	/*
 	Close all existing handles, deallocate recources.
@@ -48,7 +48,7 @@ private:
 	It help understand whether allowed or not return frame. If some frame was reported to current consumer and no any new frames were decoded need to wait.
 	Parameters: Consumer's name and latest given frame number
 	*/
-	std::map<std::string, int> consumerStatus;
+	std::map<std::string, bool> consumerStatus;
 	/*
 	Buffer stores already decoded frames in CUDA memory (frame index can be found in container)
 	*/
