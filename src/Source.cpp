@@ -36,7 +36,6 @@ extern "C"
 #include <libavutil/hwcontext_cuda.h>
 }
 
-
 void kernel_wrapper(int *a);
 unsigned char* change_pixels(AVFrame* src, AVFrame* dst,  CUstream stream);
 void test_python(float* test);
@@ -57,7 +56,7 @@ static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
 	fprintf(stderr, "Failed to get HW surface format.\n");
 	return AV_PIX_FMT_NONE;
 }
-#define DEBUG_INFO
+
 
 void SaveNV12(AVFrame *avFrame)
 {
@@ -106,7 +105,7 @@ at::Tensor load() {
 std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
-void start(int max_frames) {
+void start() {
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
 	parser = std::make_shared<Parser>();
@@ -121,7 +120,7 @@ void start(int max_frames) {
 	AVPacket* parsed = new AVPacket();
 	AVFrame* decoded = nullptr;
 	AVFrame* rgbFrame = av_frame_alloc();
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 2500; i++) {
 		sts = parser->Read();
 		parser->Get(parsed);
 		sts = decoder->Decode(parsed);
@@ -130,11 +129,15 @@ void start(int max_frames) {
 			continue;
 		decoder->GetFrame(0, "main", &decoded);
 		vpp->Convert(decoded, rgbFrame);
+		//application should free memory once it's not needed
+		sts = cudaFree(rgbFrame->opaque);
+		printf("Frame number %d\n", i);
 	}
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
 	av_frame_free(&rgbFrame);
+	delete parsed;
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -144,7 +147,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 int main()
 {
-	start(60);
-
+	start();
 	return 0;
 }

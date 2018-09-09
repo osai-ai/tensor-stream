@@ -44,7 +44,8 @@ int Decoder::Init(DecoderParameters* input) {
 void Decoder::Close() {
 	av_buffer_unref(&deviceReference);
 	avcodec_close(decoderContext);
-	fclose(dumpFrame.get());
+	if (state->enableDumps)
+		fclose(dumpFrame.get());
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);
@@ -111,6 +112,8 @@ int Decoder::Decode(AVPacket* pkt) {
 		av_frame_free(&decodedFrame);
 		return sts;
 	}
+	//deallocate copy(!) of packet from Reader
+	av_packet_unref(pkt);
 	currentFrame++;
 	//NULL?
 	if (framesBuffer[(currentFrame - 1)  % state->bufferDeep]) {
@@ -139,6 +142,7 @@ int Decoder::Decode(AVPacket* pkt) {
 			return sts;
 		}
 		saveNV12(NV12Frame, dumpFrame.get());
+		av_frame_unref(NV12Frame);
 	}
 	return sts;
 }

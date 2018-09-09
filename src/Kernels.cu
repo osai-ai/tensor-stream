@@ -2,70 +2,6 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
-__global__ void kernel(int *a)
-{
-	//unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
-	//unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
-	//printf("i: %d, j: %d\n", i, j);
-}
-
-void kernel_wrapper(int *a)
-{
-	int* d_a;
-	cudaMalloc(&d_a, sizeof(int));
-
-	cudaMemcpy(d_a, a, sizeof(int), cudaMemcpyHostToDevice);
-	//assume we have 8x16 image
-	dim3 threadsPerBlock(8, 16);
-	//dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
-	// Perform SAXPY on 1M elements
-	kernel <<<1,threadsPerBlock>> > (d_a);
-
-	cudaMemcpy(a, d_a, sizeof(int), cudaMemcpyDeviceToHost);
-}
-
-
-void change(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB) {
-	/*
-		R = 1.164(Y - 16) + 1.596(V - 128)
-		B = 1.164(Y - 16)                   + 2.018(U - 128)
-		G = 1.164(Y - 16) - 0.813(V - 128)  - 0.391(U - 128)
-	*/
-	/*
-	in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
-	*/
-	for (int i = 0; i < height; i++) {
-		for (int j = 0, jRGB = 0; j < width; j++, jRGB += 3) {
-			int UVRow = i / 2;
-			int UVCol = j % 2 == 0 ? j : j - 1;
-			int UIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol;
-			int VIndex = UVRow * pitchNV12 /*pitch?*/ + UVCol + 1;
-			unsigned char U = UV[UIndex];
-			unsigned char V = UV[VIndex];
-			int indexNV12 = j + i * pitchNV12; /*indexNV12 and indexRGB with/without pitch*/
-			unsigned char YVal = Y[indexNV12];
-			int RVal = 1.164f*(YVal - 16) + 1.596f*(V - 128);
-			if (RVal > 255)
-				RVal = 255;
-			if (RVal < 0)
-				RVal = 0;
-			int BVal = 1.164f*(YVal - 16) + 2.018f*(U - 128);
-			if (BVal > 255)
-				BVal = 255;
-			if (BVal < 0)
-				BVal = 0;
-			int GVal = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
-			if (GVal > 255)
-				GVal = 255;
-			if (GVal < 0)
-				GVal = 0;
-			RGB[jRGB + i * pitchRGB + 0/*R*/] = (unsigned char)RVal;
-			RGB[jRGB + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
-			RGB[jRGB + i * pitchRGB + 2/*B*/] = (unsigned char)BVal;
-		}
-	}
-}
-
 __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB) {
 	/*
 		R = 1.164(Y - 16) + 1.596(V - 128)
@@ -119,13 +55,13 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst) {
 	int width = dst->width;
 	int height = dst->height;
 	unsigned char* RGB;
-	cudaError err = cudaMalloc(&RGB, width * height * sizeof(unsigned char));
+	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
-	dim3 numBlocks(width / threadsPerBlock.x, height / threadsPerBlock.y);
-	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], width);
-	dst->data[0] = RGB;
+	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
+	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
 	cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
+	dst->opaque = RGB;
 	return err;
 }
 
@@ -138,24 +74,13 @@ int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst) {
 	int width = dst->width;
 	int height = dst->height;
 	unsigned char* RGB;
-	cudaError err = cudaMalloc(&RGB, dst->linesize[0] * dst->height * sizeof(unsigned char));
+	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock / 32);
-	dim3 numBlocks(dst->linesize[0] / threadsPerBlock.x, height / threadsPerBlock.y);
-	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->linesize[0]);
-	cudaMemcpy(dst->data[0], RGB, dst->linesize[0] * dst->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
+	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
+	cudaMemcpy(dst->data[0], RGB, 3 * width * height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 	cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
+	dst->opaque = RGB;
 	return err;
-}
-
-
-__global__ void test_kernel(float* test) {
-	for (int j = 0; j < 30; j++)
-		for (int i = 1; i < 30; i++) {
-			test[i+j*100] = 25;
-		}
-}
-
-void test_python(float* test) {
-	test_kernel << <1, 1 >> > (test);
 }

@@ -9,7 +9,7 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 	uint8_t *RGB = avFrame->data[0];
 	for (uint32_t i = 0; i < avFrame->height; i++) {
 		fwrite(RGB, avFrame->width * 3, 1, dump);
-		RGB += avFrame->linesize[0];
+		RGB += 3 * avFrame->width;
 	}
 	fflush(dump);
 #ifdef DEBUG_INFO
@@ -38,9 +38,14 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 		output->height = input->height;
 		output->format = AV_PIX_FMT_RGB24;
 		if (state->enableDumps) {
-			sts = av_frame_get_buffer(output, 32);
+			//allocate buffers
+			sts = av_frame_get_buffer(output, 2);
 			sts = NV12ToRGB24Dump(input, output);
 			SaveRGB24(output, dumpFrame.get());
+			void* opaque = output->opaque;
+			//deallocate buffers and all custom fields too..
+			av_frame_unref(output);
+			output->opaque = opaque;
 		}
 		else {
 			sts = NV12ToRGB24(input, output);
@@ -51,5 +56,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 }
 
 void VideoProcessor::Close() {
-	fclose(dumpFrame.get());
+	if (state->enableDumps)
+		fclose(dumpFrame.get());
 }
