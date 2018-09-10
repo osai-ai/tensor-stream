@@ -33,7 +33,7 @@ public:
 	/*
 	Initialization of parser. Initialize work with rtmp, allocate recources.
 	*/
-	int Init(ParserParameters* input);
+	int Init(ParserParameters& input);
 
 	/*
 	The main function which read rtmp stream and write result to buffer. Should be executed in different thread.
@@ -65,7 +65,7 @@ private:
 	/*
 	State of Parser object it was initialized/reseted with.
 	*/
-	ParserParameters* state;
+	ParserParameters state;
 	/*
 	Latest parsed frame and index indicated if this frame was passed to decoder
 	*/

@@ -1,15 +1,21 @@
 #pragma once
 #include <map>
 #include "Parser.h"
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 /*
 Structure with initialization/reset parameters.
 */
 struct DecoderParameters {
-	DecoderParameters(std::shared_ptr<Parser> _parser = nullptr, bool _enableDumps = false, unsigned int _bufferDeep = 10) :
-		parser(_parser), enableDumps(_enableDumps), bufferDeep(_bufferDeep) {
-
+	DecoderParameters(std::shared_ptr<Parser> _parser = nullptr,
+		bool _enableDumps = false, unsigned int _bufferDeep = 10) {
+		parser = _parser;
+		enableDumps = _enableDumps;
+		bufferDeep = _bufferDeep;
 	}
+
 	std::shared_ptr<Parser> parser;
 	bool enableDumps;
 	unsigned int bufferDeep;
@@ -24,7 +30,7 @@ public:
 	/*
 	Initialize decoder with corresponding parameters. Allocate all neccessary resources.
 	*/
-	int Init(DecoderParameters* input);
+	int Init(DecoderParameters& input);
 
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
@@ -43,6 +49,7 @@ public:
 	Close all existing handles, deallocate recources.
 	*/
 	void Close();
+	unsigned int getFrameIndex();
 private:
 	/*
 	It help understand whether allowed or not return frame. If some frame was reported to current consumer and no any new frames were decoded need to wait.
@@ -64,7 +71,12 @@ private:
 	/*
 	Internal decoder's state
 	*/
-	DecoderParameters* state = nullptr;
+	DecoderParameters state;
+	/*
+	Synchronization
+	*/
+	std::mutex sync;
+	std::condition_variable consumerSync;
 	/*
 	FFmpeg internal stuff
 	*/

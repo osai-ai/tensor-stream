@@ -29,7 +29,7 @@ int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst);
 
 class VideoProcessor {
 public:
-	int Init(VPPParameters* outputFormat);
+	int Init(VPPParameters& outputFormat);
 	/*
 	Check if VPP conversion for input package is needed and perform conversion.
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution
@@ -38,6 +38,6 @@ public:
 	int Convert(AVFrame* input, AVFrame* output);
 	void Close();
 private:
-	VPPParameters* state;
+	VPPParameters state;
 	std::shared_ptr<FILE> dumpFrame;
 };

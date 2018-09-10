@@ -10,12 +10,12 @@ Decoder::Decoder() {
 
 }
 
-int Decoder::Init(DecoderParameters* input) {
+int Decoder::Init(DecoderParameters& input) {
 	state = input;
 	int sts;
 
-	decoderContext = avcodec_alloc_context3(state->parser->getStreamHandle()->codec->codec);
-	sts = avcodec_parameters_to_context(decoderContext, state->parser->getStreamHandle()->codecpar);
+	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 
 	//CUDA device initialization
@@ -29,12 +29,12 @@ int Decoder::Init(DecoderParameters* input) {
 	sts = av_hwdevice_ctx_init(deviceReference);
 	CHECK_STATUS(sts);
 	decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
-	sts = avcodec_open2(decoderContext, state->parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
 	CHECK_STATUS(sts);
 
-	framesBuffer.resize(state->bufferDeep);
+	framesBuffer.resize(state.bufferDeep);
 
-	if (state->enableDumps) {
+	if (state.enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"));
 	}
 
@@ -44,7 +44,7 @@ int Decoder::Init(DecoderParameters* input) {
 void Decoder::Close() {
 	av_buffer_unref(&deviceReference);
 	avcodec_close(decoderContext);
-	if (state->enableDumps)
+	if (state.enableDumps)
 		fclose(dumpFrame.get());
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
@@ -83,12 +83,14 @@ void saveNV12(AVFrame *avFrame, FILE* dump)
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame** outputFrame) {
 	//element in map will be created after trying to call it
 	if (!consumerStatus[consumerName]) {
-		consumerStatus[consumerName] = true;
+		consumerStatus[consumerName] = false;
 	}
 	
+	std::unique_lock<std::mutex> lck(sync);
+	while (!consumerStatus[consumerName]) consumerSync.wait(lck);
 	if (consumerStatus[consumerName] == true) {
 		consumerStatus[consumerName] = false;
-		int allignedIndex = (currentFrame - 1) % state->bufferDeep + index;
+		int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
 		allignedIndex = allignedIndex >= 0 ? allignedIndex : 0;
 		*outputFrame = framesBuffer[allignedIndex];
 	}
@@ -116,15 +118,18 @@ int Decoder::Decode(AVPacket* pkt) {
 	av_packet_unref(pkt);
 	currentFrame++;
 	//NULL?
-	if (framesBuffer[(currentFrame - 1)  % state->bufferDeep]) {
-		av_frame_free(&framesBuffer[(currentFrame - 1) % state->bufferDeep]);
+	if (framesBuffer[(currentFrame - 1)  % state.bufferDeep]) {
+		av_frame_free(&framesBuffer[(currentFrame - 1) % state.bufferDeep]);
 	}
-	framesBuffer[(currentFrame - 1) % state->bufferDeep] = decodedFrame;
+	framesBuffer[(currentFrame - 1) % state.bufferDeep] = decodedFrame;
+	std::unique_lock<std::mutex> lck(sync);
 	//Frame changed, consumers can take it
-	for (auto item : consumerStatus) {
+	for (auto &item : consumerStatus) {
 		item.second = true;
 	}
-	if (state->enableDumps) {
+	consumerSync.notify_all();
+	lck.unlock();
+	if (state.enableDumps) {
 		AVFrame* NV12Frame = av_frame_alloc();
 		NV12Frame->format = AV_PIX_FMT_NV12;
 
@@ -145,4 +150,8 @@ int Decoder::Decode(AVPacket* pkt) {
 		av_frame_unref(NV12Frame);
 	}
 	return sts;
+}
+
+unsigned int Decoder::getFrameIndex() {
+	return currentFrame;
 }

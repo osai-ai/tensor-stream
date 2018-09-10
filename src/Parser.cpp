@@ -1,10 +1,10 @@
 #include "Parser.h"
 #include "Common.h"
 
-int Parser::Init(ParserParameters* input) {
+int Parser::Init(ParserParameters& input) {
 	state = input;
 	int sts = OK;
-	sts = avformat_open_input(&formatContext, input->inputFile.c_str(), 0, 0);
+	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, 0);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
@@ -15,7 +15,7 @@ int Parser::Init(ParserParameters* input) {
 	videoStream = formatContext->streams[videoIndex];
 	videoStream->codec->codec = codec;
 
-	if (state->enableDumps) {
+	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
 		CHECK_STATUS(sts);
@@ -57,7 +57,7 @@ int Parser::Read() {
 		//critical section + need to uninit?
 		lastFrame.second = false;
 
-		if (state->enableDumps) {
+		if (state.enableDumps) {
 #ifdef DEBUG_INFO
 			static int count = 0;
 #endif
@@ -102,7 +102,7 @@ AVStream* Parser::getStreamHandle() {
 void Parser::Close() {
 	avformat_close_input(&formatContext);
 	
-	if (state->enableDumps) {
+	if (state.enableDumps) {
 		if (dumpContext && !(dumpContext->oformat->flags & AVFMT_NOFILE))
 			avio_close(dumpContext->pb);
 		avformat_free_context(dumpContext);

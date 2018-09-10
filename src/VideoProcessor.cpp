@@ -18,10 +18,10 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 #endif
 }
 
-int VideoProcessor::Init(VPPParameters* outputFormat) {
+int VideoProcessor::Init(VPPParameters& outputFormat) {
 	state = outputFormat;
 
-	if (state->enableDumps) {
+	if (state.enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
 	}
 	
@@ -32,12 +32,12 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 	/*
 	Should decide which method call
 	*/
-	int sts;
-	if (state->dstFourCC == NV12) {
+	int sts = OK;
+	if (state.dstFourCC == NV12) {
 		output->width = input->width;
 		output->height = input->height;
 		output->format = AV_PIX_FMT_RGB24;
-		if (state->enableDumps) {
+		if (state.enableDumps) {
 			//allocate buffers
 			sts = av_frame_get_buffer(output, 2);
 			sts = NV12ToRGB24Dump(input, output);
@@ -56,6 +56,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 }
 
 void VideoProcessor::Close() {
-	if (state->enableDumps)
+	if (state.enableDumps)
 		fclose(dumpFrame.get());
 }
