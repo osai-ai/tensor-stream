@@ -80,24 +80,24 @@ void saveNV12(AVFrame *avFrame, FILE* dump)
 #endif
 }
 
-int Decoder::GetFrame(int index, std::string consumerName, AVFrame** outputFrame) {
+int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	//element in map will be created after trying to call it
 	if (!consumerStatus[consumerName]) {
 		consumerStatus[consumerName] = false;
 	}
 	
-	std::unique_lock<std::mutex> lck(sync);
-	while (!consumerStatus[consumerName]) consumerSync.wait(lck);
-	if (consumerStatus[consumerName] == true) {
-		consumerStatus[consumerName] = false;
-		int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
-		allignedIndex = allignedIndex >= 0 ? allignedIndex : 0;
-		*outputFrame = framesBuffer[allignedIndex];
-	}
-	else {
-		//wait until available
-		
-		0;
+	{
+		std::unique_lock<std::mutex> locker(sync);
+		while (!consumerStatus[consumerName]) 
+			consumerSync.wait(locker);
+		if (consumerStatus[consumerName] == true) {
+			consumerStatus[consumerName] = false;
+			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
+			allignedIndex = allignedIndex >= 0 ? allignedIndex : 0;
+			//can decoder overrun us and start using the same frame? Need sync
+			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
+			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);
+		}
 	}
 	return OK;
 }
@@ -116,19 +116,21 @@ int Decoder::Decode(AVPacket* pkt) {
 	}
 	//deallocate copy(!) of packet from Reader
 	av_packet_unref(pkt);
-	currentFrame++;
-	//NULL?
-	if (framesBuffer[(currentFrame - 1)  % state.bufferDeep]) {
-		av_frame_free(&framesBuffer[(currentFrame - 1) % state.bufferDeep]);
+	{
+		std::unique_lock<std::mutex> locker(sync);
+		currentFrame++;
+		if (framesBuffer[(currentFrame - 1) % state.bufferDeep]) {
+			//printf("Clear decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
+			av_frame_unref(framesBuffer[(currentFrame - 1) % state.bufferDeep]);
+		}
+		framesBuffer[(currentFrame - 1) % state.bufferDeep] = decodedFrame;
+		//printf("New decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
+		//Frame changed, consumers can take it
+		for (auto &item : consumerStatus) {
+			item.second = true;
+		}
+		consumerSync.notify_all();
 	}
-	framesBuffer[(currentFrame - 1) % state.bufferDeep] = decodedFrame;
-	std::unique_lock<std::mutex> lck(sync);
-	//Frame changed, consumers can take it
-	for (auto &item : consumerStatus) {
-		item.second = true;
-	}
-	consumerSync.notify_all();
-	lck.unlock();
 	if (state.enableDumps) {
 		AVFrame* NV12Frame = av_frame_alloc();
 		NV12Frame->format = AV_PIX_FMT_NV12;

@@ -46,26 +46,24 @@ __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* R
 /*
 should use CUStream?
 */
-int NV12ToRGB24(AVFrame* src, AVFrame* dst) {
+int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t * stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, 0);
 	int width = dst->width;
 	int height = dst->height;
 	unsigned char* RGB;
 	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
 	//need to execute for width and height
-	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock/32);
+	dim3 threadsPerBlock(64, maxThreadsPerBlock /64);
 	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
-	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
-	cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
+	change_gpu << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
+	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->opaque = RGB;
 	return err;
 }
 
-int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst) {
+int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t * stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -76,11 +74,10 @@ int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst) {
 	unsigned char* RGB;
 	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
 	//need to execute for width and height
-	dim3 threadsPerBlock(32, prop.maxThreadsPerBlock / 32);
+	dim3 threadsPerBlock(32, maxThreadsPerBlock / 32);
 	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
-	change_gpu << <numBlocks, threadsPerBlock >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
+	change_gpu << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
 	cudaMemcpy(dst->data[0], RGB, 3 * width * height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
-	cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->opaque = RGB;
 	return err;
 }

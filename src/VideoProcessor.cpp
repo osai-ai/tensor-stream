@@ -21,10 +21,12 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 int VideoProcessor::Init(VPPParameters& outputFormat) {
 	state = outputFormat;
 
+	cudaGetDeviceProperties(&prop, 0);
+	cudaStreamCreate(&stream);
 	if (state.enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
 	}
-	
+
 	return OK;
 }
 
@@ -33,6 +35,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 	Should decide which method call
 	*/
 	int sts = OK;
+	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	if (state.dstFourCC == NV12) {
 		output->width = input->width;
 		output->height = input->height;
@@ -40,7 +43,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 		if (state.enableDumps) {
 			//allocate buffers
 			sts = av_frame_get_buffer(output, 2);
-			sts = NV12ToRGB24Dump(input, output);
+			sts = NV12ToRGB24Dump(input, output, prop.maxThreadsPerBlock, &stream);
 			SaveRGB24(output, dumpFrame.get());
 			void* opaque = output->opaque;
 			//deallocate buffers and all custom fields too..
@@ -48,10 +51,11 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 			output->opaque = opaque;
 		}
 		else {
-			sts = NV12ToRGB24(input, output);
+			printf("Decoded to VPP %x\n", input->data);
+			sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
 		}
 	}
-
+	av_frame_unref(input);
 	return sts;
 }
 

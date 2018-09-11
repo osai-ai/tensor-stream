@@ -43,7 +43,7 @@ public:
 		int index: index of desired frame.
 			Return: bufferDepth + index - 1 index.
 	*/
-	int GetFrame(int index, std::string consumerName, AVFrame** outputFrame);
+	int GetFrame(int index, std::string consumerName, AVFrame* outputFrame);
 
 	/*
 	Close all existing handles, deallocate recources.

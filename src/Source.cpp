@@ -77,7 +77,7 @@ std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
-AVFrame* decoded = nullptr;
+AVFrame* decoded;
 AVFrame* rgbFrame;
 void initPipeline() {
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
@@ -92,7 +92,7 @@ void initPipeline() {
 	VPPParameters VPPArgs = { 0, 0, NV12, false };
 	sts = vpp->Init(VPPArgs);
 	parsed = new AVPacket();
-	decoded = nullptr;
+	decoded = av_frame_alloc();
 	rgbFrame = av_frame_alloc();
 }
 
@@ -110,15 +110,16 @@ void start() {
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		printf("Frame number %d\n", decoder->getFrameIndex());
+		if (decoder->getFrameIndex() == 110)
+			return;
 	}
 }
 
 void get() {
-	decoder->GetFrame(0, "main", &decoded);
+	decoder->GetFrame(0, "main", decoded);
 	vpp->Convert(decoded, rgbFrame);
 	//application should free memory once it's not needed
 	cudaFree(rgbFrame->opaque);
-
 }
 
 void close() {
@@ -136,11 +137,16 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 int main()
 {
+	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
 	initPipeline();
 	std::thread pipeline(start);
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 70; i++) {
 		get();
+		printf("Got number %d\n", i);
 	}
+	pipeline.join();
+	printf("Before close\n");
 	close();
+	printf("After close\n");
 	return 0;
 }

@@ -4,7 +4,9 @@ extern "C" {
 	#include <libavformat/avformat.h>
 }
 #include <memory>
-
+#include <cuda_runtime.h>
+#include <chrono>
+#include <thread>
 /*
 List of supported output formats
 */
@@ -24,8 +26,8 @@ struct VPPParameters {
 	bool enableDumps;
 };
 
-int NV12ToRGB24(AVFrame* src, AVFrame* dst);
-int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst);
+int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream);
+int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream);
 
 class VideoProcessor {
 public:
@@ -40,4 +42,7 @@ public:
 private:
 	VPPParameters state;
 	std::shared_ptr<FILE> dumpFrame;
+	cudaDeviceProp prop;
+	//should be map for every consumer
+	cudaStream_t stream;
 };
