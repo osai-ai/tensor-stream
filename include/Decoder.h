@@ -73,11 +73,6 @@ private:
 	*/
 	DecoderParameters state;
 	/*
-	Synchronization
-	*/
-	std::mutex sync;
-	std::condition_variable consumerSync;
-	/*
 	FFmpeg internal stuff
 	*/
 	AVCodecContext * decoderContext = nullptr;

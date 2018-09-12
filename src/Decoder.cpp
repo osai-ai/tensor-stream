@@ -87,9 +87,10 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 	}
 	
 	{
-		std::unique_lock<std::mutex> locker(sync);
+		//std::unique_lock<std::mutex> locker(sync);
 		while (!consumerStatus[consumerName]) 
-			consumerSync.wait(locker);
+			std::this_thread::sleep_for(std::chrono::nanoseconds(100));
+			//consumerSync.wait(locker);
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
 			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
@@ -116,21 +117,18 @@ int Decoder::Decode(AVPacket* pkt) {
 	}
 	//deallocate copy(!) of packet from Reader
 	av_packet_unref(pkt);
-	{
-		std::unique_lock<std::mutex> locker(sync);
-		currentFrame++;
-		if (framesBuffer[(currentFrame - 1) % state.bufferDeep]) {
-			//printf("Clear decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
-			av_frame_unref(framesBuffer[(currentFrame - 1) % state.bufferDeep]);
-		}
-		framesBuffer[(currentFrame - 1) % state.bufferDeep] = decodedFrame;
-		//printf("New decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
-		//Frame changed, consumers can take it
-		for (auto &item : consumerStatus) {
-			item.second = true;
-		}
-		consumerSync.notify_all();
+	if (framesBuffer[(currentFrame) % state.bufferDeep]) {
+		//printf("Clear decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
+		av_frame_unref(framesBuffer[(currentFrame) % state.bufferDeep]);
 	}
+	framesBuffer[(currentFrame) % state.bufferDeep] = decodedFrame;
+	//printf("New decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
+	//Frame changed, consumers can take it
+	for (auto &item : consumerStatus) {
+		item.second = true;
+	}
+	currentFrame++;
+
 	if (state.enableDumps) {
 		AVFrame* NV12Frame = av_frame_alloc();
 		NV12Frame->format = AV_PIX_FMT_NV12;

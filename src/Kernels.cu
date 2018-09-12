@@ -53,9 +53,11 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	int width = dst->width;
 	int height = dst->height;
 	unsigned char* RGB;
+	clock_t tStart = clock();
 	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
+	printf("Time taken for malloc: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//need to execute for width and height
-	dim3 threadsPerBlock(64, maxThreadsPerBlock /64);
+	dim3 threadsPerBlock(32, 32);
 	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
 	change_gpu << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
 	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
@@ -74,7 +76,7 @@ int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStre
 	unsigned char* RGB;
 	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
 	//need to execute for width and height
-	dim3 threadsPerBlock(32, maxThreadsPerBlock / 32);
+	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);
 	change_gpu << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], 3 * width);
 	cudaMemcpy(dst->data[0], RGB, 3 * width * height * sizeof(unsigned char), cudaMemcpyDeviceToHost);

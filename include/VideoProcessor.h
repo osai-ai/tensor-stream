@@ -5,8 +5,8 @@ extern "C" {
 }
 #include <memory>
 #include <cuda_runtime.h>
-#include <chrono>
-#include <thread>
+#include <vector>
+#include <mutex>
 /*
 List of supported output formats
 */
@@ -37,12 +37,14 @@ public:
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
-	int Convert(AVFrame* input, AVFrame* output);
+	int Convert(AVFrame* input, AVFrame* output, std::string consumerName);
 	void Close();
+
 private:
 	VPPParameters state;
 	std::shared_ptr<FILE> dumpFrame;
 	cudaDeviceProp prop;
 	//should be map for every consumer
-	cudaStream_t stream;
+	std::vector<std::pair<std::string, cudaStream_t> > streamArr;
+	std::mutex streamSync;
 };

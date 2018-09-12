@@ -36,6 +36,7 @@ extern "C"
 #include <libavutil/hwcontext_cuda.h>
 }
 #include <thread>
+#include <time.h>
 #include <chrono>
 
 void kernel_wrapper(int *a);
@@ -77,29 +78,33 @@ std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
-AVFrame* decoded;
-AVFrame* rgbFrame;
+
+std::vector<std::pair<std::string, AVFrame*> > decodedArr;
+std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 void initPipeline() {
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" , false };
+	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop" /*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"*/ , false };
 	int sts = parser->Init(parserArgs);
-	DecoderParameters decoderArgs = {parser, false };
+	DecoderParameters decoderArgs = {parser, true };
 	sts = decoder->Init(decoderArgs);
 	VPPParameters VPPArgs = { 0, 0, NV12, false };
 	sts = vpp->Init(VPPArgs);
 	parsed = new AVPacket();
-	decoded = av_frame_alloc();
-	rgbFrame = av_frame_alloc();
+	for (int i = 0; i < maxConsumers; i++) {
+		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
+		rgbFrameArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
+	}
 }
 
 void start() {
 	int sts = OK;
 	//change to end of file
 	while(true) {
+		clock_t tStart = clock();
 		sts = parser->Read();
 		//TODO: expect this behavior only in case of EOF
 		if (sts < 0)
@@ -109,24 +114,70 @@ void start() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-		printf("Frame number %d\n", decoder->getFrameIndex());
+		//printf("Time taken for Decode: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+		//printf("Frame number %d\n", decoder->getFrameIndex());
 		if (decoder->getFrameIndex() == 110)
 			return;
 	}
 }
-
-void get() {
-	decoder->GetFrame(0, "main", decoded);
-	vpp->Convert(decoded, rgbFrame);
+AVFrame* findFree(std::string consumerName, std::vector<std::pair<std::string, AVFrame*> >& frames) {
+	for (auto& item : frames) {
+		if (item.first == consumerName) {
+			return item.second;
+		}
+		else if (item.first == "empty") {
+			item.first = consumerName;
+			return item.second;
+		}
+	}
+	return nullptr;
+}
+std::mutex syncDecoded;
+std::mutex syncRGB;
+void get(std::string consumerName) {
+	AVFrame* decoded;
+	AVFrame* rgbFrame;
+	clock_t tStart = clock();
+	{
+		std::unique_lock<std::mutex> locker(syncDecoded);
+		decoded = findFree(consumerName, decodedArr);
+	}
+	{
+		std::unique_lock<std::mutex> locker(syncRGB);
+		rgbFrame = findFree(consumerName, rgbFrameArr);
+	}
+	printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	tStart = clock();
+	decoder->GetFrame(0, consumerName, decoded);
+	printf("Get %f\n",(double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//printf("Time taken for Get: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	tStart = clock();
+	vpp->Convert(decoded, rgbFrame, consumerName);
+	printf("Convert %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
-	cudaFree(rgbFrame->opaque);
+	//tStart = clock();
+	//cudaFree(rgbFrame->opaque);
+	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+}
+
+void get_cycle(std::string name) {
+	for (int i = 0; i < 70; i++) {
+		clock_t tStart = clock();
+		get(name);
+		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	}
+
 }
 
 void close() {
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
-	av_frame_free(&rgbFrame);
+	for (auto& item : rgbFrameArr)
+		av_frame_free(&item.second);
+	for (auto& item : decodedArr)
+		av_frame_free(&item.second);
 	delete parsed;
 }
 
@@ -140,10 +191,11 @@ int main()
 	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
 	initPipeline();
 	std::thread pipeline(start);
-	for (int i = 0; i < 70; i++) {
-		get();
-		printf("Got number %d\n", i);
-	}
+	std::thread get(get_cycle, "first");
+	//std::thread get2(get_cycle, "second");
+
+	get.join();
+	//get2.join();
 	pipeline.join();
 	printf("Before close\n");
 	close();

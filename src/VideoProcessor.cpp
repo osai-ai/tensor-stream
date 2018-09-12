@@ -18,11 +18,29 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 #endif
 }
 
+cudaStream_t findFree(std::string consumerName, std::vector<std::pair<std::string, cudaStream_t> >& streamArr) {
+	for (auto& item : streamArr) {
+		if (item.first == consumerName) {
+			return item.second;
+		}
+		else if (item.first == "empty") {
+			item.first = consumerName;
+			return item.second;
+		}
+	}
+	return nullptr;
+}
+
 int VideoProcessor::Init(VPPParameters& outputFormat) {
 	state = outputFormat;
 
 	cudaGetDeviceProperties(&prop, 0);
-	cudaStreamCreate(&stream);
+	for (int i = 0; i < maxConsumers; i++) {
+		cudaStream_t stream;
+		cudaStreamCreate(&stream);
+		streamArr.push_back(std::make_pair(std::string("empty"), stream));
+	}
+	
 	if (state.enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
 	}
@@ -30,11 +48,16 @@ int VideoProcessor::Init(VPPParameters& outputFormat) {
 	return OK;
 }
 
-int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
+int VideoProcessor::Convert(AVFrame* input, AVFrame* output, std::string consumerName) {
 	/*
 	Should decide which method call
 	*/
+	cudaStream_t stream;
 	int sts = OK;
+	{
+		std::unique_lock<std::mutex> locker(streamSync);
+		stream = findFree(consumerName, streamArr);
+	}
 	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	if (state.dstFourCC == NV12) {
 		output->width = input->width;
@@ -43,6 +66,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 		if (state.enableDumps) {
 			//allocate buffers
 			sts = av_frame_get_buffer(output, 2);
+			
 			sts = NV12ToRGB24Dump(input, output, prop.maxThreadsPerBlock, &stream);
 			SaveRGB24(output, dumpFrame.get());
 			void* opaque = output->opaque;
@@ -51,7 +75,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output) {
 			output->opaque = opaque;
 		}
 		else {
-			printf("Decoded to VPP %x\n", input->data);
+			//printf("Decoded to VPP %x\n", input->data);
 			sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
 		}
 	}

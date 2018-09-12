@@ -56,6 +56,9 @@ public:
 	*/
 	void Close();
 
+	int getWidth();
+	int getHeight();
+
 	/*
 	Get input format context. Needed for internal interactions.
 	*/

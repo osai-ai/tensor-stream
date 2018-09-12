@@ -36,6 +36,14 @@ int Parser::Init(ParserParameters& input) {
 	return sts;
 }
 
+int Parser::getWidth() {
+	return videoStream->codec->width;
+}
+
+int Parser::getHeight() {
+	return videoStream->codec->height;
+}
+
 Parser::Parser() {
 
 }
