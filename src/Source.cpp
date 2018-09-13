@@ -24,7 +24,7 @@
 #include "Decoder.h"
 #include "Common.h"
 #include "VideoProcessor.h"
-
+#include <Python.h>
 extern "C"
 {
 #include <libavformat/avformat.h>
@@ -39,41 +39,20 @@ extern "C"
 #include <time.h>
 #include <chrono>
 
-void kernel_wrapper(int *a);
-unsigned char* change_pixels(AVFrame* src, AVFrame* dst,  CUstream stream);
-void test_python(float* test);
-
-FILE* fDump;
-FILE* fDumpRGB;
-unsigned char* RGB;
-static enum AVPixelFormat get_hw_format(AVCodecContext *ctx,
-	const enum AVPixelFormat *pix_fmts)
-{
-	const enum AVPixelFormat *p;
-
-	for (p = pix_fmts; *p != -1; p++) {
-		if (*p == AV_PIX_FMT_CUDA)
-			return *p;
+AVFrame* findFree(std::string consumerName, std::vector<std::pair<std::string, AVFrame*> >& frames) {
+	for (auto& item : frames) {
+		if (item.first == consumerName) {
+			return item.second;
+		}
+		else if (item.first == "empty") {
+			item.first = consumerName;
+			return item.second;
+		}
 	}
-
-	fprintf(stderr, "Failed to get HW surface format.\n");
-	return AV_PIX_FMT_NONE;
+	return nullptr;
 }
 
 
-void printContext() {
-	CUcontext test_cu;
-	auto cu_err = cuCtxGetCurrent(&test_cu);
-	printf("Context %x\n", test_cu);
-}
-
-at::Tensor load() {
-	//CUdeviceptr data_done;
-	//cudaError_t err2 = cudaMalloc(reinterpret_cast<void**>(&data_done), 16 * sizeof(float));
-	printContext();
-	at::Tensor f = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(RGB), { 3264 * 608 });
-	return f;
-}
 std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
@@ -89,10 +68,9 @@ void initPipeline() {
 	vpp = std::make_shared<VideoProcessor>();
 	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop" /*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"*/ , false };
 	int sts = parser->Init(parserArgs);
-	DecoderParameters decoderArgs = {parser, true };
+	DecoderParameters decoderArgs = { parser, false };
 	sts = decoder->Init(decoderArgs);
-	VPPParameters VPPArgs = { 0, 0, NV12, false };
-	sts = vpp->Init(VPPArgs);
+	sts = vpp->Init(false);
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
@@ -100,10 +78,11 @@ void initPipeline() {
 	}
 }
 
-void start() {
+void startProcessing() {
+	Py_BEGIN_ALLOW_THREADS
 	int sts = OK;
 	//change to end of file
-	while(true) {
+	while (true) {
 		clock_t tStart = clock();
 		sts = parser->Read();
 		//TODO: expect this behavior only in case of EOF
@@ -114,27 +93,17 @@ void start() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-		//printf("Time taken for Decode: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-		//printf("Frame number %d\n", decoder->getFrameIndex());
+		printf("Time taken for Decode: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+		printf("Frame number %d\n", decoder->getFrameIndex());
 		if (decoder->getFrameIndex() == 110)
 			return;
 	}
+	Py_END_ALLOW_THREADS
 }
-AVFrame* findFree(std::string consumerName, std::vector<std::pair<std::string, AVFrame*> >& frames) {
-	for (auto& item : frames) {
-		if (item.first == consumerName) {
-			return item.second;
-		}
-		else if (item.first == "empty") {
-			item.first = consumerName;
-			return item.second;
-		}
-	}
-	return nullptr;
-}
+
 std::mutex syncDecoded;
 std::mutex syncRGB;
-void get(std::string consumerName) {
+at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
 	clock_t tStart = clock();
@@ -148,12 +117,17 @@ void get(std::string consumerName) {
 	}
 	printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	tStart = clock();
-	decoder->GetFrame(0, consumerName, decoded);
-	printf("Get %f\n",(double)(clock() - tStart) / CLOCKS_PER_SEC);
+	decoder->GetFrame(index, consumerName, decoded);
+	printf("Get %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//printf("Time taken for Get: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	tStart = clock();
-	vpp->Convert(decoded, rgbFrame, consumerName);
+	VPPParameters VPPArgs = { 0, 0, NV12 };
+	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	printf("Convert %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	tStart = clock();
+	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
+	printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	return outputTensor;
 	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
 	//tStart = clock();
@@ -161,16 +135,7 @@ void get(std::string consumerName) {
 	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 }
 
-void get_cycle(std::string name) {
-	for (int i = 0; i < 70; i++) {
-		clock_t tStart = clock();
-		get(name);
-		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	}
-
-}
-
-void close() {
+void endProcessing() {
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
@@ -181,24 +146,45 @@ void close() {
 	delete parsed;
 }
 
+
+void startThread() {
+	Py_BEGIN_ALLOW_THREADS
+	std::thread pipeline(startProcessing);
+	Py_END_ALLOW_THREADS
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-	m.def("load", &load, "load data");
-	m.def("get", &start, "get data");
+	m.def("init", &initPipeline, "Init pipeline");
+	m.def("start", &startProcessing, "Start decoding");
+	m.def("startThread", &startThread, "Start decoding");
+	m.def("get", &getFrame, "Get frame by index");
+	m.def("close", &endProcessing, "Close session");
+}
+
+
+
+void get_cycle(std::string name) {
+	for (int i = 0; i < 70; i++) {
+		clock_t tStart = clock();
+		getFrame(name, 0);
+		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	}
+
 }
 
 int main()
 {
 	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
 	initPipeline();
-	std::thread pipeline(start);
+	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	//std::thread get2(get_cycle, "second");
+	std::thread get2(get_cycle, "second");
 
 	get.join();
-	//get2.join();
+	get2.join();
 	pipeline.join();
 	printf("Before close\n");
-	close();
+	endProcessing();
 	printf("After close\n");
 	return 0;
 }

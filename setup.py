@@ -5,6 +5,7 @@ import torch
 include_path = []
 include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["C:\\Users\\Home\\Desktop\\VideoReader\\external\\ffmpeg\\include"]
+include_path += ["include\\"]
 
 library_path = torch.utils.cpp_extension.library_paths(cuda=True)
 library_path += ["C:\\Users\\Home\\Desktop\\VideoReader\\external\\ffmpeg\\bin\\"]
@@ -24,20 +25,25 @@ library += ["avutil"]
 library += ["swresample"]
 library += ["swscale"]
 
+app_src_path = []
+app_src_path += ["src/Decoder.cpp"]
+app_src_path += ["src/General.cpp"]
+app_src_path += ["src/Kernels.cu"]
+app_src_path += ["src/Parser.cpp"]
+app_src_path += ["src/Source.cpp"]
+app_src_path += ["src/VideoProcessor.cpp"]
+
+
 setup(
-    name='Source',
+    name='VideoReader',
     ext_modules=[
     	Extension(
-   			name='Source',
-   			sources=["Source.cpp", "VPP.cu"],
+   			name='VideoReader',
+   			sources=app_src_path,
    			include_dirs=include_path,
    			library_dirs=library_path,
    			libraries=library,
    			language='c++')
-        #CUDAExtension(
-        #	name='Parser', 
-        #	sources=['Parser.cpp'],
-        #			  ),
     ],
     cmdclass={
         'build_ext': BuildExtension

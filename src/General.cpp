@@ -26,3 +26,9 @@ void printMemory() {
 	printf("\tcb: 0x%08X - %u\n", pmc.cb, pmc.cb / 1024);
 	printf("\n\n");
 }
+
+void printContext() {
+	CUcontext test_cu;
+	auto cu_err = cuCtxGetCurrent(&test_cu);
+	printf("Context %x\n", test_cu);
+}

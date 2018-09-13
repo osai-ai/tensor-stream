@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <psapi.h>
+#include "cuda.h"
 
 enum {
 	OK = 0

@@ -31,8 +31,8 @@ cudaStream_t findFree(std::string consumerName, std::vector<std::pair<std::strin
 	return nullptr;
 }
 
-int VideoProcessor::Init(VPPParameters& outputFormat) {
-	state = outputFormat;
+int VideoProcessor::Init(bool _enableDumps = false) {
+	enableDumps = _enableDumps;
 
 	cudaGetDeviceProperties(&prop, 0);
 	for (int i = 0; i < maxConsumers; i++) {
@@ -41,14 +41,14 @@ int VideoProcessor::Init(VPPParameters& outputFormat) {
 		streamArr.push_back(std::make_pair(std::string("empty"), stream));
 	}
 	
-	if (state.enableDumps) {
+	if (enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
 	}
 
 	return OK;
 }
 
-int VideoProcessor::Convert(AVFrame* input, AVFrame* output, std::string consumerName) {
+int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
 	/*
 	Should decide which method call
 	*/
@@ -59,11 +59,11 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, std::string consume
 		stream = findFree(consumerName, streamArr);
 	}
 	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	if (state.dstFourCC == NV12) {
+	if (format.dstFourCC == NV12) {
 		output->width = input->width;
 		output->height = input->height;
 		output->format = AV_PIX_FMT_RGB24;
-		if (state.enableDumps) {
+		if (enableDumps) {
 			//allocate buffers
 			sts = av_frame_get_buffer(output, 2);
 			
@@ -84,6 +84,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, std::string consume
 }
 
 void VideoProcessor::Close() {
-	if (state.enableDumps)
+	if (enableDumps)
 		fclose(dumpFrame.get());
 }
