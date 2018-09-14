@@ -55,7 +55,7 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	unsigned char* RGB;
 	clock_t tStart = clock();
 	cudaError err = cudaMalloc(&RGB, 3 * width * height * sizeof(unsigned char));
-	printf("Time taken for malloc: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//printf("Time taken for malloc: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 	dim3 numBlocks(3 * width / threadsPerBlock.x, height / threadsPerBlock.y);

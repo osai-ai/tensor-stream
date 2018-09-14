@@ -77,4 +77,9 @@ private:
 	*/
 	AVCodecContext * decoderContext = nullptr;
 	AVBufferRef* deviceReference = nullptr;
+	/*
+	Synchronization
+	*/
+	std::mutex sync;
+	std::condition_variable consumerSync;
 };

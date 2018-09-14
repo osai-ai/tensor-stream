@@ -66,7 +66,7 @@ void initPipeline() {
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop" /*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"*/ , false };
+	ParserParameters parserArgs = { /*"rtmp://b.sportlevel.com/relay/pooltop"*/ "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" , false };
 	int sts = parser->Init(parserArgs);
 	DecoderParameters decoderArgs = { parser, false };
 	sts = decoder->Init(decoderArgs);
@@ -79,7 +79,6 @@ void initPipeline() {
 }
 
 void startProcessing() {
-	Py_BEGIN_ALLOW_THREADS
 	int sts = OK;
 	//change to end of file
 	while (true) {
@@ -98,7 +97,6 @@ void startProcessing() {
 		if (decoder->getFrameIndex() == 110)
 			return;
 	}
-	Py_END_ALLOW_THREADS
 }
 
 std::mutex syncDecoded;
@@ -106,7 +104,7 @@ std::mutex syncRGB;
 at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
-	clock_t tStart = clock();
+	//clock_t tStart = clock();
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
 		decoded = findFree(consumerName, decodedArr);
@@ -115,18 +113,18 @@ at::Tensor getFrame(std::string consumerName, int index) {
 		std::unique_lock<std::mutex> locker(syncRGB);
 		rgbFrame = findFree(consumerName, rgbFrameArr);
 	}
-	printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	tStart = clock();
+	//printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//tStart = clock();
 	decoder->GetFrame(index, consumerName, decoded);
-	printf("Get %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//printf("Get %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//printf("Time taken for Get: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	tStart = clock();
+	//tStart = clock();
 	VPPParameters VPPArgs = { 0, 0, NV12 };
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
-	printf("Convert %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	tStart = clock();
+	//printf("Convert %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//tStart = clock();
 	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
-	printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	//printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	return outputTensor;
 	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
