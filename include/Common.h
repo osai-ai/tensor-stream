@@ -2,9 +2,11 @@
 #include <windows.h>
 #include <psapi.h>
 #include "cuda.h"
+#include "nvToolsExt.h"
 
 enum {
-	OK = 0
+	OK = 0,
+	REPEAT = 1
 };
 
 

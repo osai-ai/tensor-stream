@@ -8,7 +8,6 @@ int Parser::Init(ParserParameters& input) {
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
-
 	AVCodec* codec;
 	sts = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
 	videoIndex = sts;
@@ -54,7 +53,11 @@ int Parser::Read() {
 	bool videoFrame = false;
 
 	while (videoFrame == false) {
+		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
+		nvtxRangePush("Read frame");
+		nvtxMark("Reading");
 		sts = av_read_frame(formatContext, lastFrame.first);
+		nvtxRangePop();
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;
@@ -84,7 +87,6 @@ int Parser::Read() {
 }
 
 int Parser::Get(AVPacket* output) {
-	//Critical section
 	if (lastFrame.second == false && lastFrame.first->stream_index == videoIndex) {
 		//decoder is responsible for deallocating
 		av_packet_ref(output, lastFrame.first);
