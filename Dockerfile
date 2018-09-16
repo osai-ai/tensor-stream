@@ -25,7 +25,3 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
     --extra-libs=-lpthread \
     --nvccflags="-gencode arch=compute_61,code=sm_61 -O3" &&\
     make -j$(nproc) && make install && ldconfig
-
-ENV CUDA_HOME="/usr/local/cuda"
-
-RUN python setup.py install
