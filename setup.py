@@ -2,6 +2,9 @@ from setuptools import setup, Extension
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import torch
 
+print(torch.cuda.is_available())
+print(torch.backends.cudnn.enabled)
+
 include_path = []
 include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["C:\\Users\\Home\\Desktop\\VideoReader\\external\\ffmpeg\\include"]

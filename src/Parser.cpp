@@ -53,11 +53,15 @@ int Parser::Read() {
 	bool videoFrame = false;
 
 	while (videoFrame == false) {
+#ifdef TRACER
 		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
 		nvtxRangePush("Read frame");
 		nvtxMark("Reading");
+#endif
 		sts = av_read_frame(formatContext, lastFrame.first);
+#ifdef TRACER
 		nvtxRangePop();
+#endif
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;

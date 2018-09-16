@@ -1,9 +1,8 @@
 #pragma once
-#include <windows.h>
-#include <psapi.h>
 #include "cuda.h"
+#ifdef TRACER
 #include "nvToolsExt.h"
-
+#endif
 enum {
 	OK = 0,
 	REPEAT = 1
