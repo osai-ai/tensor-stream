@@ -15,8 +15,10 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
     ../configure \
     --enable-cuda \
     --enable-cuvid \
-    --enable-nvenc \
-    --enable-nvenc \
+    --enable-shared \
+    --disable-static \
+    --disable-programs \
+    --disable-doc \
     --extra-cflags=-I/usr/local/cuda/include \
     --extra-ldflags=-L/usr/local/cuda/lib64 \
     --enable-gpl \
