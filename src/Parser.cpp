@@ -1,5 +1,10 @@
 #include "Parser.h"
 #include "Common.h"
+#include <thread>
+
+extern "C" {
+	#include "libavutil/time.h"
+}
 
 int Parser::Init(ParserParameters& input) {
 	state = input;
@@ -13,7 +18,6 @@ int Parser::Init(ParserParameters& input) {
 	videoIndex = sts;
 	videoStream = formatContext->streams[videoIndex];
 	videoStream->codec->codec = codec;
-
 	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
@@ -51,21 +55,20 @@ int Parser::Read() {
 	int sts = OK;
 
 	bool videoFrame = false;
-
+	bool waitCamera = true;
 	while (videoFrame == false) {
-#ifdef TRACER
-		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
-		nvtxRangePush("Read frame");
-		nvtxMark("Reading");
-#endif
+		//TODO: should move to end of decoding or find decoding time and subtract? 
+		if (waitCamera) {
+			waitCamera = false;
+			int sleepTime = ((float)formatContext->streams[videoIndex]->codec->framerate.den / (float) formatContext->streams[videoIndex]->codec->framerate.num) * 1000;
+			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+		}
 		sts = av_read_frame(formatContext, lastFrame.first);
-#ifdef TRACER
-		nvtxRangePop();
-#endif
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;
-
+		
+		waitCamera = true;
 		videoFrame = true;
 		currentFrame++;
 

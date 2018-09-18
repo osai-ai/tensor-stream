@@ -66,7 +66,7 @@ void initPipeline() {
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { /*"rtmp://b.sportlevel.com/relay/pooltop"*/ "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" , false };
+	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop" /*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"*/ , false };
 	int sts = parser->Init(parserArgs);
 	DecoderParameters decoderArgs = { parser, false };
 	sts = decoder->Init(decoderArgs);
@@ -83,18 +83,37 @@ void startProcessing() {
 	//change to end of file
 	while (true) {
 		clock_t tStart = clock();
+#ifdef TRACER
+		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
+		nvtxRangePush("Read frame");
+		nvtxMark("Reading");
+#endif
 		sts = parser->Read();
+#ifdef TRACER
+		nvtxRangePop();
+#endif
+		if (sts == AVERROR(EAGAIN))
+			continue;
 		//TODO: expect this behavior only in case of EOF
 		if (sts < 0)
 			break;
 		parser->Get(parsed);
+#ifdef TRACER
+		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
+		nvtxRangePush("Decode");
+		nvtxMark("Decoding");
+#endif
 		sts = decoder->Decode(parsed);
+#ifdef TRACER
+		nvtxRangePop();
+#endif
+
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		printf("Time taken for Decode: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 110)
+		if (decoder->getFrameIndex() == 1100)
 			return;
 	}
 }

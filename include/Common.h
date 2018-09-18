@@ -1,7 +1,9 @@
 #pragma once
 #include "cuda.h"
+#define TRACER
 #ifdef TRACER
 #include "nvToolsExt.h"
+#include "Windows.h"
 #endif
 enum {
 	OK = 0,
