@@ -47,28 +47,22 @@ int Parser::getHeight() {
 	return videoStream->codec->height;
 }
 
+int Parser::getVideoIndex() {
+	return videoIndex;
+}
 Parser::Parser() {
 
 }
 
 int Parser::Read() {
 	int sts = OK;
-
 	bool videoFrame = false;
-	bool waitCamera = true;
 	while (videoFrame == false) {
-		//TODO: should move to end of decoding or find decoding time and subtract? 
-		if (waitCamera) {
-			waitCamera = false;
-			int sleepTime = ((float)formatContext->streams[videoIndex]->codec->framerate.den / (float) formatContext->streams[videoIndex]->codec->framerate.num) * 1000;
-			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-		}
 		sts = av_read_frame(formatContext, lastFrame.first);
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;
 		
-		waitCamera = true;
 		videoFrame = true;
 		currentFrame++;
 

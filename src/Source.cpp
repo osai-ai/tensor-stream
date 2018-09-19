@@ -81,8 +81,22 @@ void initPipeline() {
 void startProcessing() {
 	int sts = OK;
 	//change to end of file
+	clock_t delayStart = 0;
+	clock_t delayEnd = 0;
 	while (true) {
 		clock_t tStart = clock();
+		if (decoder->getFrameIndex() > 0) {
+			delayEnd = clock();
+			//wait here
+			int processingTime = delayEnd - delayStart;
+			int realTimeDelay = ((float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.den /
+				(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
+			int sleepTime = realTimeDelay - processingTime;
+			printf("sleepTime %d\n", sleepTime);
+			if (sleepTime > 0)
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+		}
+		delayStart = clock();
 #ifdef TRACER
 		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
 		nvtxRangePush("Read frame");
@@ -111,9 +125,15 @@ void startProcessing() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-		printf("Time taken for Decode: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+
+		clock_t tEnd = clock();
+		printf("Time taken for Decode: %f\n", (double)(tEnd - tStart) / CLOCKS_PER_SEC);
+		if (tEnd - tStart > 19 && decoder->getFrameIndex() > 1) {
+			printf("AHTUNG!!\n");
+			terminate();
+		}
 		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 1100)
+		if (decoder->getFrameIndex() == 10100)
 			return;
 	}
 }
@@ -134,7 +154,10 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	}
 	//printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//tStart = clock();
-	decoder->GetFrame(index, consumerName, decoded);
+	int sts = REPEAT;
+	while (sts != OK) {
+		sts = decoder->GetFrame(index, consumerName, decoded);
+	}
 	//printf("Get %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//printf("Time taken for Get: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//tStart = clock();
@@ -148,7 +171,7 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
 	//tStart = clock();
-	//cudaFree(rgbFrame->opaque);
+	cudaFree(rgbFrame->opaque);
 	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 }
 
@@ -183,7 +206,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 void get_cycle(std::string name) {
 	for (int i = 0; i < 70; i++) {
 		clock_t tStart = clock();
-		getFrame(name, 0);
+		getFrame(name, -1);
 		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	}
 
@@ -195,10 +218,10 @@ int main()
 	initPipeline();
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	std::thread get2(get_cycle, "second");
+	//std::thread get2(get_cycle, "second");
 
 	get.join();
-	get2.join();
+	//get2.join();
 	pipeline.join();
 	printf("Before close\n");
 	endProcessing();

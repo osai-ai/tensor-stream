@@ -64,6 +64,7 @@ public:
 	*/
 	AVFormatContext* getFormatContext();
 	AVStream* getStreamHandle();
+	int getVideoIndex();
 private:
 	/*
 	State of Parser object it was initialized/reseted with.

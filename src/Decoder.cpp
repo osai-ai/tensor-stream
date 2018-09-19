@@ -94,7 +94,11 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
 			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
-			allignedIndex = allignedIndex >= 0 ? allignedIndex : 0;
+			if (allignedIndex < 0) {
+				allignedIndex += state.bufferDeep;
+				if (!framesBuffer[allignedIndex])
+					return REPEAT;
+			}
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
 			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);
@@ -133,7 +137,6 @@ int Decoder::Decode(AVPacket* pkt) {
 		}
 		consumerSync.notify_all();
 	}
-
 	if (state.enableDumps) {
 		AVFrame* NV12Frame = av_frame_alloc();
 		NV12Frame->format = AV_PIX_FMT_NV12;
