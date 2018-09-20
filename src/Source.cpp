@@ -39,6 +39,7 @@ extern "C"
 #include <time.h>
 #include <chrono>
 
+
 AVFrame* findFree(std::string consumerName, std::vector<std::pair<std::string, AVFrame*> >& frames) {
 	for (auto& item : frames) {
 		if (item.first == consumerName) {
@@ -57,6 +58,7 @@ std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
+int realTimeDelay;
 
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
@@ -66,43 +68,61 @@ void initPipeline() {
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop" /*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"*/ , false };
+	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
 	int sts = parser->Init(parserArgs);
 	DecoderParameters decoderArgs = { parser, false };
 	sts = decoder->Init(decoderArgs);
-	sts = vpp->Init(false);
+	sts = vpp->Init(true);
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 		rgbFrameArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
+	realTimeDelay = ((float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.den /
+		(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
+}
+
+template <typename T>
+using duration = std::chrono::duration<T>;
+
+static void sleep_for(double dt)
+{
+	static constexpr duration<double> MinSleepDuration(0);
+	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+	auto test = duration<double>(std::chrono::high_resolution_clock::now() - start).count();
+	while (duration<double>(std::chrono::high_resolution_clock::now() - start).count() < dt) {
+		std::this_thread::sleep_for(MinSleepDuration);
+	}
 }
 
 void startProcessing() {
 	int sts = OK;
+#ifdef TIMINGS
+	int exceptionCount = 0;
+	std::vector<int> exceptions;
+	std::vector<int> sleepsTime;
+	std::vector<int> needSleep;
+	std::vector<int> decodeTime;
+	std::vector<int> readTime;
+	std::vector<int> getTime;
+#endif
 	//change to end of file
-	clock_t delayStart = 0;
-	clock_t delayEnd = 0;
 	while (true) {
+#ifdef TIMINGS
 		clock_t tStart = clock();
-		if (decoder->getFrameIndex() > 0) {
-			delayEnd = clock();
-			//wait here
-			int processingTime = delayEnd - delayStart;
-			int realTimeDelay = ((float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.den /
-				(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
-			int sleepTime = realTimeDelay - processingTime;
-			printf("sleepTime %d\n", sleepTime);
-			if (sleepTime > 0)
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-		}
-		delayStart = clock();
+#endif
 #ifdef TRACER
 		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
 		nvtxRangePush("Read frame");
 		nvtxMark("Reading");
 #endif
+#ifdef TIMINGS
+		clock_t readStart = clock();
+#endif
 		sts = parser->Read();
+#ifdef TIMINGS
+		clock_t readEnd = clock();
+#endif
 #ifdef TRACER
 		nvtxRangePop();
 #endif
@@ -111,13 +131,26 @@ void startProcessing() {
 		//TODO: expect this behavior only in case of EOF
 		if (sts < 0)
 			break;
+#ifdef TIMINGS
+		clock_t getStart = clock();
+#endif
 		parser->Get(parsed);
+#ifdef TIMINGS
+		clock_t getEnd = clock();
+#endif
 #ifdef TRACER
 		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
 		nvtxRangePush("Decode");
 		nvtxMark("Decoding");
 #endif
+#ifdef TIMINGS
+		clock_t decodeStart = clock();
+#endif
 		sts = decoder->Decode(parsed);
+#ifdef TIMINGS
+		clock_t decodeEnd = clock();
+		printf("Time taken for Decode: %f\n", (double)(decodeEnd - decodeStart) / CLOCKS_PER_SEC);
+#endif
 #ifdef TRACER
 		nvtxRangePop();
 #endif
@@ -125,16 +158,64 @@ void startProcessing() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-
-		clock_t tEnd = clock();
-		printf("Time taken for Decode: %f\n", (double)(tEnd - tStart) / CLOCKS_PER_SEC);
-		if (tEnd - tStart > 19 && decoder->getFrameIndex() > 1) {
-			printf("AHTUNG!!\n");
-			terminate();
+		
+		//wait here
+		int sleepTime = realTimeDelay - (clock() - tStart);
+		//printf("sleepTime %d\n", sleepTime);
+#ifdef TIMINGS
+		clock_t sleepStart = clock();
+#endif
+		if (sleepTime > 0) {
+			auto start = std::chrono::system_clock::now();
+			bool sleep = true;
+			while (sleep)
+			{
+				auto now = std::chrono::system_clock::now();
+				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+				if (elapsed.count() > sleepTime)
+					sleep = false;
+			}
+			//std::this_thread::sleep_for(std::chrono::milliseconds(x));
 		}
+#ifdef TIMINGS
+		clock_t sleepEnd = clock();
+		printf("Time taken for Sleep: %f\n", (double)(sleepEnd - sleepStart) / CLOCKS_PER_SEC);
+#endif
+#ifdef TIMINGS
+		clock_t tEnd = clock();
+		printf("Time taken for Pipeline: %f\n", (double)(tEnd - tStart) / CLOCKS_PER_SEC);
+#endif
+		
+#ifdef TIMINGS
+		if (tEnd - tStart > 19 && decoder->getFrameIndex() > 1) {
+			exceptionCount++;
+			exceptions.push_back(tEnd - tStart);
+			sleepsTime.push_back(sleepEnd - sleepStart);
+			decodeTime.push_back(decodeEnd - decodeStart);
+			needSleep.push_back(sleepTime);
+			readTime.push_back(readEnd - readEnd);
+			getTime.push_back(getEnd - getEnd);
+		}
+#endif
 		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 10100)
+		if (decoder->getFrameIndex() == 5000) {
+#ifdef TIMINGS
+			printf("Ahtung count %d\n", exceptionCount);
+			for (auto item : exceptions)
+				printf("ahtung time %d\n", item);
+			for (auto item : sleepsTime)
+				printf("ahtung time sleep %d\n", item);
+			for (auto item : decodeTime)
+				printf("ahtung time decode %d\n", item);
+			for (auto item : readTime)
+				printf("ahtung read time %d\n", item);
+			for (auto item : getTime)
+				printf("ahtung get time %d\n", item);
+			for (auto item : needSleep)
+				printf("ahtung need sleep time %d\n", item);
+#endif
 			return;
+		}
 	}
 }
 
@@ -167,11 +248,11 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	//tStart = clock();
 	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
 	//printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	return outputTensor;
 	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
 	//tStart = clock();
 	cudaFree(rgbFrame->opaque);
+	return outputTensor;
 	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 }
 
@@ -204,9 +285,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::string name) {
-	for (int i = 0; i < 70; i++) {
+	for (int i = 0; i < 5000; i++) {
 		clock_t tStart = clock();
-		getFrame(name, -1);
+		getFrame(name, 0);
 		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	}
 
@@ -218,10 +299,10 @@ int main()
 	initPipeline();
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	//std::thread get2(get_cycle, "second");
+//	std::thread get2(get_cycle, "second");
 
 	get.join();
-	//get2.join();
+//	get2.join();
 	pipeline.join();
 	printf("Before close\n");
 	endProcessing();

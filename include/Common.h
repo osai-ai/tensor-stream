@@ -1,10 +1,13 @@
 #pragma once
 #include "cuda.h"
-#define TRACER
+//#define TRACER
 #ifdef TRACER
 #include "nvToolsExt.h"
 #include "Windows.h"
 #endif
+
+#define TIMINGS
+
 enum {
 	OK = 0,
 	REPEAT = 1
