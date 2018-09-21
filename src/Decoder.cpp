@@ -122,7 +122,6 @@ int Decoder::Decode(AVPacket* pkt) {
 	}
 	//deallocate copy(!) of packet from Reader
 	av_packet_unref(pkt);
-	printf("decoding time %d\n", clock() - start);
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {

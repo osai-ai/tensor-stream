@@ -82,18 +82,6 @@ void initPipeline() {
 		(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
 }
 
-template <typename T>
-using duration = std::chrono::duration<T>;
-
-static void sleep_for(double dt)
-{
-	static constexpr duration<double> MinSleepDuration(0);
-	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-	auto test = duration<double>(std::chrono::high_resolution_clock::now() - start).count();
-	while (duration<double>(std::chrono::high_resolution_clock::now() - start).count() < dt) {
-		std::this_thread::sleep_for(MinSleepDuration);
-	}
-}
 
 void startProcessing() {
 	int sts = OK;
@@ -198,7 +186,7 @@ void startProcessing() {
 		}
 #endif
 		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 5000) {
+		if (decoder->getFrameIndex() == 1000) {
 #ifdef TIMINGS
 			printf("Ahtung count %d\n", exceptionCount);
 			for (auto item : exceptions)
@@ -224,7 +212,7 @@ std::mutex syncRGB;
 at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
-	//clock_t tStart = clock();
+	clock_t tStart = clock();
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
 		decoded = findFree(consumerName, decodedArr);
@@ -248,10 +236,10 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	//tStart = clock();
 	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
 	//printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	//printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
 	//tStart = clock();
-	cudaFree(rgbFrame->opaque);
+	//cudaFree(rgbFrame->opaque);
 	return outputTensor;
 	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 }
@@ -267,25 +255,23 @@ void endProcessing() {
 	delete parsed;
 }
 
-
-void startThread() {
-	Py_BEGIN_ALLOW_THREADS
-	std::thread pipeline(startProcessing);
-	Py_END_ALLOW_THREADS
-}
-
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", &initPipeline, "Init pipeline");
-	m.def("start", &startProcessing, "Start decoding");
-	m.def("startThread", &startThread, "Start decoding");
-	m.def("get", &getFrame, "Get frame by index");
+	m.def("start", [](void) -> void {
+		py::gil_scoped_release release;
+		startProcessing();
+		});
+	m.def("get", [](std::string name, int frame) {
+		py::gil_scoped_release release;
+		return getFrame(name, frame);
+	});
 	m.def("close", &endProcessing, "Close session");
 }
 
 
 
 void get_cycle(std::string name) {
-	for (int i = 0; i < 5000; i++) {
+	for (int i = 0; i < 1000; i++) {
 		clock_t tStart = clock();
 		getFrame(name, 0);
 		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);

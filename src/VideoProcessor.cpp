@@ -72,6 +72,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			void* opaque = output->opaque;
 			//deallocate buffers and all custom fields too..
 			av_frame_unref(output);
+			output->width = input->width;
+			output->height = input->height;
 			output->opaque = opaque;
 		}
 		else {

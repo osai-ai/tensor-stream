@@ -5,15 +5,31 @@ import os
 import threading
 
 def get():
-	for i in range(100):
-		VideoReader.get("first", 0)
+	for i in range(1000):
+		x = VideoReader.get("first", 0)
+		print(x[0])
+		print(x[0][0])
+		print(x)
+		del x
+		torch.cuda.empty_cache()
 
 def start():
 	VideoReader.start()	
 
 VideoReader.init()	
-t1 = threading.Thread(target=someFunc)
+
+print("Init")
+#VideoReader.start()
+t1 = threading.Thread(target=start)
+
 t1.start()
 print("here")
+t2 = threading.Thread(target=get)
+
+t2.start()
+print("after")
+
+t1.join()
+t2.join()
 
 
