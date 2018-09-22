@@ -5,31 +5,30 @@ import os
 import threading
 
 def get():
-	for i in range(1000):
+	for i in range(500):
 		x = VideoReader.get("first", 0)
-		print(x[0])
-		print(x[0][0])
-		print(x)
-		del x
+		print(x.data)
+		VideoReader.free(x)
 		torch.cuda.empty_cache()
 
 def start():
 	VideoReader.start()	
 
-VideoReader.init()	
-
 print("Init")
-#VideoReader.start()
-t1 = threading.Thread(target=start)
+inputFile = "rtmp://b.sportlevel.com/relay/pooltop"
+VideoReader.init(inputFile)	
 
-t1.start()
-print("here")
+t1 = threading.Thread(target=start)
 t2 = threading.Thread(target=get)
 
+t1.start()
 t2.start()
-print("after")
 
 t1.join()
 t2.join()
+
+print("joined")
+
+VideoReader.close()
 
 

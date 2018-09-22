@@ -18,19 +18,6 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 #endif
 }
 
-cudaStream_t findFree(std::string consumerName, std::vector<std::pair<std::string, cudaStream_t> >& streamArr) {
-	for (auto& item : streamArr) {
-		if (item.first == consumerName) {
-			return item.second;
-		}
-		else if (item.first == "empty") {
-			item.first = consumerName;
-			return item.second;
-		}
-	}
-	return nullptr;
-}
-
 int VideoProcessor::Init(bool _enableDumps = false) {
 	enableDumps = _enableDumps;
 
@@ -56,7 +43,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 	int sts = OK;
 	{
 		std::unique_lock<std::mutex> locker(streamSync);
-		stream = findFree(consumerName, streamArr);
+		stream = findFree<cudaStream_t>(consumerName, streamArr);
 	}
 	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	if (format.dstFourCC == NV12) {
@@ -68,7 +55,9 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			sts = av_frame_get_buffer(output, 2);
 			
 			sts = NV12ToRGB24Dump(input, output, prop.maxThreadsPerBlock, &stream);
+			clock_t tStart = clock();
 			SaveRGB24(output, dumpFrame.get());
+			printf("Save %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 			void* opaque = output->opaque;
 			//deallocate buffers and all custom fields too..
 			av_frame_unref(output);

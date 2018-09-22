@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
-#include <fstream>
-#include <sstream>
-// basic file operations
-#include <iostream>
-#include <fstream>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #ifdef _DEBUG
@@ -19,60 +12,35 @@
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 #endif
-#include "memory"
+
+#include "Common.h"
 #include "Parser.h"
 #include "Decoder.h"
-#include "Common.h"
 #include "VideoProcessor.h"
-#include <Python.h>
-extern "C"
-{
-#include <libavformat/avformat.h>
-#include <libavutil/timestamp.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/frame.h>
-#include <libavutil/imgutils.h>
-#include <libavutil/samplefmt.h>
-#include <libavutil/hwcontext_cuda.h>
-}
 #include <thread>
 #include <time.h>
 #include <chrono>
-
-
-AVFrame* findFree(std::string consumerName, std::vector<std::pair<std::string, AVFrame*> >& frames) {
-	for (auto& item : frames) {
-		if (item.first == consumerName) {
-			return item.second;
-		}
-		else if (item.first == "empty") {
-			item.first = consumerName;
-			return item.second;
-		}
-	}
-	return nullptr;
-}
-
 
 std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
 int realTimeDelay;
-
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
-void initPipeline() {
+
+void initPipeline(std::string inputFile, bool enableLogs = false) {
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
+	//ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
+	ParserParameters parserArgs = { inputFile, false };
 	int sts = parser->Init(parserArgs);
 	DecoderParameters decoderArgs = { parser, false };
 	sts = decoder->Init(decoderArgs);
-	sts = vpp->Init(true);
+	sts = vpp->Init(false);
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
@@ -186,7 +154,7 @@ void startProcessing() {
 		}
 #endif
 		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 1000) {
+		if (decoder->getFrameIndex() == 500) {
 #ifdef TIMINGS
 			printf("Ahtung count %d\n", exceptionCount);
 			for (auto item : exceptions)
@@ -215,11 +183,11 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	clock_t tStart = clock();
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
-		decoded = findFree(consumerName, decodedArr);
+		decoded = findFree<AVFrame*>(consumerName, decodedArr);
 	}
 	{
 		std::unique_lock<std::mutex> locker(syncRGB);
-		rgbFrame = findFree(consumerName, rgbFrameArr);
+		rgbFrame = findFree<AVFrame*>(consumerName, rgbFrameArr);
 	}
 	//printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//tStart = clock();
@@ -236,12 +204,14 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	//tStart = clock();
 	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
 	//printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	printf("Time taken for convert: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	printf("CUDA data ptr allocated %x\n", outputTensor.data_ptr());
+	printf("General get time %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	//application should free memory once it's not needed
-	//tStart = clock();
-	//cudaFree(rgbFrame->opaque);
+	/*tStart = clock();
+	cudaFree(rgbFrame->opaque);
+	printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	*/
 	return outputTensor;
-	//printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
 }
 
 void endProcessing() {
@@ -255,6 +225,20 @@ void endProcessing() {
 	delete parsed;
 }
 
+void freeTensor(at::Tensor input) {
+	printf("CUDA data ptr free %x\n", input.data_ptr());
+	cudaFree(input.data_ptr());
+}
+
+void enableLogs(int _logsLevel) {
+	if (_logsLevel) {
+		logsLevel = static_cast<LogsLevel>(_logsLevel);
+		if (!logsName) {
+			logsName = std::shared_ptr<FILE>(fopen("logs.txt", "w+"));
+		}
+	}
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", &initPipeline, "Init pipeline");
 	m.def("start", [](void) -> void {
@@ -265,13 +249,22 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 		return getFrame(name, frame);
 	});
+	m.def("free", [](at::Tensor input) {
+		py::gil_scoped_release release;
+		freeTensor(input);
+	});
+	m.def("enableLogs", [](int logsLevel) {
+		py::gil_scoped_release release;
+		enableLogs(logsLevel);
+	});
+
 	m.def("close", &endProcessing, "Close session");
 }
 
 
 
 void get_cycle(std::string name) {
-	for (int i = 0; i < 1000; i++) {
+	for (int i = 0; i < 500; i++) {
 		clock_t tStart = clock();
 		getFrame(name, 0);
 		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
@@ -282,13 +275,16 @@ void get_cycle(std::string name) {
 int main()
 {
 	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
-	initPipeline();
+	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	enableLogs(1);
+	START_LOG(std::string("hi enter"));
+	END_LOG(std::string("hi end"));
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-//	std::thread get2(get_cycle, "second");
+	std::thread get2(get_cycle, "second");
 
 	get.join();
-//	get2.join();
+	get2.join();
 	pipeline.join();
 	printf("Before close\n");
 	endProcessing();

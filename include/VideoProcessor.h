@@ -3,9 +3,10 @@
 extern "C" {
 	#include <libavformat/avformat.h>
 }
+
 #include <memory>
-#include <cuda_runtime.h>
 #include <vector>
+#include <cuda_runtime.h>
 #include <mutex>
 /*
 List of supported output formats

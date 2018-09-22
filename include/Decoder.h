@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include "Common.h"
 
 /*
 Structure with initialization/reset parameters.

@@ -1,10 +1,5 @@
 #include "Parser.h"
-#include "Common.h"
 #include <thread>
-
-extern "C" {
-	#include "libavutil/time.h"
-}
 
 int Parser::Init(ParserParameters& input) {
 	state = input;

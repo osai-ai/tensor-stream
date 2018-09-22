@@ -1,5 +1,4 @@
 #include "Decoder.h"
-#include "Common.h"
 #include <cuda_runtime.h>
 
 extern "C" {
@@ -99,6 +98,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 				if (!framesBuffer[allignedIndex])
 					return REPEAT;
 			}
+			printf("Got frame by index: alligned %d, normal %d\n", allignedIndex, currentFrame);
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
 			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);

@@ -1,6 +1,3 @@
-/*
-The main class which provide API for python and manages all calls to components. Consumers should work with this class.
-*/
 #include "Common.h"
 #include "stdio.h"
 
