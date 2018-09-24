@@ -104,7 +104,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);
 		}
 	}
-	return OK;
+	return currentFrame;
 }
 
 int Decoder::Decode(AVPacket* pkt) {

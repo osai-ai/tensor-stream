@@ -17,6 +17,7 @@ def start():
 print("Init")
 inputFile = "rtmp://b.sportlevel.com/relay/pooltop"
 VideoReader.init(inputFile)	
+VideoReader.enableLogs(3)
 
 t1 = threading.Thread(target=start)
 t2 = threading.Thread(target=get)

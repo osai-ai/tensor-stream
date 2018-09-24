@@ -53,74 +53,31 @@ void initPipeline(std::string inputFile, bool enableLogs = false) {
 
 void startProcessing() {
 	int sts = OK;
-#ifdef TIMINGS
-	int exceptionCount = 0;
-	std::vector<int> exceptions;
-	std::vector<int> sleepsTime;
-	std::vector<int> needSleep;
-	std::vector<int> decodeTime;
-	std::vector<int> readTime;
-	std::vector<int> getTime;
-#endif
 	//change to end of file
 	while (true) {
-#ifdef TIMINGS
-		clock_t tStart = clock();
-#endif
-#ifdef TRACER
-		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
-		nvtxRangePush("Read frame");
-		nvtxMark("Reading");
-#endif
-#ifdef TIMINGS
-		clock_t readStart = clock();
-#endif
+		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
+		clock_t waitTime = clock();
+		START_LOG_BLOCK(std::string("parser->Read"));
 		sts = parser->Read();
-#ifdef TIMINGS
-		clock_t readEnd = clock();
-#endif
-#ifdef TRACER
-		nvtxRangePop();
-#endif
+		END_LOG_BLOCK(std::string("parser->Read"));
 		if (sts == AVERROR(EAGAIN))
 			continue;
 		//TODO: expect this behavior only in case of EOF
 		if (sts < 0)
 			break;
-#ifdef TIMINGS
-		clock_t getStart = clock();
-#endif
+		START_LOG_BLOCK(std::string("parser->Get"));
 		parser->Get(parsed);
-#ifdef TIMINGS
-		clock_t getEnd = clock();
-#endif
-#ifdef TRACER
-		nvtxNameOsThread(GetCurrentThreadId(), "DECODE_THREAD");
-		nvtxRangePush("Decode");
-		nvtxMark("Decoding");
-#endif
-#ifdef TIMINGS
-		clock_t decodeStart = clock();
-#endif
+		END_LOG_BLOCK(std::string("parser->Get"));
+		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
-#ifdef TIMINGS
-		clock_t decodeEnd = clock();
-		printf("Time taken for Decode: %f\n", (double)(decodeEnd - decodeStart) / CLOCKS_PER_SEC);
-#endif
-#ifdef TRACER
-		nvtxRangePop();
-#endif
-
+		END_LOG_BLOCK(std::string("decoder->Decode"));
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		
+		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
-		int sleepTime = realTimeDelay - (clock() - tStart);
-		//printf("sleepTime %d\n", sleepTime);
-#ifdef TIMINGS
-		clock_t sleepStart = clock();
-#endif
+		int sleepTime = realTimeDelay - (clock() - waitTime);
 		if (sleepTime > 0) {
 			auto start = std::chrono::system_clock::now();
 			bool sleep = true;
@@ -133,45 +90,8 @@ void startProcessing() {
 			}
 			//std::this_thread::sleep_for(std::chrono::milliseconds(x));
 		}
-#ifdef TIMINGS
-		clock_t sleepEnd = clock();
-		printf("Time taken for Sleep: %f\n", (double)(sleepEnd - sleepStart) / CLOCKS_PER_SEC);
-#endif
-#ifdef TIMINGS
-		clock_t tEnd = clock();
-		printf("Time taken for Pipeline: %f\n", (double)(tEnd - tStart) / CLOCKS_PER_SEC);
-#endif
-		
-#ifdef TIMINGS
-		if (tEnd - tStart > 19 && decoder->getFrameIndex() > 1) {
-			exceptionCount++;
-			exceptions.push_back(tEnd - tStart);
-			sleepsTime.push_back(sleepEnd - sleepStart);
-			decodeTime.push_back(decodeEnd - decodeStart);
-			needSleep.push_back(sleepTime);
-			readTime.push_back(readEnd - readEnd);
-			getTime.push_back(getEnd - getEnd);
-		}
-#endif
-		printf("Frame number %d\n", decoder->getFrameIndex());
-		if (decoder->getFrameIndex() == 500) {
-#ifdef TIMINGS
-			printf("Ahtung count %d\n", exceptionCount);
-			for (auto item : exceptions)
-				printf("ahtung time %d\n", item);
-			for (auto item : sleepsTime)
-				printf("ahtung time sleep %d\n", item);
-			for (auto item : decodeTime)
-				printf("ahtung time decode %d\n", item);
-			for (auto item : readTime)
-				printf("ahtung read time %d\n", item);
-			for (auto item : getTime)
-				printf("ahtung get time %d\n", item);
-			for (auto item : needSleep)
-				printf("ahtung need sleep time %d\n", item);
-#endif
-			return;
-		}
+		END_LOG_BLOCK(std::string("sleep"));
+		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
 }
 
@@ -180,7 +100,8 @@ std::mutex syncRGB;
 at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
-	clock_t tStart = clock();
+	at::Tensor outputTensor;
+	START_LOG_FUNCTION(std::string("GetFrame()"));
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
 		decoded = findFree<AVFrame*>(consumerName, decodedArr);
@@ -189,28 +110,20 @@ at::Tensor getFrame(std::string consumerName, int index) {
 		std::unique_lock<std::mutex> locker(syncRGB);
 		rgbFrame = findFree<AVFrame*>(consumerName, rgbFrameArr);
 	}
-	//printf("Vectors %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	//tStart = clock();
-	int sts = REPEAT;
-	while (sts != OK) {
-		sts = decoder->GetFrame(index, consumerName, decoded);
+	int indexFrame = REPEAT;
+	START_LOG_BLOCK(std::string("decoder->GetFrame"));
+	while (indexFrame == REPEAT) {
+		indexFrame = decoder->GetFrame(index, consumerName, decoded);
 	}
-	//printf("Get %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	//printf("Time taken for Get: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	//tStart = clock();
+	END_LOG_BLOCK(std::string("decoder->GetFrame"));
+	START_LOG_BLOCK(std::string("vpp->Convert"));
 	VPPParameters VPPArgs = { 0, 0, NV12 };
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
-	//printf("Convert %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	//tStart = clock();
-	at::Tensor outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
-	//printf("To tensor %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	printf("CUDA data ptr allocated %x\n", outputTensor.data_ptr());
-	printf("General get time %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
+	END_LOG_BLOCK(std::string("vpp->Convert"));
+	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
 	//application should free memory once it's not needed
-	/*tStart = clock();
-	cudaFree(rgbFrame->opaque);
-	printf("Time taken for Free: %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-	*/
+	//cudaFree(rgbFrame->opaque);
+	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTensor;
 }
 
@@ -218,6 +131,7 @@ void endProcessing() {
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
+	logsFile.close();
 	for (auto& item : rgbFrameArr)
 		av_frame_free(&item.second);
 	for (auto& item : decodedArr)
@@ -226,21 +140,22 @@ void endProcessing() {
 }
 
 void freeTensor(at::Tensor input) {
-	printf("CUDA data ptr free %x\n", input.data_ptr());
 	cudaFree(input.data_ptr());
 }
 
 void enableLogs(int _logsLevel) {
 	if (_logsLevel) {
 		logsLevel = static_cast<LogsLevel>(_logsLevel);
-		if (!logsName) {
-			logsName = std::shared_ptr<FILE>(fopen("logs.txt", "w+"));
+		if (!logsFile.is_open()) {
+			logsFile.open(logFileName);
 		}
 	}
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-	m.def("init", &initPipeline, "Init pipeline");
+	m.def("init", [](std::string rtmp) {
+		return initPipeline(rtmp);
+	});
 	m.def("start", [](void) -> void {
 		py::gil_scoped_release release;
 		startProcessing();
@@ -254,7 +169,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		freeTensor(input);
 	});
 	m.def("enableLogs", [](int logsLevel) {
-		py::gil_scoped_release release;
+		//py::gil_scoped_release release;
 		enableLogs(logsLevel);
 	});
 
@@ -265,9 +180,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 void get_cycle(std::string name) {
 	for (int i = 0; i < 500; i++) {
-		clock_t tStart = clock();
 		getFrame(name, 0);
-		printf("Got number %d, %f\n", i, (double)(clock() - tStart) / CLOCKS_PER_SEC);
 	}
 
 }
@@ -276,9 +189,7 @@ int main()
 {
 	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
 	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	enableLogs(1);
-	START_LOG(std::string("hi enter"));
-	END_LOG(std::string("hi end"));
+	enableLogs(HIGH);
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
 	std::thread get2(get_cycle, "second");
