@@ -54,9 +54,6 @@ void Decoder::Close() {
 
 void saveNV12(AVFrame *avFrame, FILE* dump)
 {
-#ifdef DEBUG_INFO
-	int static count = 0;
-#endif
 	uint32_t pitchY = avFrame->linesize[0];
 	uint32_t pitchUV = avFrame->linesize[1];
 
@@ -73,10 +70,6 @@ void saveNV12(AVFrame *avFrame, FILE* dump)
 		avUV += pitchUV;
 	}
 	fflush(dump);
-#ifdef DEBUG_INFO
-	count++;
-	printf("NV12 %d\n", count);
-#endif
 }
 
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
@@ -98,7 +91,6 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 				if (!framesBuffer[allignedIndex])
 					return REPEAT;
 			}
-			printf("Got frame by index: alligned %d, normal %d\n", allignedIndex, currentFrame);
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
 			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);

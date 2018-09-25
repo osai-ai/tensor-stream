@@ -4,8 +4,13 @@
 int Parser::Init(ParserParameters& input) {
 	state = input;
 	int sts = OK;
-	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, 0);
+	//AVDictionary *opts = NULL;
+	//av_dict_set(&opts, "rtmp_buffer", "0", 0);
+	//av_dict_set(&opts, "rtmp_live", "live", 0);
+	//packet_buffer - isn't empty
+	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, /*&opts*/0);
 	CHECK_STATUS(sts);
+	//av_dict_free(&opts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
 	AVCodec* codec;
@@ -13,6 +18,12 @@ int Parser::Init(ParserParameters& input) {
 	videoIndex = sts;
 	videoStream = formatContext->streams[videoIndex];
 	videoStream->codec->codec = codec;
+	
+	//avio_flush(formatContext->pb);
+	//avformat_flush(formatContext);
+
+	//formatContext->flags = formatContext->flags | AVFMT_FLAG_NOBUFFER;
+	//formatContext->flags = formatContext->flags | AVFMT_FLAG_FLUSH_PACKETS;
 	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());

@@ -30,17 +30,27 @@ std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 
 void initPipeline(std::string inputFile, bool enableLogs = false) {
+	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
+	START_LOG_BLOCK(std::string("Tensor CUDA init"));
 	at::Tensor gt_target = at::empty(at::CUDA(at::kByte), { 1 });
+	END_LOG_BLOCK(std::string("Tensor CUDA init"));
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
 	//ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
 	ParserParameters parserArgs = { inputFile, false };
-	int sts = parser->Init(parserArgs);
+	int sts;
+	START_LOG_BLOCK(std::string("parser->Init"));
+	sts = parser->Init(parserArgs);
+	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false };
+	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs);
+	END_LOG_BLOCK(std::string("decoder->Init"));
+	START_LOG_BLOCK(std::string("VPP->Init"));
 	sts = vpp->Init(false);
+	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
@@ -48,6 +58,7 @@ void initPipeline(std::string inputFile, bool enableLogs = false) {
 	}
 	realTimeDelay = ((float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.den /
 		(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
+	END_LOG_FUNCTION(std::string("Initializing() "));
 }
 
 
@@ -74,7 +85,6 @@ void startProcessing() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-		
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - (clock() - waitTime);
@@ -169,7 +179,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		freeTensor(input);
 	});
 	m.def("enableLogs", [](int logsLevel) {
-		//py::gil_scoped_release release;
 		enableLogs(logsLevel);
 	});
 
@@ -187,9 +196,8 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	std::cout << "Main thread: " << std::this_thread::get_id() << std::endl;
+	enableLogs(MEDIUM);
 	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	enableLogs(HIGH);
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
 	std::thread get2(get_cycle, "second");
@@ -197,8 +205,6 @@ int main()
 	get.join();
 	get2.join();
 	pipeline.join();
-	printf("Before close\n");
 	endProcessing();
-	printf("After close\n");
 	return 0;
 }
