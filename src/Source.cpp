@@ -196,7 +196,7 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	enableLogs(MEDIUM);
+	enableLogs(-MEDIUM);
 	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
