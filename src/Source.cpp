@@ -107,6 +107,7 @@ void startProcessing() {
 
 std::mutex syncDecoded;
 std::mutex syncRGB;
+std::vector<at::Tensor> tensors;
 at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
@@ -131,6 +132,11 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
+	for (auto& item : tensors) {
+		printf("use count %d\n", item.getIntrusivePtr().use_count());
+		printf("use count %d\n", item.getIntrusivePtr().weak_use_count());
+	}
+	tensors.push_back(outputTensor);
 	//application should free memory once it's not needed
 	//cudaFree(rgbFrame->opaque);
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
@@ -189,21 +195,24 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 void get_cycle(std::string name) {
 	for (int i = 0; i < 500; i++) {
-		getFrame(name, 0);
+		at::Tensor tensor = getFrame(name, 0);
+		//printf("for count %d\n", tensor.getIntrusivePtr().use_count());
+		//printf("for count %d\n", tensor.getIntrusivePtr().weak_use_count());
 	}
 
 }
 
 int main()
 {
-	enableLogs(-MEDIUM);
-	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	enableLogs(0);
+	//initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	std::thread get2(get_cycle, "second");
+	//std::thread get2(get_cycle, "second");
 
 	get.join();
-	get2.join();
+	//get2.join();
 	pipeline.join();
 	endProcessing();
 	return 0;
