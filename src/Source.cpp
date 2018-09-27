@@ -97,7 +97,7 @@ void startProcessing() {
 				tensors.begin(),
 				tensors.end(),
 				[](at::Tensor & item) {
-					if (item.getIntrusivePtr().use_count() == 1) {
+					if (item.use_count() == 1) {
 						cudaFree(item.data_ptr());
 						return true;
 					}
