@@ -28,6 +28,7 @@ AVPacket* parsed;
 int realTimeDelay;
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
+std::mutex freeSync;
 
 void initPipeline(std::string inputFile, bool enableLogs = false) {
 	START_LOG_FUNCTION(std::string("Initializing() "));
@@ -61,7 +62,7 @@ void initPipeline(std::string inputFile, bool enableLogs = false) {
 	END_LOG_FUNCTION(std::string("Initializing() "));
 }
 
-
+std::vector<at::Tensor> tensors;
 void startProcessing() {
 	int sts = OK;
 	//change to end of file
@@ -85,11 +86,33 @@ void startProcessing() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
+
+		START_LOG_BLOCK(std::string("check tensor to free"));
+		std::unique_lock<std::mutex> locker(freeSync);
+		/*
+		Need to check count of references of output Tensor and free if strong_refs = 1
+		*/
+		tensors.erase(
+			std::remove_if(
+				tensors.begin(),
+				tensors.end(),
+				[](at::Tensor & item) {
+					if (item.getIntrusivePtr().use_count() == 1) {
+						cudaFree(item.data_ptr());
+						return true;
+					}
+					return false;
+				}
+			),
+			tensors.end()
+		);
+		END_LOG_BLOCK(std::string("check tensor to free"));
+
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - (clock() - waitTime);
 		if (sleepTime > 0) {
-			auto start = std::chrono::system_clock::now();
+			/*auto start = std::chrono::system_clock::now();
 			bool sleep = true;
 			while (sleep)
 			{
@@ -98,7 +121,8 @@ void startProcessing() {
 				if (elapsed.count() > sleepTime)
 					sleep = false;
 			}
-			//std::this_thread::sleep_for(std::chrono::milliseconds(x));
+			*/
+			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 		}
 		END_LOG_BLOCK(std::string("sleep"));
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
@@ -107,7 +131,6 @@ void startProcessing() {
 
 std::mutex syncDecoded;
 std::mutex syncRGB;
-std::vector<at::Tensor> tensors;
 at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
@@ -132,13 +155,13 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
-	for (auto& item : tensors) {
-		printf("use count %d\n", item.getIntrusivePtr().use_count());
-		printf("use count %d\n", item.getIntrusivePtr().weak_use_count());
-	}
+	/*
+	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
+	*/
+	START_LOG_BLOCK(std::string("add tensor"));
+	std::unique_lock<std::mutex> locker(freeSync);
 	tensors.push_back(outputTensor);
-	//application should free memory once it's not needed
-	//cudaFree(rgbFrame->opaque);
+	END_LOG_BLOCK(std::string("add tensor"));
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTensor;
 }
@@ -195,24 +218,22 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 void get_cycle(std::string name) {
 	for (int i = 0; i < 500; i++) {
-		at::Tensor tensor = getFrame(name, 0);
-		//printf("for count %d\n", tensor.getIntrusivePtr().use_count());
-		//printf("for count %d\n", tensor.getIntrusivePtr().weak_use_count());
+		getFrame(name, 0);
 	}
 
 }
 
 int main()
 {
-	enableLogs(0);
-	//initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	enableLogs(-MEDIUM);
+	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	//initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	//std::thread get2(get_cycle, "second");
+	std::thread get2(get_cycle, "second");
 
 	get.join();
-	//get2.join();
+	get2.join();
 	pipeline.join();
 	endProcessing();
 	return 0;
