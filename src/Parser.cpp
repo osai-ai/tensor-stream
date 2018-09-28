@@ -14,8 +14,7 @@ int Parser::Init(ParserParameters& input) {
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
 	AVCodec* codec;
-	sts = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
-	videoIndex = sts;
+	videoIndex = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
 	videoStream = formatContext->streams[videoIndex];
 	videoStream->codec->codec = codec;
 	

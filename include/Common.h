@@ -14,7 +14,12 @@ enum {
 	OK = 0
 };
 
-#define CHECK_STATUS(status) if (status != 0) return status;
+#define CHECK_STATUS(status) \
+	if (status != 0) { \
+		std::cout << "Error status != 0\n" << std::flush; \
+		std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "\n" << std::flush; \
+		return status; \
+	} \
 
 enum LogsLevel {
 	NONE,
@@ -28,6 +33,19 @@ const std::string logFileName = "logs.txt";
 static std::ofstream logsFile;
 static LogsLevel logsLevel = NONE;
 static std::mutex logsMutex;
+
+#define LOG_VALUE(messageIn) \
+	{ \
+		std::unique_lock<std::mutex> locker(logsMutex); \
+		if (logsLevel && logsFile.is_open()) \
+		{ \
+			std::string finalMessage = messageIn + std::string(" +\n"); \
+			if (logsLevel < 0) \
+				std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+			else \
+				logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+		} \
+	} \
 
 #define START_LOG_FUNCTION(messageIn) \
 	{ \

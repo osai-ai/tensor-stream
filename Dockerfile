@@ -25,3 +25,5 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
 
 COPY . /app
 WORKDIR /app
+
+ENTRYPOINT python setup_lin.py install

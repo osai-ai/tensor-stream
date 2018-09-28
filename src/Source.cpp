@@ -30,7 +30,7 @@ std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 std::mutex freeSync;
 
-void initPipeline(std::string inputFile, bool enableLogs = false) {
+int initPipeline(std::string inputFile, bool enableLogs = false) {
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
@@ -44,26 +44,32 @@ void initPipeline(std::string inputFile, bool enableLogs = false) {
 	int sts;
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs);
+	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false };
 	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs);
+	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
 	sts = vpp->Init(false);
+	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 		rgbFrameArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
-	realTimeDelay = ((float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.den /
-		(float)parser->getFormatContext()->streams[parser->getVideoIndex()]->codec->framerate.num) * 1000;
+	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
+	CHECK_STATUS(codecTmp->framerate.num == 0);
+	realTimeDelay = ((float)codecTmp->framerate.den /
+		(float)codecTmp->framerate.num) * 1000;
+	LOG_VALUE(std::string("Native frame rate: ") + std::to_string(realTimeDelay));
 	END_LOG_FUNCTION(std::string("Initializing() "));
 }
 
 std::vector<at::Tensor> tensors;
-void startProcessing() {
+int startProcessing() {
 	int sts = OK;
 	//change to end of file
 	while (true) {
@@ -75,10 +81,10 @@ void startProcessing() {
 		if (sts == AVERROR(EAGAIN))
 			continue;
 		//TODO: expect this behavior only in case of EOF
-		if (sts < 0)
-			break;
+		CHECK_STATUS(sts);
 		START_LOG_BLOCK(std::string("parser->Get"));
-		parser->Get(parsed);
+		sts = parser->Get(parsed);
+		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
@@ -86,7 +92,7 @@ void startProcessing() {
 		//Need more data for decoding
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
-
+		CHECK_STATUS(sts);
 		START_LOG_BLOCK(std::string("check tensor to free"));
 		std::unique_lock<std::mutex> locker(freeSync);
 		/*
@@ -127,6 +133,7 @@ void startProcessing() {
 		END_LOG_BLOCK(std::string("sleep"));
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
+	return sts;
 }
 
 std::mutex syncDecoded;
@@ -195,9 +202,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", [](std::string rtmp) {
 		return initPipeline(rtmp);
 	});
-	m.def("start", [](void) -> void {
+	m.def("start", [](void) {
 		py::gil_scoped_release release;
-		startProcessing();
+		return startProcessing();
 		});
 	m.def("get", [](std::string name, int frame) {
 		py::gil_scoped_release release;
@@ -226,8 +233,8 @@ void get_cycle(std::string name) {
 int main()
 {
 	enableLogs(-MEDIUM);
-	initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	//initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	//initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
 	std::thread get2(get_cycle, "second");
