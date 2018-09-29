@@ -23,6 +23,13 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
     --nvccflags="-gencode arch=compute_61,code=sm_61 -O3" &&\
     make -j$(nproc) && make install && ldconfig
 
+RUN git clone https://github.com/pytorch/pytorch \
+    && cd pytorch \
+    && git checkout 1421a9d7041d0c877ffdecb92ea90ead5425c0a5 \
+    && git submodule update --init \
+    && python setup.py install \
+    && cd .. && rm -rf pytorch
+
 COPY . /app
 WORKDIR /app
 
