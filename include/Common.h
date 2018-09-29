@@ -37,12 +37,12 @@ static std::mutex logsMutex;
 #define LOG_VALUE(messageIn) \
 	{ \
 		std::unique_lock<std::mutex> locker(logsMutex); \
-		if (logsLevel && logsFile.is_open()) \
+		if (logsLevel) \
 		{ \
 			std::string finalMessage = messageIn + std::string(" +\n"); \
 			if (logsLevel < 0) \
 				std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-			else \
+			else if (logsFile.is_open()) \
 				logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 		} \
 	} \
@@ -52,12 +52,12 @@ static std::mutex logsMutex;
 		clock_t startFunc; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logsLevel && logsFile.is_open()) \
+			if (logsLevel) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else \
+				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				if (std::abs(logsLevel) >= MEDIUM) \
 					startFunc = clock(); \
@@ -67,7 +67,7 @@ static std::mutex logsMutex;
 #define END_LOG_FUNCTION(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logsLevel && logsFile.is_open()) { \
+			if (logsLevel) { \
 				std::string finalMessage; \
 				if (std::abs(logsLevel) >= MEDIUM) { \
 					int timeMs = clock() - startFunc; \
@@ -81,7 +81,7 @@ static std::mutex logsMutex;
 				} \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else \
+				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \
@@ -92,12 +92,12 @@ static std::mutex logsMutex;
 		clock_t start; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logsLevel) >= HIGH && logsFile.is_open()) \
+			if (std::abs(logsLevel) >= HIGH) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else \
+				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				start = clock(); \
 			} \
@@ -106,13 +106,13 @@ static std::mutex logsMutex;
 #define END_LOG_BLOCK(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logsLevel) >= HIGH && logsFile.is_open()) { \
+			if (std::abs(logsLevel) >= HIGH) { \
 				std::string finalMessage; \
 				std::string time = std::to_string(clock() - start); \
 				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string("ms\n"); \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else \
+				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \

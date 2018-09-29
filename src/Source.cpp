@@ -25,12 +25,14 @@ std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
-int realTimeDelay;
+int realTimeDelay = 0;
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
+std::vector<at::Tensor> tensors;
 std::mutex freeSync;
 
 int initPipeline(std::string inputFile, bool enableLogs = false) {
+	int sts = OK;
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
@@ -41,7 +43,6 @@ int initPipeline(std::string inputFile, bool enableLogs = false) {
 	vpp = std::make_shared<VideoProcessor>();
 	//ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
 	ParserParameters parserArgs = { inputFile, false };
-	int sts;
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs);
 	CHECK_STATUS(sts);
@@ -66,9 +67,9 @@ int initPipeline(std::string inputFile, bool enableLogs = false) {
 		(float)codecTmp->framerate.num) * 1000;
 	LOG_VALUE(std::string("Native frame rate: ") + std::to_string(realTimeDelay));
 	END_LOG_FUNCTION(std::string("Initializing() "));
+	return sts;
 }
 
-std::vector<at::Tensor> tensors;
 int startProcessing() {
 	int sts = OK;
 	//change to end of file
@@ -173,15 +174,24 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	return outputTensor;
 }
 
-void endProcessing() {
+/*
+Mode 1 - full close, mode 2 - soft close (for reset)
+*/
+void endProcessing(int mode = 1) {
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
-	logsFile.close();
+	
+	if (mode == 1 && logsLevel > 0)
+		logsFile.close();
+
 	for (auto& item : rgbFrameArr)
 		av_frame_free(&item.second);
 	for (auto& item : decodedArr)
 		av_frame_free(&item.second);
+	decodedArr.clear();
+	rgbFrameArr.clear();
+	tensors.clear();
 	delete parsed;
 }
 
@@ -192,14 +202,14 @@ void freeTensor(at::Tensor input) {
 void enableLogs(int _logsLevel) {
 	if (_logsLevel) {
 		logsLevel = static_cast<LogsLevel>(_logsLevel);
-		if (!logsFile.is_open()) {
+		if (!logsFile.is_open() && _logsLevel > 0) {
 			logsFile.open(logFileName);
 		}
 	}
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-	m.def("init", [](std::string rtmp) {
+	m.def("init", [](std::string rtmp) -> int {
 		return initPipeline(rtmp);
 	});
 	m.def("start", [](void) {
@@ -218,7 +228,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		enableLogs(logsLevel);
 	});
 
-	m.def("close", &endProcessing, "Close session");
+	m.def("close", [](int mode) {
+		endProcessing(mode);
+	});
 }
 
 
@@ -233,8 +245,21 @@ void get_cycle(std::string name) {
 int main()
 {
 	enableLogs(-MEDIUM);
-	//initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	int sts = REPEAT;
+	int repeatNumber = 0;
+	int endCount = 20;
+	while (sts != OK && repeatNumber < endCount) {
+		sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+		//sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+		if (sts != OK) {
+			endProcessing(2);
+		}
+		repeatNumber++;
+	}
+	if (repeatNumber == endCount) {
+		return 1;
+	}
+
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
 	std::thread get2(get_cycle, "second");
@@ -242,6 +267,6 @@ int main()
 	get.join();
 	get2.join();
 	pipeline.join();
-	endProcessing();
+	endProcessing(1);
 	return 0;
 }
