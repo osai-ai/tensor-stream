@@ -33,4 +33,4 @@ RUN git clone https://github.com/pytorch/pytorch \
 COPY . /app
 WORKDIR /app
 
-ENTRYPOINT python setup_lin.py install
+ENTRYPOINT python setup_lin.py install && python Sample.py

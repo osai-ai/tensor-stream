@@ -8,3 +8,4 @@ CMakeLists.txt
 logs.txt
 setup_win.py
 windows_build.bat
+__pycache__

@@ -177,7 +177,7 @@ at::Tensor getFrame(std::string consumerName, int index) {
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
-void endProcessing(int mode = 1) {
+void endProcessing(int mode = HARD) {
 	parser->Close();
 	decoder->Close();
 	vpp->Close();
@@ -245,21 +245,9 @@ void get_cycle(std::string name) {
 int main()
 {
 	enableLogs(-MEDIUM);
-	int sts = REPEAT;
-	int repeatNumber = 0;
-	int endCount = 20;
-	while (sts != OK && repeatNumber < endCount) {
-		sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-		//sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-		if (sts != OK) {
-			endProcessing(2);
-		}
-		repeatNumber++;
-	}
-	if (repeatNumber == endCount) {
-		return 1;
-	}
-
+	//"rtmp://b.sportlevel.com/relay/pooltop"
+	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
 	std::thread get2(get_cycle, "second");
@@ -267,6 +255,6 @@ int main()
 	get.join();
 	get2.join();
 	pipeline.join();
-	endProcessing(1);
+	endProcessing(HARD);
 	return 0;
 }

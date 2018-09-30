@@ -28,6 +28,11 @@ enum LogsLevel {
 	HIGH, //whole pipeline with times + notices if latency is greater
 };
 
+enum CloseLevel {
+	HARD = 1,
+	SOFT
+};
+
 const std::string logFileName = "logs.txt";
 
 static std::ofstream logsFile;
