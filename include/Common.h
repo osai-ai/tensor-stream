@@ -116,7 +116,7 @@ static std::mutex logsMutex;
 				std::string finalMessage; \
 				std::string time = \
 				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count()); \
-				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string("ms\n"); \
+				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string(" ms\n"); \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				else if (logsFile.is_open()) \

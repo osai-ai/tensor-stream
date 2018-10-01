@@ -26,6 +26,7 @@ std::shared_ptr<Decoder> decoder;
 std::shared_ptr<VideoProcessor> vpp;
 AVPacket* parsed;
 int realTimeDelay = 0;
+bool shouldWork;
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 std::vector<at::Tensor> tensors;
@@ -33,6 +34,7 @@ std::mutex freeSync;
 
 int initPipeline(std::string inputFile, bool enableLogs = false) {
 	int sts = OK;
+	shouldWork = true;
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
@@ -73,9 +75,9 @@ int initPipeline(std::string inputFile, bool enableLogs = false) {
 int startProcessing() {
 	int sts = OK;
 	//change to end of file
-	while (true) {
+	while (shouldWork) {
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
-		clock_t waitTime = clock();
+		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
 		START_LOG_BLOCK(std::string("parser->Read"));
 		sts = parser->Read();
 		END_LOG_BLOCK(std::string("parser->Read"));
@@ -117,7 +119,8 @@ int startProcessing() {
 
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
-		int sleepTime = realTimeDelay - (clock() - waitTime);
+		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
+											std::chrono::high_resolution_clock::now() - waitTime).count();
 		if (sleepTime > 0) {
 			/*auto start = std::chrono::system_clock::now();
 			bool sleep = true;
@@ -144,14 +147,18 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	AVFrame* rgbFrame;
 	at::Tensor outputTensor;
 	START_LOG_FUNCTION(std::string("GetFrame()"));
+	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
 		decoded = findFree<AVFrame*>(consumerName, decodedArr);
 	}
+	END_LOG_BLOCK(std::string("findFree decoded frame"));
+	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{
 		std::unique_lock<std::mutex> locker(syncRGB);
 		rgbFrame = findFree<AVFrame*>(consumerName, rgbFrameArr);
 	}
+	END_LOG_BLOCK(std::string("findFree converted frame"));
 	int indexFrame = REPEAT;
 	START_LOG_BLOCK(std::string("decoder->GetFrame"));
 	while (indexFrame == REPEAT) {
@@ -162,7 +169,9 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	VPPParameters VPPArgs = { 0, 0, NV12 };
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
+	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
+	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
 	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
 	*/
@@ -182,8 +191,10 @@ void endProcessing(int mode = HARD) {
 	decoder->Close();
 	vpp->Close();
 	
-	if (mode == 1 && logsLevel > 0)
+	if (mode == 1 && logsLevel > 0) {
 		logsFile.close();
+		shouldWork = false;
+	}
 
 	for (auto& item : rgbFrameArr)
 		av_frame_free(&item.second);
@@ -244,7 +255,7 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	enableLogs(-HIGH);
+	enableLogs(-MEDIUM);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);

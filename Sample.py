@@ -23,6 +23,7 @@ getThread.join()
 
 print("joined")
 
+#Call close when need to complete pipeline thread and clear all reserved by VideoReader resources
 VideoReaderWrapper.Close(CloseLevel.HARD)
 
 
