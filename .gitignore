@@ -1,7 +1,6 @@
 build
 DockerRun.txt
 external
-dist
 VideoReader.egg-info
 build_python.bat
 CMakeLists.txt
