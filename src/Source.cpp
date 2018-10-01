@@ -244,7 +244,7 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	enableLogs(-MEDIUM);
+	enableLogs(-HIGH);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);

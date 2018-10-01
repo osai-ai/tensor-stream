@@ -6,6 +6,7 @@
 #include <mutex>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 #define TIMINGS
 
@@ -54,7 +55,7 @@ static std::mutex logsMutex;
 
 #define START_LOG_FUNCTION(messageIn) \
 	{ \
-		clock_t startFunc; \
+		std::chrono::high_resolution_clock::time_point startFunc; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (logsLevel) \
@@ -65,7 +66,7 @@ static std::mutex logsMutex;
 				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				if (std::abs(logsLevel) >= MEDIUM) \
-					startFunc = clock(); \
+					startFunc = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
 
@@ -75,7 +76,7 @@ static std::mutex logsMutex;
 			if (logsLevel) { \
 				std::string finalMessage; \
 				if (std::abs(logsLevel) >= MEDIUM) { \
-					int timeMs = clock() - startFunc; \
+					int timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count(); \
 					std::string time = std::to_string(timeMs); \
 					if (timeMs > (realTimeDelay + realTimeDelay / 4)) { \
 						finalMessage = messageOut + std::string(" -\nWARNING: Function time: ") + time + std::string("ms\n\n"); \
@@ -94,7 +95,7 @@ static std::mutex logsMutex;
 
 #define START_LOG_BLOCK(messageIn) \
 	{ \
-		clock_t start; \
+		std::chrono::high_resolution_clock::time_point start; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (std::abs(logsLevel) >= HIGH) \
@@ -104,7 +105,7 @@ static std::mutex logsMutex;
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				else if (logsFile.is_open()) \
 					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				start = clock(); \
+				start = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
 
@@ -113,7 +114,8 @@ static std::mutex logsMutex;
 			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (std::abs(logsLevel) >= HIGH) { \
 				std::string finalMessage; \
-				std::string time = std::to_string(clock() - start); \
+				std::string time = \
+				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count()); \
 				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string("ms\n"); \
 				if (logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
