@@ -42,7 +42,7 @@ def Initialize(fileName, repeatNumber = 20):
 		repeat = repeat - 1
 
 	if (repeat == 0):
-		return StatusLevel.ERROR
+		raise SystemError("Can't initialize VideoReader")
 
 def start():
 	VideoReader.start()
