@@ -36,11 +36,11 @@ def Close(level):
     VideoReader.close(level)
 
 
-def Initialize(url, repeat_number=20):
+def Initialize(stream_url, repeat_number=20):
     status = StatusLevel.REPEAT
     repeat = repeat_number
     while status != StatusLevel.OK and repeat > 0:
-        status = VideoReader.init(url)
+        status = VideoReader.init(stream_url)
         if status != StatusLevel.OK:
             # Mode 1 - full close, mode 2 - soft close (for reset)
             Close(CloseLevel.SOFT)
