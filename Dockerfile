@@ -1,8 +1,5 @@
 FROM floydhub/pytorch:0.4.0-gpu.cuda9cudnn7-py3.31
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES video,compute,utility
-
 RUN apt-get update &&\
     apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools
 
@@ -36,4 +33,7 @@ RUN git clone https://github.com/pytorch/pytorch \
 COPY . /app
 WORKDIR /app
 
-ENTRYPOINT python setup_lin.py install && python Sample.py
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES video,compute,utility
+
+# ENTRYPOINT python setup.py install
