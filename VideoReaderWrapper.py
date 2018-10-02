@@ -54,3 +54,9 @@ def StartProcessing():
 
 def GetFrame(consumerID, frameIndex):
 	return VideoReader.get(consumerID, frameIndex)
+
+def GetPars():
+	return VideoReader.getPars()
+
+def Dump(tensor):
+	VideoReader.dump(tensor)

@@ -72,6 +72,11 @@ void saveNV12(AVFrame *avFrame, FILE* dump)
 	fflush(dump);
 }
 
+
+AVCodecContext* Decoder::getDecoderContext() {
+	return decoderContext;
+}
+
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	//element in map will be created after trying to call it
 	if (!consumerStatus[consumerName]) {
