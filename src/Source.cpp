@@ -31,6 +31,7 @@ std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 std::vector<at::Tensor> tensors;
 std::mutex freeSync;
+std::mutex closeSync;
 
 int initPipeline(std::string inputFile) {
 	int sts = OK;
@@ -83,6 +84,7 @@ std::map<std::string, int> getInitializedParams() {
 }
 
 int startProcessing() {
+	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = OK;
 	//change to end of file
 	while (shouldWork) {
@@ -202,23 +204,24 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index) {
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
 void endProcessing(int mode = HARD) {
-	parser->Close();
-	decoder->Close();
-	vpp->Close();
-	
-	if (mode == 1 && logsLevel > 0) {
-		logsFile.close();
-		shouldWork = false;
+	shouldWork = false;
+	{
+		std::unique_lock<std::mutex> locker(closeSync);
+		if (mode == HARD && logsLevel > 0) {
+			logsFile.close();
+		}
+		parser->Close();
+		decoder->Close();
+		vpp->Close();
+		for (auto& item : rgbFrameArr)
+			av_frame_free(&item.second);
+		for (auto& item : decodedArr)
+			av_frame_free(&item.second);
+		decodedArr.clear();
+		rgbFrameArr.clear();
+		tensors.clear();
+		delete parsed;
 	}
-
-	for (auto& item : rgbFrameArr)
-		av_frame_free(&item.second);
-	for (auto& item : decodedArr)
-		av_frame_free(&item.second);
-	decodedArr.clear();
-	rgbFrameArr.clear();
-	tensors.clear();
-	delete parsed;
 }
 
 void enableLogs(int _logsLevel) {
@@ -229,7 +232,6 @@ void enableLogs(int _logsLevel) {
 		}
 	}
 }
-auto dumpPyton = std::shared_ptr<FILE>(fopen("DumpPython.yuv", "wb+"));
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", [](std::string rtmp) -> int {
 		return initPipeline(rtmp);
@@ -252,21 +254,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("close", [](int mode) {
 		endProcessing(mode);
 	});
-
-	m.def("dump", [](at::Tensor image) {
-		uint8_t *dataPython = (uint8_t*)image.data_ptr();
-		for (uint32_t i = 0; i < image.size(0); i++) {
-			fwrite(dataPython, image.size(1) * image.size(2), 1, dumpPyton.get());
-			dataPython += image.size(1) * image.size(2);
-		}
-		fflush(dumpPyton.get());
-	});
 }
 
 
 
 void get_cycle(std::string name) {
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 10; i++) {
 		getFrame(name, 0);
 	}
 
@@ -284,7 +277,7 @@ int main()
 
 	get.join();
 	//get2.join();
-	pipeline.join();
 	endProcessing(HARD);
+	pipeline.join();
 	return 0;
 }
