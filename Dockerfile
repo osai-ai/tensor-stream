@@ -1,7 +1,7 @@
 FROM floydhub/pytorch:0.4.0-gpu.cuda9cudnn7-py3.31
 
 RUN apt-get update &&\
-    apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools
+    apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools libtcmalloc-minimal4
 
 RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
     cd nv-codec-headers && make install && cd ..
@@ -35,5 +35,6 @@ WORKDIR /app
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES video,compute,utility
+#ENV LD_PRELOAD "/usr/lib/libtcmalloc_minimal.so.4"
 
 # ENTRYPOINT python setup.py install
