@@ -31,6 +31,8 @@ class StreamVideoReader:
         self.log = logging.getLogger()
         self.log.info("Create VideoStream")
         self.thread = None
+        self.fps = None
+        self.frame_size = None
 
         self.stream_url = stream_url
         self.repeat_number = repeat_number
@@ -49,6 +51,10 @@ class StreamVideoReader:
 
         if repeat == 0:
             raise RuntimeError("Can't initialize VideoReader")
+        else:
+            params = VideoReader.getPars()
+            self.fps = params['framerate_num'] / params['framerate_den']
+            self.frame_size = (params['width'], params['height'])
 
     def enable_logs(self, level, log_type):
         if log_type == LogsType.FILE:
@@ -74,52 +80,3 @@ class StreamVideoReader:
 
     def __del__(self):
         self.stop()
-
-
-if __name__ == '__main__':
-    import time
-
-    class DeltaTimeProfiler:
-        def __init__(self):
-            self.mean = 0.0
-            self.count = 0
-            self.prev_time = time.time()
-
-        def start(self):
-            self.prev_time = time.time()
-
-        def end(self):
-            self.count += 1
-            now_time = time.time()
-            delta = now_time - self.prev_time
-            self.mean += (delta - self.mean) / self.count
-            self.prev_time = now_time
-
-        def mean_delta(self):
-            return self.mean
-
-        def reset(self):
-            self.mean = 0.0
-            self.count = 0
-
-
-    url = "rtmp://b.sportlevel.com/relay/pooltop"
-    video_reader = StreamVideoReader(url, repeat_number=20)
-    video_reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
-
-    video_reader.start()
-
-    for i in range(100):
-        tensor = video_reader.read("first")
-
-    profiler = DeltaTimeProfiler()
-    for i in range(1000):
-        profiler.start()
-        tensor = video_reader.read("first")
-        profiler.end()
-        time.sleep(0.016)  # Simulate consumer work
-
-    print("Mean latancy:", profiler.mean)
-    print("Tensor shape:", tensor.shape)
-
-    video_reader.stop()
