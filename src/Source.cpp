@@ -73,8 +73,10 @@ int initPipeline(std::string inputFile) {
 }
 
 std::map<std::string, int> getInitializedParams() {
+	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
-	params.insert(std::map<std::string, int>::value_type("fps", realTimeDelay));
+	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
+	params.insert(std::map<std::string, int>::value_type("framerate_den", codecTmp->framerate.den));
 	params.insert(std::map<std::string, int>::value_type("width", decoder->getDecoderContext()->width));
 	params.insert(std::map<std::string, int>::value_type("height", decoder->getDecoderContext()->height));
 	return params;
