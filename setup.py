@@ -1,9 +1,28 @@
-from setuptools import setup, Extension
+import os
+import io
+import re
+from setuptools import setup, find_packages, Extension
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import torch
 
-print(torch.cuda.is_available())
-print(torch.backends.cudnn.enabled)
+
+def read(*names, **kwargs):
+    with io.open(os.path.join(os.path.dirname(__file__), *names),
+                 encoding=kwargs.get("encoding", "utf8")) as fp:
+        return fp.read()
+
+
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
+
+readme = read('README.md')
+
+VERSION = find_version('video_reader', '__init__.py')
 
 include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["include/"]
@@ -31,7 +50,11 @@ app_src_path += ["src/VideoProcessor.cpp"]
 
 
 setup(
-    name='VideoReader',
+    name='video_reader',
+    version=VERSION,
+    author='Bykadorov Roman',
+    description='Stream video reader',
+    long_description=readme,
     ext_modules=[
         Extension(
             name='VideoReader',
@@ -43,4 +66,17 @@ setup(
     ],
     cmdclass={
         'build_ext': BuildExtension
-    })
+    },
+    packages=find_packages(),
+    zip_safe=True,
+    python_requires='>=3.6',
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Intended Audience :: Developers',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+    ],
+    install_requires=['torch>=0.4.0']
+)

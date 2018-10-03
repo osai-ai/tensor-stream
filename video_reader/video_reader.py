@@ -28,7 +28,7 @@ class CloseLevel:
 
 class StreamVideoReader:
     def __init__(self, stream_url, repeat_number=1):
-        self.log = logging.getLogger()
+        self.log = logging.getLogger(__name__)
         self.log.info("Create VideoStream")
         self.thread = None
         self.fps = None
