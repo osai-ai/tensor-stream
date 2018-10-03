@@ -152,10 +152,11 @@ int startProcessing() {
 
 std::mutex syncDecoded;
 std::mutex syncRGB;
-at::Tensor getFrame(std::string consumerName, int index) {
+std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
 	at::Tensor outputTensor;
+	std::tuple<at::Tensor, int> outputTuple;
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -184,6 +185,7 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	if (rgbFrame->format == AV_PIX_FMT_RGB24)
 		channelsNumber = 3;
 	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->height, rgbFrame->width, channelsNumber});
+	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
 	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
@@ -193,7 +195,7 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	tensors.push_back(outputTensor);
 	END_LOG_BLOCK(std::string("add tensor"));
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
-	return outputTensor;
+	return outputTuple;
 }
 
 /*

@@ -62,8 +62,12 @@ class StreamVideoReader:
         else:
             VideoReader.enableLogs(-level)
 
-    def read(self, name: str, delay_index=0):
-        return VideoReader.get(name, delay_index)
+    def read(self, name: str, delay=0, return_index=False):
+        tensor, index = VideoReader.get(name, delay)
+        if return_index:
+            return tensor, index
+        else:
+            return tensor
 
     def _start(self):
         VideoReader.start()
