@@ -32,7 +32,7 @@ std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
 std::vector<at::Tensor> tensors;
 std::mutex freeSync;
 
-int initPipeline(std::string inputFile, bool enableLogs = false) {
+int initPipeline(std::string inputFile) {
 	int sts = OK;
 	shouldWork = true;
 	START_LOG_FUNCTION(std::string("Initializing() "));
@@ -70,6 +70,14 @@ int initPipeline(std::string inputFile, bool enableLogs = false) {
 	LOG_VALUE(std::string("Native frame rate: ") + std::to_string(realTimeDelay));
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
+}
+
+std::map<std::string, int> getInitializedParams() {
+	std::map<std::string, int> params;
+	params.insert(std::map<std::string, int>::value_type("fps", realTimeDelay));
+	params.insert(std::map<std::string, int>::value_type("width", decoder->getDecoderContext()->width));
+	params.insert(std::map<std::string, int>::value_type("height", decoder->getDecoderContext()->height));
+	return params;
 }
 
 int startProcessing() {
@@ -170,7 +178,10 @@ at::Tensor getFrame(std::string consumerName, int index) {
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->width * rgbFrame->height });
+	int channelsNumber = 1;
+	if (rgbFrame->format == AV_PIX_FMT_RGB24)
+		channelsNumber = 3;
+	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->height, rgbFrame->width, channelsNumber});
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
 	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
@@ -206,10 +217,6 @@ void endProcessing(int mode = HARD) {
 	delete parsed;
 }
 
-void freeTensor(at::Tensor input) {
-	cudaFree(input.data_ptr());
-}
-
 void enableLogs(int _logsLevel) {
 	if (_logsLevel) {
 		logsLevel = static_cast<LogsLevel>(_logsLevel);
@@ -218,10 +225,13 @@ void enableLogs(int _logsLevel) {
 		}
 	}
 }
-
+auto dumpPyton = std::shared_ptr<FILE>(fopen("DumpPython.yuv", "wb+"));
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", [](std::string rtmp) -> int {
 		return initPipeline(rtmp);
+	});
+	m.def("getPars", []() -> std::map<std::string, int> {
+		return getInitializedParams();
 	});
 	m.def("start", [](void) {
 		py::gil_scoped_release release;
@@ -231,16 +241,21 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 		return getFrame(name, frame);
 	});
-	m.def("free", [](at::Tensor input) {
-		py::gil_scoped_release release;
-		freeTensor(input);
-	});
 	m.def("enableLogs", [](int logsLevel) {
 		enableLogs(logsLevel);
 	});
 
 	m.def("close", [](int mode) {
 		endProcessing(mode);
+	});
+
+	m.def("dump", [](at::Tensor image) {
+		uint8_t *dataPython = (uint8_t*)image.data_ptr();
+		for (uint32_t i = 0; i < image.size(0); i++) {
+			fwrite(dataPython, image.size(1) * image.size(2), 1, dumpPyton.get());
+			dataPython += image.size(1) * image.size(2);
+		}
+		fflush(dumpPyton.get());
 	});
 }
 
@@ -261,10 +276,10 @@ int main()
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
 	std::thread get(get_cycle, "first");
-	std::thread get2(get_cycle, "second");
+	//std::thread get2(get_cycle, "second");
 
 	get.join();
-	get2.join();
+	//get2.join();
 	pipeline.join();
 	endProcessing(HARD);
 	return 0;
