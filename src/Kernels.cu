@@ -37,9 +37,9 @@ __global__ void change_gpu(unsigned char* Y, unsigned char* UV, unsigned char* R
 			GVal = 255;
 		if (GVal < 0)
 			GVal = 0;
-		RGB[j * 3 + i * pitchRGB + 0/*R*/] = (unsigned char)RVal;
-		RGB[j * 3 + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
-		RGB[j * 3 + i * pitchRGB + 2/*B*/] = (unsigned char)BVal;
+		RGB[j * 3 + i * pitchRGB + 0/*R*/] = (unsigned char)BVal;
+		RGB[j * 3 + i * pitchRGB + 1/*G*/] = (unsigned char)GVal;
+		RGB[j * 3 + i * pitchRGB + 2/*B*/] = (unsigned char)RVal;
 	}
 }
 

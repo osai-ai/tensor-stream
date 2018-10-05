@@ -35,6 +35,6 @@ WORKDIR /app
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES video,compute,utility
-RUN export LD_PRELOAD="/usr/lib/libtcmalloc_minimal.so.4"
+ENV LD_PRELOAD "/usr/lib/libtcmalloc_minimal.so.4"
 
 # ENTRYPOINT python setup.py install
