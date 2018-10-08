@@ -62,6 +62,7 @@ setup(
             include_dirs=include_path,
             library_dirs=library_path,
             libraries=library,
+            extra_compile_args=['-g'],
             language='c++')
     ],
     cmdclass={

@@ -207,7 +207,7 @@ void endProcessing(int mode = HARD) {
 	shouldWork = false;
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
-		if (mode == HARD && logsLevel > 0) {
+		if (mode == HARD && logsFile.is_open()) {
 			logsFile.close();
 		}
 		parser->Close();
@@ -259,7 +259,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::string name) {
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 500; i++) {
 		getFrame(name, 0);
 	}
 
@@ -267,7 +267,7 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	enableLogs(-MEDIUM);
+	enableLogs(MEDIUM);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);
