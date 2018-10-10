@@ -221,6 +221,7 @@ void endProcessing(int mode = HARD) {
 		rgbFrameArr.clear();
 		tensors.clear();
 		delete parsed;
+		parsed = nullptr;
 	}
 }
 
@@ -267,7 +268,7 @@ void get_cycle(std::string name) {
 
 int main()
 {
-	enableLogs(MEDIUM);
+	enableLogs(-MEDIUM);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);

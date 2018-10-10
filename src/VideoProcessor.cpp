@@ -1,8 +1,7 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
-void SaveRGB24(AVFrame *avFrame, FILE* dump)
-{
+void SaveRGB24(AVFrame *avFrame, FILE* dump) {
 #ifdef DEBUG_INFO
 	int static count = 0;
 #endif
@@ -18,6 +17,10 @@ void SaveRGB24(AVFrame *avFrame, FILE* dump)
 #endif
 }
 
+void SaveY8() {
+
+}
+
 int VideoProcessor::Init(bool _enableDumps = false) {
 	enableDumps = _enableDumps;
 
@@ -31,7 +34,7 @@ int VideoProcessor::Init(bool _enableDumps = false) {
 	if (enableDumps) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
 	}
-
+	isClosed = false;
 	return OK;
 }
 
@@ -75,6 +78,9 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 }
 
 void VideoProcessor::Close() {
+	if (isClosed)
+		return;
 	if (enableDumps)
 		fclose(dumpFrame.get());
+	isClosed = true;
 }

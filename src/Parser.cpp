@@ -4,25 +4,15 @@
 int Parser::Init(ParserParameters& input) {
 	state = input;
 	int sts = OK;
-	//AVDictionary *opts = NULL;
-	//av_dict_set(&opts, "rtmp_buffer", "0", 0);
-	//av_dict_set(&opts, "rtmp_live", "live", 0);
 	//packet_buffer - isn't empty
 	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, /*&opts*/0);
 	CHECK_STATUS(sts);
-	//av_dict_free(&opts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
 	AVCodec* codec;
 	videoIndex = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
 	videoStream = formatContext->streams[videoIndex];
 	videoStream->codec->codec = codec;
-	
-	//avio_flush(formatContext->pb);
-	//avformat_flush(formatContext);
-
-	//formatContext->flags = formatContext->flags | AVFMT_FLAG_NOBUFFER;
-	//formatContext->flags = formatContext->flags | AVFMT_FLAG_FLUSH_PACKETS;
 	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
@@ -40,7 +30,7 @@ int Parser::Init(ParserParameters& input) {
 	}
 
 	lastFrame = std::make_pair(new AVPacket(), false);
-	//to manage data by myself without "smart" logic inside ffmpeg
+	isClosed = false;
 	return sts;
 }
 
@@ -116,6 +106,8 @@ AVStream* Parser::getStreamHandle() {
 }
 
 void Parser::Close() {
+	if (isClosed)
+		return;
 	avformat_close_input(&formatContext);
 	
 	if (state.enableDumps) {
@@ -125,4 +117,5 @@ void Parser::Close() {
 	}
 	av_packet_unref(lastFrame.first);
 	delete lastFrame.first;
+	isClosed = true;
 }

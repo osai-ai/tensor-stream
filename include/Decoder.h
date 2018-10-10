@@ -84,4 +84,8 @@ private:
 	*/
 	std::mutex sync;
 	std::condition_variable consumerSync;
+	/*
+	State of component
+	*/
+	bool isClosed = false;
 };

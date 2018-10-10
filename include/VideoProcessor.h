@@ -47,4 +47,8 @@ private:
 	//should be map for every consumer
 	std::vector<std::pair<std::string, cudaStream_t> > streamArr;
 	std::mutex streamSync;
+	/*
+	State of component
+	*/
+	bool isClosed = false;
 };

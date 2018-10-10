@@ -37,10 +37,13 @@ int Decoder::Init(DecoderParameters& input) {
 		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"));
 	}
 
+	isClosed = false;
 	return sts;
 }
 
 void Decoder::Close() {
+	if (isClosed)
+		return;
 	av_buffer_unref(&deviceReference);
 	avcodec_close(decoderContext);
 	if (state.enableDumps)
@@ -50,6 +53,7 @@ void Decoder::Close() {
 			av_frame_free(&item);
 	}
 	framesBuffer.clear();
+	isClosed = true;
 }
 
 void saveNV12(AVFrame *avFrame, FILE* dump)
@@ -90,10 +94,10 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			//std::this_thread::sleep_for(std::chrono::nanoseconds(1));
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
-			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
+			int allignedIndex = (currentFrame - 1) % state.bufferDeep + (index > 0 ? 0 : index);
 			if (allignedIndex < 0) {
 				allignedIndex += state.bufferDeep;
-				if (!framesBuffer[allignedIndex])
+				if (allignedIndex < 0 || !framesBuffer[allignedIndex])
 					return REPEAT;
 			}
 			//can decoder overrun us and start using the same frame? Need sync
