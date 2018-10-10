@@ -6,3 +6,7 @@ void printContext() {
 	auto cu_err = cuCtxGetCurrent(&test_cu);
 	printf("Context %x\n", test_cu);
 }
+
+std::ofstream logsFile;
+LogsLevel logsLevel;
+std::mutex logsMutex;

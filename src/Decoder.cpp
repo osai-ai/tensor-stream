@@ -94,7 +94,11 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			//std::this_thread::sleep_for(std::chrono::nanoseconds(1));
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
-			int allignedIndex = (currentFrame - 1) % state.bufferDeep + (index > 0 ? 0 : index);
+			if (index > 0) {
+				LOG_VALUE(std::string("WARNING: Frame number is greater than zero: ") + std::to_string(index));
+				index = 0;
+			}
+			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
 			if (allignedIndex < 0) {
 				allignedIndex += state.bufferDeep;
 				if (allignedIndex < 0 || !framesBuffer[allignedIndex])

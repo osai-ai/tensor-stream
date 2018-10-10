@@ -36,9 +36,9 @@ enum CloseLevel {
 
 const std::string logFileName = "logs.txt";
 
-static std::ofstream logsFile;
-static LogsLevel logsLevel = NONE;
-static std::mutex logsMutex;
+extern std::ofstream logsFile;
+extern LogsLevel logsLevel;
+extern std::mutex logsMutex;
 
 #define LOG_VALUE(messageIn) \
 	{ \
