@@ -95,4 +95,8 @@ private:
 	Position of video in container
 	*/
 	int videoIndex = -1;
+	/*
+	State of component
+	*/
+	bool isClosed = false;
 };
