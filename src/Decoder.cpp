@@ -34,7 +34,7 @@ int Decoder::Init(DecoderParameters& input) {
 	framesBuffer.resize(state.bufferDeep);
 
 	if (state.enableDumps) {
-		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"));
+		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"), std::fclose);
 	}
 
 	isClosed = false;
@@ -46,8 +46,6 @@ void Decoder::Close() {
 		return;
 	av_buffer_unref(&deviceReference);
 	avcodec_close(decoderContext);
-	if (state.enableDumps)
-		fclose(dumpFrame.get());
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);

@@ -32,7 +32,7 @@ int VideoProcessor::Init(bool _enableDumps = false) {
 	}
 	
 	if (enableDumps) {
-		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"));
+		dumpFrame = std::shared_ptr<FILE>(fopen("RGB24.yuv", "wb+"), std::fclose);
 	}
 	isClosed = false;
 	return OK;
@@ -49,24 +49,16 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
 	}
 	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	if (format.dstFourCC == NV12) {
+	if (format.dstFourCC == RGB24) {
 		output->width = input->width;
 		output->height = input->height;
 		output->format = AV_PIX_FMT_RGB24;
 		if (enableDumps) {
 			//allocate buffers
-			sts = av_frame_get_buffer(output, 2);
-			
+			std::shared_ptr<uint8_t> rawData(new uint8_t[3 * output->width * output->height], std::default_delete<uint8_t[]>());
+			output->data[0] = rawData.get();
 			sts = NV12ToRGB24Dump(input, output, prop.maxThreadsPerBlock, &stream);
-			clock_t tStart = clock();
 			SaveRGB24(output, dumpFrame.get());
-			printf("Save %f\n", (double)(clock() - tStart) / CLOCKS_PER_SEC);
-			void* opaque = output->opaque;
-			//deallocate buffers and all custom fields too..
-			av_frame_unref(output);
-			output->width = input->width;
-			output->height = input->height;
-			output->opaque = opaque;
 		}
 		else {
 			//printf("Decoded to VPP %x\n", input->data);
@@ -80,7 +72,5 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 void VideoProcessor::Close() {
 	if (isClosed)
 		return;
-	if (enableDumps)
-		fclose(dumpFrame.get());
 	isClosed = true;
 }

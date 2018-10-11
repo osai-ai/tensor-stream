@@ -154,11 +154,14 @@ int startProcessing() {
 
 std::mutex syncDecoded;
 std::mutex syncRGB;
-std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index) {
+std::tuple<at::Tensor, int> getFrame(std::map<std::string, std::string> parameters) {
 	AVFrame* decoded;
 	AVFrame* rgbFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
+	std::string consumerName = parameters["name"];
+	int index = std::stoi(parameters["delay"]);
+	FourCC format = static_cast<FourCC>(std::stoi(parameters["format"]));
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -179,7 +182,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index) {
 	}
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
-	VPPParameters VPPArgs = { 0, 0, NV12 };
+	VPPParameters VPPArgs = { 0, 0, format };
 	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -244,9 +247,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 		return startProcessing();
 		});
-	m.def("get", [](std::string name, int frame) {
+	m.def("get", [](std::map<std::string, std::string> parameters) {
 		py::gil_scoped_release release;
-		return getFrame(name, frame);
+		return getFrame(parameters);
 	});
 	m.def("enableLogs", [](int logsLevel) {
 		enableLogs(logsLevel);
@@ -259,9 +262,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 
-void get_cycle(std::string name) {
-	for (int i = 0; i < 500; i++) {
-		getFrame(name, 0);
+void get_cycle(std::map<std::string, std::string> parameters) {
+	for (int i = 0; i < 100; i++) {
+		getFrame(parameters);
 	}
 
 }
@@ -273,8 +276,10 @@ int main()
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
-	std::thread get(get_cycle, "first");
-	//std::thread get2(get_cycle, "second");
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::thread get(get_cycle, parameters);
+	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	//std::thread get2(get_cycle, settings);
 
 	get.join();
 	//get2.join();

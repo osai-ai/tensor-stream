@@ -69,8 +69,6 @@ int NV12ToRGB24Dump(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStre
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, 0);
 	int width = dst->width;
 	int height = dst->height;
 	unsigned char* RGB;

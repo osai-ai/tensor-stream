@@ -14,6 +14,7 @@ List of supported output formats
 enum FourCC {
 	Y800,
 	RGB24,
+	BGR24,
 	NV12
 };
 

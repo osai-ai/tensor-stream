@@ -1,5 +1,5 @@
 import time
-from video_reader import StreamVideoReader, LogsLevel, LogsType
+from video_reader import StreamVideoReader, LogsLevel, LogsType, FourCC
 
 
 class DeltaTimeProfiler:
@@ -32,15 +32,15 @@ if __name__ == '__main__':
     reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
 
     reader.start()
-
+    parameters = {'name': "first", 'delay': "0", 'format' : str(FourCC.RGB24), 'return_index' : "0"}
     # Warm up
     for i in range(100):
-        tensor = reader.read("first")
+        tensor = reader.read(**parameters)
 
     profiler = DeltaTimeProfiler()
-    for i in range(1000):
+    for i in range(100):
         profiler.start()
-        tensor = reader.read("first")
+        tensor = reader.read(**parameters)
         profiler.end()
         time.sleep(0.016)  # Simulate consumer work
 

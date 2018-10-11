@@ -25,6 +25,11 @@ class CloseLevel:
     HARD = 1
     SOFT = 2
 
+class FourCC:
+    Y800 = 0
+    RGB24 = 1
+    BGR24 = 2
+    NV12 = 3
 
 class StreamVideoReader:
     def __init__(self, stream_url, repeat_number=1):
@@ -62,9 +67,9 @@ class StreamVideoReader:
         else:
             VideoReader.enableLogs(-level)
 
-    def read(self, name: str, delay=0, return_index=False):
-        tensor, index = VideoReader.get(name, delay)
-        if return_index:
+    def read(self, **parameters):
+        tensor, index = VideoReader.get(parameters)
+        if int(parameters["return_index"]):
             return tensor, index
         else:
             return tensor
