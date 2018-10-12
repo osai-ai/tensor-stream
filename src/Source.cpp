@@ -28,7 +28,7 @@ AVPacket* parsed;
 int realTimeDelay = 0;
 bool shouldWork;
 std::vector<std::pair<std::string, AVFrame*> > decodedArr;
-std::vector<std::pair<std::string, AVFrame*> > rgbFrameArr;
+std::vector<std::pair<std::string, AVFrame*> > processedArr;
 std::vector<at::Tensor> tensors;
 std::mutex freeSync;
 std::mutex closeSync;
@@ -62,7 +62,7 @@ int initPipeline(std::string inputFile) {
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
-		rgbFrameArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
+		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
 	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	CHECK_STATUS(codecTmp->framerate.num == 0);
@@ -156,7 +156,7 @@ std::mutex syncDecoded;
 std::mutex syncRGB;
 std::tuple<at::Tensor, int> getFrame(std::map<std::string, std::string> parameters) {
 	AVFrame* decoded;
-	AVFrame* rgbFrame;
+	AVFrame* processedFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
 	std::string consumerName = parameters["name"];
@@ -172,7 +172,7 @@ std::tuple<at::Tensor, int> getFrame(std::map<std::string, std::string> paramete
 	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{
 		std::unique_lock<std::mutex> locker(syncRGB);
-		rgbFrame = findFree<AVFrame*>(consumerName, rgbFrameArr);
+		processedFrame = findFree<AVFrame*>(consumerName, processedArr);
 	}
 	END_LOG_BLOCK(std::string("findFree converted frame"));
 	int indexFrame = REPEAT;
@@ -183,13 +183,11 @@ std::tuple<at::Tensor, int> getFrame(std::map<std::string, std::string> paramete
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	VPPParameters VPPArgs = { 0, 0, format };
-	vpp->Convert(decoded, rgbFrame, VPPArgs, consumerName);
+	vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	int channelsNumber = 1;
-	if (rgbFrame->format == AV_PIX_FMT_RGB24)
-		channelsNumber = 3;
-	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(rgbFrame->opaque), { rgbFrame->height, rgbFrame->width, channelsNumber});
+	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque), 
+		{ processedFrame->height, processedFrame->width, processedFrame->channels});
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
@@ -216,12 +214,12 @@ void endProcessing(int mode = HARD) {
 		parser->Close();
 		decoder->Close();
 		vpp->Close();
-		for (auto& item : rgbFrameArr)
+		for (auto& item : processedArr)
 			av_frame_free(&item.second);
 		for (auto& item : decodedArr)
 			av_frame_free(&item.second);
 		decodedArr.clear();
-		rgbFrameArr.clear();
+		processedArr.clear();
 		tensors.clear();
 		delete parsed;
 		parsed = nullptr;
