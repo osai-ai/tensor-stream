@@ -44,7 +44,6 @@ int initPipeline(std::string inputFile) {
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	//ParserParameters parserArgs = { "rtmp://b.sportlevel.com/relay/pooltop"/*"rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" */ , false };
 	ParserParameters parserArgs = { inputFile, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs);
@@ -56,7 +55,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(false);
+	sts = vpp->Init(true);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
@@ -261,7 +260,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::map<std::string, std::string> parameters) {
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 300; i++) {
 		getFrame(parameters);
 	}
 
@@ -274,13 +273,16 @@ int main()
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(Y800)} };
 	std::thread get(get_cycle, parameters);
 	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-	//std::thread get2(get_cycle, settings);
+	std::thread get2(get_cycle, parameters);
+	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
+	std::thread get3(get_cycle, parameters);
 
 	get.join();
-	//get2.join();
+	get2.join();
+	get3.join();
 	endProcessing(HARD);
 	pipeline.join();
 	return 0;

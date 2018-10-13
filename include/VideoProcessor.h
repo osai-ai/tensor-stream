@@ -39,15 +39,17 @@ public:
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
 	int Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName);
+	int DumpFrame(AVFrame* output, std::string consumerName, std::shared_ptr<FILE> dumpFile);
 	void Close();
-
 private:
 	bool enableDumps;
-	std::shared_ptr<FILE> dumpFrame;
 	cudaDeviceProp prop;
-	//should be map for every consumer
+	//own stream for every consumer
 	std::vector<std::pair<std::string, cudaStream_t> > streamArr;
 	std::mutex streamSync;
+	//own dump file for every consumer
+	std::vector<std::pair<std::string, std::shared_ptr<FILE> > > dumpArr;
+	std::mutex dumpSync;
 	/*
 	State of component
 	*/
