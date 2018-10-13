@@ -74,6 +74,9 @@ class StreamVideoReader:
         else:
             return tensor
 
+    def dump(self, tensor, name):
+        VideoReader.dump(tensor, name)
+
     def _start(self):
         VideoReader.start()
 

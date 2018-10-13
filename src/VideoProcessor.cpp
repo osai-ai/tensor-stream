@@ -10,7 +10,7 @@ void saveFrame(AVFrame *avFrame, FILE* dump) {
 	fflush(dump);
 }
 
-int VideoProcessor::DumpFrame(AVFrame* output, std::string consumerName, std::shared_ptr<FILE> dumpFile) {
+int VideoProcessor::DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
 	//allocate buffers
 	std::shared_ptr<uint8_t> rawData(new uint8_t[output->channels * output->width * output->height], std::default_delete<uint8_t[]>());
 	output->data[0] = rawData.get();
@@ -89,7 +89,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			std::unique_lock<std::mutex> locker(dumpSync);
 			dumpFile = findFree<std::shared_ptr<FILE> >(consumerName, dumpArr);
 		}
-		DumpFrame(output, consumerName, dumpFile);
+		DumpFrame(output, dumpFile);
 	}
 	av_frame_unref(input);
 	return sts;

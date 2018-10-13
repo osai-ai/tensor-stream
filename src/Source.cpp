@@ -237,17 +237,33 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", [](std::string rtmp) -> int {
 		return initPipeline(rtmp);
 	});
+
 	m.def("getPars", []() -> std::map<std::string, int> {
 		return getInitializedParams();
 	});
+
 	m.def("start", [](void) {
 		py::gil_scoped_release release;
 		return startProcessing();
 		});
+
 	m.def("get", [](std::map<std::string, std::string> parameters) {
 		py::gil_scoped_release release;
 		return getFrame(parameters);
 	});
+
+	m.def("dump", [](at::Tensor stream, std::string consumerName) {
+		py::gil_scoped_release release;
+		AVFrame output;
+		output.opaque = stream.data_ptr();
+		output.width = stream.size(1);
+		output.height = stream.size(0);
+		output.channels = stream.size(2);
+		std::string dumpName = consumerName + std::string(".yuv");
+		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
+		return vpp->DumpFrame(&output, dumpFrame);
+	});
+
 	m.def("enableLogs", [](int logsLevel) {
 		enableLogs(logsLevel);
 	});
@@ -275,14 +291,17 @@ int main()
 	std::thread pipeline(startProcessing);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(Y800)} };
 	std::thread get(get_cycle, parameters);
+	/*
 	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
 	std::thread get2(get_cycle, parameters);
 	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
 	std::thread get3(get_cycle, parameters);
-
+	*/
 	get.join();
+	/*
 	get2.join();
 	get3.join();
+	*/
 	endProcessing(HARD);
 	pipeline.join();
 	return 0;

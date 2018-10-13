@@ -39,7 +39,7 @@ public:
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
 	int Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName);
-	int DumpFrame(AVFrame* output, std::string consumerName, std::shared_ptr<FILE> dumpFile);
+	int DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile);
 	void Close();
 private:
 	bool enableDumps;
