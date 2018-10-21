@@ -48,6 +48,11 @@ public:
 	int Get(AVPacket* outputFrame);
 
 	/*
+	Analyze package for possible issues in syntax
+	*/
+	int Analyze(AVPacket* package);
+
+	/*
 	Soft re-init of current Parser entity with new parameters.
 	*/
 	int Reset(ParserParameters& input);

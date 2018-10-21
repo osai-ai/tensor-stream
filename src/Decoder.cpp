@@ -89,7 +89,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 		std::unique_lock<std::mutex> locker(sync);
 		while (!consumerStatus[consumerName]) 
 			consumerSync.wait(locker);
-			//std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
 			if (index > 0) {

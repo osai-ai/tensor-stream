@@ -36,6 +36,7 @@ std::mutex closeSync;
 int initPipeline(std::string inputFile) {
 	int sts = OK;
 	shouldWork = true;
+	//av_log_set_level(AV_LOG_TRACE);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
@@ -100,6 +101,12 @@ int startProcessing() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
+		/*START_LOG_BLOCK(std::string("parser->Analyze"));
+		//Parse package to find some syntax issues
+		sts = parser->Analyze(parsed);
+		CHECK_STATUS(sts);
+		END_LOG_BLOCK(std::string("parser->Analyze"));
+		*/
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
@@ -276,7 +283,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::map<std::string, std::string> parameters) {
-	for (int i = 0; i < 300; i++) {
+	for (int i = 0; i < 120; i++) {
 		getFrame(parameters);
 	}
 
@@ -286,10 +293,11 @@ int main()
 {
 	enableLogs(-MEDIUM);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
-	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(Y800)} };
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
 	std::thread get(get_cycle, parameters);
 	/*
 	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };

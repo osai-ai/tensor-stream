@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include <thread>
+#include <bitset>
 
 int Parser::Init(ParserParameters& input) {
 	state = input;
@@ -49,6 +50,61 @@ Parser::Parser() {
 
 }
 
+int Parser::Analyze(AVPacket* package) {
+	enum NALTypes {
+		UNKNOWN = 0,
+		SPS,
+		PPS,
+		SEI,
+		SLICE_I,
+		SLICE_P,
+		SLICE_B
+	} NALType = UNKNOWN;
+	int bitSize = lastFrame.first->size;
+	uint8_t* bitData = lastFrame.first->data;
+	int offsetStart = 0;
+	for (int i = 0; i < bitSize; ++i) {
+		int value = (int)(bitData[i]);
+		//Start code logic
+		if (value == 0) {
+			int startCodeCounter = 0;
+			startCodeCounter++;
+			//we need to analyze at least next byte
+			int j = i + 1;
+			while (j < bitSize && (int)(bitData[j]) == 0) {
+				startCodeCounter++;
+			}
+			if (startCodeCounter >= 2 && (int)(bitData[j]) == 1) {
+				i = j;
+				offsetStart = 0;
+				continue;
+			}
+		}
+		//the first byte contains info about nal_unit_type
+		if (offsetStart == 0) {
+			std::bitset<8> valueBin = std::bitset<8>(value);
+			std::bitset<8> nalTypeMask = std::bitset<8>("11111"); //u(5) for nal_unit_type
+			NALType = static_cast<NALTypes>((valueBin & nalTypeMask).to_ulong());
+			offsetStart++;
+			continue;
+		}
+		//we are looking for SLICE_* NAL
+		if (NALType >= NALTypes::SLICE_I) {
+			/*
+			first_mb_in_slice ue(v)
+			slice_type ue(v)
+			pic_parameter_set_id ue(v)
+			if( separate_colour_plane_flag = = 1 )
+				colour_plane_id u(2)
+			frame_num u(v) <- we are interested in this variable
+			*/
+
+		}
+		offsetStart++;
+	}
+	return OK;
+}
+
 int Parser::Read() {
 	int sts = OK;
 	bool videoFrame = false;
@@ -61,7 +117,7 @@ int Parser::Read() {
 		videoFrame = true;
 		currentFrame++;
 
-		//critical section + need to uninit?
+		//TODO: critical section + need to uninit?
 		lastFrame.second = false;
 
 		if (state.enableDumps) {
