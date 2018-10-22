@@ -1,6 +1,7 @@
 #include "Parser.h"
 #include <thread>
 #include <bitset>
+#include <numeric>
 
 int Parser::Init(ParserParameters& input) {
 	state = input;
@@ -49,6 +50,34 @@ int Parser::getVideoIndex() {
 Parser::Parser() {
 
 }
+//pair<shift, value>
+std::pair<int, int> read_ue(uint8_t* data, int& index, int _shift) {
+	int zerosAmount = 0;
+	int oldIndex = index;
+	while (true) {
+		int j = _shift;
+		std::bitset<8> valueBin = std::bitset<8>(data[index]);
+		while (j < 8 && valueBin[j++] == 0) {
+			zerosAmount++;
+		}
+		if (zerosAmount == 0)
+			return std::pair<int, int>(1, 0);
+		if (zerosAmount == 8) {
+			index++;
+			continue;
+		}
+		//TODO: if it's greater than 8, so we need to take new value
+		int shift = 0;
+		std::vector<bool> result(zerosAmount);
+		while (shift <= zerosAmount) {
+			shift++; //the next bit after zero shouldn't be counted
+			int bit = (_shift + zerosAmount + shift) % 8;
+			result.push_back(valueBin[bit]);
+		}
+		int field = std::accumulate(result.rbegin(), result.rend(), 0, [](int x, int y) { return (x << 1) + y; });
+		return std::pair<int, int>(_shift + zerosAmount * 2 + 1, field);
+	}
+}
 
 int Parser::Analyze(AVPacket* package) {
 	enum NALTypes {
@@ -63,19 +92,19 @@ int Parser::Analyze(AVPacket* package) {
 	int bitSize = lastFrame.first->size;
 	uint8_t* bitData = lastFrame.first->data;
 	int offsetStart = 0;
-	for (int i = 0; i < bitSize; ++i) {
-		int value = (int)(bitData[i]);
+	int index = 0;
+	while (index < bitSize) {
+		int value = (int)(bitData[index]);
 		//Start code logic
 		if (value == 0) {
 			int startCodeCounter = 0;
 			startCodeCounter++;
 			//we need to analyze at least next byte
-			int j = i + 1;
-			while (j < bitSize && (int)(bitData[j]) == 0) {
+			index += 1;
+			while (index < bitSize && (int)(bitData[index]) == 0) {
 				startCodeCounter++;
 			}
-			if (startCodeCounter >= 2 && (int)(bitData[j]) == 1) {
-				i = j;
+			if (startCodeCounter >= 2 && (int)(bitData[index]) == 1) {
 				offsetStart = 0;
 				continue;
 			}
@@ -86,6 +115,7 @@ int Parser::Analyze(AVPacket* package) {
 			std::bitset<8> nalTypeMask = std::bitset<8>("11111"); //u(5) for nal_unit_type
 			NALType = static_cast<NALTypes>((valueBin & nalTypeMask).to_ulong());
 			offsetStart++;
+			index++;
 			continue;
 		}
 		//we are looking for SLICE_* NAL
@@ -98,7 +128,7 @@ int Parser::Analyze(AVPacket* package) {
 				colour_plane_id u(2)
 			frame_num u(v) <- we are interested in this variable
 			*/
-
+			
 		}
 		offsetStart++;
 	}
