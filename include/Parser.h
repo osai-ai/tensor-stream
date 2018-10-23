@@ -25,6 +25,30 @@ struct ParserParameters {
 	bool enableDumps;
 };
 
+class BitReader {
+public:
+	enum Base {
+		NONE,
+		DEC,
+		HEX
+	};
+	BitReader(uint8_t* _byteData, int _dataSize);
+	int FindNALType();
+	std::vector<bool> ReadBits(int number);
+	int ReadGolomb();
+	int Convert(std::vector<bool> value, Base base);
+
+	int getShiftInBits();
+	int getByteIndex();
+private:
+	uint8_t* byteData;
+	int dataSize;
+	int byteIndex;
+	int shiftInBits;
+	bool findNAL();
+	std::vector<bool> getVector(int value);
+};
+
 /*
 The class allows to read frames from defined stream.
 */

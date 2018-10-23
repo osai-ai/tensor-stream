@@ -56,7 +56,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(true);
+	sts = vpp->Init();
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
@@ -280,35 +280,35 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 
-//void get_cycle(std::map<std::string, std::string> parameters) {
-//	for (int i = 0; i < 120; i++) {
-//		getFrame(parameters);
-//	}
-//
-//}
+void get_cycle(std::map<std::string, std::string> parameters) {
+	for (int i = 0; i < 120; i++) {
+		getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
+	}
+
+}
 
 int main()
 {
-//	enableLogs(-MEDIUM);
-//	//"rtmp://b.sportlevel.com/relay/pooltop"
-//	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-//	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
-//	CHECK_STATUS(sts);
-//	std::thread pipeline(startProcessing);
-//	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-//	std::thread get(get_cycle, parameters);
-//	/*
-//	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-//	std::thread get2(get_cycle, parameters);
-//	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
-//	std::thread get3(get_cycle, parameters);
-//	*/
-//	get.join();
-//	/*
-//	get2.join();
-//	get3.join();
-//	*/
-//	endProcessing(HARD);
-//	pipeline.join();
+	enableLogs(-MEDIUM);
+	//"rtmp://b.sportlevel.com/relay/pooltop"
+	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	CHECK_STATUS(sts);
+	std::thread pipeline(startProcessing);
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::thread get(get_cycle, parameters);
+	/*
+	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::thread get2(get_cycle, parameters);
+	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
+	std::thread get3(get_cycle, parameters);
+	*/
+	get.join();
+	/*
+	get2.join();
+	get3.join();
+	*/
+	endProcessing(HARD);
+	pipeline.join();
 	return 0;
 }

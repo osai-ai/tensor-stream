@@ -3,6 +3,89 @@
 #include <bitset>
 #include <numeric>
 
+BitReader::BitReader(uint8_t* _byteData, int _dataSize) {
+	byteData = _byteData;
+	dataSize = _dataSize;
+}
+
+std::vector<bool> BitReader::getVector(int value) {
+	std::vector<bool> result;
+	while (value) {
+		int remainder = value % 2;
+		result.push_back(remainder);
+		value /= 2;
+	}
+	return result;
+}
+
+bool BitReader::findNAL() {
+	while (byteIndex != dataSize)
+	if (Convert(ReadBits(8), BitReader::Base::DEC) == 0) {
+		int startCodeCounter = 1;
+		while (Convert(ReadBits(8), BitReader::Base::DEC) == 0) {
+			startCodeCounter++;
+		}
+		if (startCodeCounter >= 2 && Convert(ReadBits(8), BitReader::Base::DEC) == 1) {
+			return true;
+		}
+	}
+	return false;
+}
+
+int BitReader::FindNALType() {
+	return 0;
+}
+
+std::vector<bool> BitReader::ReadBits(int number) {
+	std::vector<bool> result;
+	int startIndex = shiftInBits;
+	int endIndex   = shiftInBits + number;
+	std::vector<bool> value = getVector(byteData[byteIndex]);
+	for (int i = startIndex; i < endIndex; i++) {
+		//we read we last bit, need to take next byte
+		if (i && i % 8 == 0) {
+			shiftInBits = 0;
+			byteIndex++;
+			value = getVector(byteData[byteIndex]);
+		}
+		result.push_back(value[i % 8]);
+	}
+	return result;
+}
+
+int BitReader::Convert(std::vector<bool> value, Base base) {
+	int result = 0;
+	switch (base) {
+		case Base::DEC: 
+		{
+			int n = 0;
+			for (auto i : value)
+			{
+				if (i)
+				{
+					result += pow(2, n++);
+				}
+			}
+			break;
+		}
+		case Base::HEX:
+
+		break;
+	}
+	return result;
+}
+
+int BitReader::getByteIndex() {
+	return byteIndex;
+}
+int BitReader::getShiftInBits() {
+	return shiftInBits;
+}
+
+int BitReader::ReadGolomb() {
+	return 0;
+}
+
 int Parser::Init(ParserParameters& input) {
 	state = input;
 	int sts = OK;
@@ -50,34 +133,6 @@ int Parser::getVideoIndex() {
 Parser::Parser() {
 
 }
-//pair<shift, value>
-std::pair<int, int> read_ue(uint8_t* data, int& index, int _shift) {
-	int zerosAmount = 0;
-	int oldIndex = index;
-	while (true) {
-		int j = _shift;
-		std::bitset<8> valueBin = std::bitset<8>(data[index]);
-		while (j < 8 && valueBin[j++] == 0) {
-			zerosAmount++;
-		}
-		if (zerosAmount == 0)
-			return std::pair<int, int>(1, 0);
-		if (zerosAmount == 8) {
-			index++;
-			continue;
-		}
-		//TODO: if it's greater than 8, so we need to take new value
-		int shift = 0;
-		std::vector<bool> result(zerosAmount);
-		while (shift <= zerosAmount) {
-			shift++; //the next bit after zero shouldn't be counted
-			int bit = (_shift + zerosAmount + shift) % 8;
-			result.push_back(valueBin[bit]);
-		}
-		int field = std::accumulate(result.rbegin(), result.rend(), 0, [](int x, int y) { return (x << 1) + y; });
-		return std::pair<int, int>(_shift + zerosAmount * 2 + 1, field);
-	}
-}
 
 int Parser::Analyze(AVPacket* package) {
 	enum NALTypes {
@@ -89,10 +144,14 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_P,
 		SLICE_B
 	} NALType = UNKNOWN;
-	int bitSize = lastFrame.first->size;
-	uint8_t* bitData = lastFrame.first->data;
-	int offsetStart = 0;
-	int index = 0;
+
+	BitReader bitReader(lastFrame.first->data, lastFrame.first->size);
+	//We need to find SLICE_*
+	while (NALType < SLICE_I) {
+		NALType = static_cast<NALTypes>(bitReader.FindNALType());
+	}
+	//here we have position after NAL header
+	/*
 	while (index < bitSize) {
 		int value = (int)(bitData[index]);
 		//Start code logic
@@ -120,18 +179,11 @@ int Parser::Analyze(AVPacket* package) {
 		}
 		//we are looking for SLICE_* NAL
 		if (NALType >= NALTypes::SLICE_I) {
-			/*
-			first_mb_in_slice ue(v)
-			slice_type ue(v)
-			pic_parameter_set_id ue(v)
-			if( separate_colour_plane_flag = = 1 )
-				colour_plane_id u(2)
-			frame_num u(v) <- we are interested in this variable
-			*/
 			
 		}
 		offsetStart++;
 	}
+	*/
 	return OK;
 }
 
