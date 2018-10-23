@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parameters = {
         'name': "first",
         'delay': 0,
-        'format': FourCC.RGB24,
+        'pixel_format': FourCC.RGB24,
         'return_index': False
     }
 

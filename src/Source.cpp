@@ -56,7 +56,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(true);
+	sts = vpp->Init(false);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
