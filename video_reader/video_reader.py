@@ -74,12 +74,7 @@ class StreamVideoReader:
              delay: int,
              pixel_format=FourCC.RGB24,
              return_index=False):
-        parameters = {
-            'name': name,
-            'delay': str(delay),
-            'format': str(pixel_format)
-        }
-        tensor, index = VideoReader.get(parameters)
+        tensor, index = VideoReader.get(name, delay, pixel_format)
         if return_index:
             return tensor, index
         else:
