@@ -67,7 +67,17 @@ class StreamVideoReader:
         else:
             VideoReader.enableLogs(-level)
 
-    def read(self, **parameters):
+    def read(self,
+             name: str,
+             delay: int,
+             pixel_format=FourCC.RGB24,
+             return_index=False):
+        parameters = {
+            'name': name,
+            'delay': str(delay),
+            'format': str(pixel_format),
+            'return_index': str(int(return_index))
+        }
         tensor, index = VideoReader.get(parameters)
         if int(parameters["return_index"]):
             return tensor, index

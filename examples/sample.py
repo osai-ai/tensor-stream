@@ -32,7 +32,13 @@ if __name__ == '__main__':
     reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
 
     reader.start()
-    parameters = {'name': "first", 'delay': "0", 'format' : str(FourCC.RGB24), 'return_index' : "0"}
+    parameters = {
+        'name': "first",
+        'delay': 0,
+        'format': FourCC.RGB24,
+        'return_index': False
+    }
+
     # Warm up
     for i in range(100):
         tensor = reader.read(**parameters)
