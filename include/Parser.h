@@ -33,9 +33,11 @@ public:
 		HEX
 	};
 	BitReader(uint8_t* _byteData, int _dataSize);
-	int FindNALType();
+	std::vector<bool> FindNALType();
 	std::vector<bool> ReadBits(int number);
-	int ReadGolomb();
+	std::vector<bool> ReadGolomb();
+	bool SkipBits(int number);
+	bool SkipGolomb();
 	int Convert(std::vector<bool> value, Base base);
 
 	int getShiftInBits();

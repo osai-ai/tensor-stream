@@ -32,8 +32,23 @@ bool BitReader::findNAL() {
 	return false;
 }
 
-int BitReader::FindNALType() {
-	return 0;
+std::vector<bool> BitReader::FindNALType() {
+	std::vector<bool> nal_unit_type;
+	if (findNAL()) {
+		SkipBits(1); //forbidden_zero_bit
+		SkipBits(3); //nal_ref_idc
+		nal_unit_type = ReadBits(5);
+	}
+	return nal_unit_type;
+}
+
+bool BitReader::SkipBits(int number) {
+	int bytes = (shiftInBits + number) / 8;
+	if (byteIndex + bytes >= dataSize)
+		return false;
+	byteIndex += bytes;
+	shiftInBits = (shiftInBits + number) % 8;
+	return true;
 }
 
 std::vector<bool> BitReader::ReadBits(int number) {
@@ -82,8 +97,76 @@ int BitReader::getShiftInBits() {
 	return shiftInBits;
 }
 
-int BitReader::ReadGolomb() {
-	return 0;
+std::vector<bool> BitReader::ReadGolomb() {
+	int zerosNumber = 0;
+	while (Convert(ReadBits(1), Base::DEC) == 0) {
+		zerosNumber++;
+	}
+	return ReadBits(zerosNumber);
+}
+
+
+bool BitReader::SkipGolomb() {
+	int zerosNumber = 0;
+	while (Convert(ReadBits(1), Base::DEC) == 0) {
+		zerosNumber++;
+	}
+	return SkipBits(zerosNumber);
+}
+
+int Parser::Analyze(AVPacket* package) {
+	enum NALTypes {
+		UNKNOWN = 0,
+		SPS,
+		PPS,
+		SEI,
+		SLICE_I,
+		SLICE_P,
+		SLICE_B
+	} NALType = UNKNOWN;
+
+	BitReader bitReader(lastFrame.first->data, lastFrame.first->size);
+	int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num
+	int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
+	//We need to find SLICE_*
+	while (NALType < SLICE_I) {
+		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Base::DEC));
+		//we have to find log2_max_frame_num_minus4
+		if (NALType == SPS) {
+			int profile_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Base::DEC);
+			bitReader.SkipBits(8); //reserved
+			bitReader.SkipBits(8); //level_idc
+			bitReader.SkipGolomb(); //seq_parameter_set_id
+			if (profile_idc == 100 || profile_idc == 110 ||
+				profile_idc == 122 || profile_idc == 244 || profile_idc == 44 ||
+				profile_idc == 83 || profile_idc == 86 || profile_idc == 118 ||
+				profile_idc == 128 || profile_idc == 138 || profile_idc == 139 ||
+				profile_idc == 134 || profile_idc == 135) {
+				int chroma_format_idc = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
+				if (chroma_format_idc == 3)
+					separate_colour_plane_flag = bitReader.Convert(bitReader.FindNALType(), BitReader::Base::DEC);
+				bitReader.SkipGolomb(); //bit_depth_luma_minus8
+				bitReader.SkipGolomb(); //bit_depth_chroma_minus8
+				bitReader.SkipBits(1); //qpprime_y_zero_transform_bypass_flag
+				int seq_scaling_matrix_present_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Base::DEC);
+				if (seq_scaling_matrix_present_flag) {
+					for (int i = 0; i < ((chroma_format_idc != 3) ? 8 : 12); i++)
+						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
+				}
+				log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
+			}
+		}
+	}
+	if (NALType >= SLICE_I) {
+		//here we have position after NAL header
+		int first_mb_in_slice = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
+		bitReader.SkipGolomb(); //slice_type
+		bitReader.SkipGolomb(); //pic_parameter_set_id
+		if (separate_colour_plane_flag == 1)
+			bitReader.SkipBits(2);
+		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Base::DEC);
+	}
+	return OK;
 }
 
 int Parser::Init(ParserParameters& input) {
@@ -132,59 +215,6 @@ int Parser::getVideoIndex() {
 }
 Parser::Parser() {
 
-}
-
-int Parser::Analyze(AVPacket* package) {
-	enum NALTypes {
-		UNKNOWN = 0,
-		SPS,
-		PPS,
-		SEI,
-		SLICE_I,
-		SLICE_P,
-		SLICE_B
-	} NALType = UNKNOWN;
-
-	BitReader bitReader(lastFrame.first->data, lastFrame.first->size);
-	//We need to find SLICE_*
-	while (NALType < SLICE_I) {
-		NALType = static_cast<NALTypes>(bitReader.FindNALType());
-	}
-	//here we have position after NAL header
-	/*
-	while (index < bitSize) {
-		int value = (int)(bitData[index]);
-		//Start code logic
-		if (value == 0) {
-			int startCodeCounter = 0;
-			startCodeCounter++;
-			//we need to analyze at least next byte
-			index += 1;
-			while (index < bitSize && (int)(bitData[index]) == 0) {
-				startCodeCounter++;
-			}
-			if (startCodeCounter >= 2 && (int)(bitData[index]) == 1) {
-				offsetStart = 0;
-				continue;
-			}
-		}
-		//the first byte contains info about nal_unit_type
-		if (offsetStart == 0) {
-			std::bitset<8> valueBin = std::bitset<8>(value);
-			std::bitset<8> nalTypeMask = std::bitset<8>("11111"); //u(5) for nal_unit_type
-			NALType = static_cast<NALTypes>((valueBin & nalTypeMask).to_ulong());
-			offsetStart++;
-			index++;
-			continue;
-		}
-		//we are looking for SLICE_* NAL
-		if (NALType >= NALTypes::SLICE_I) {
-			
-		}
-		offsetStart++;
-	}
-	*/
-	return OK;
 }
 
 int Parser::Read() {
