@@ -71,7 +71,7 @@ class StreamVideoReader:
 
     def read(self,
              name: str,
-             delay: int,
+             delay=0,
              pixel_format=FourCC.RGB24,
              return_index=False):
         tensor, index = VideoReader.get(name, delay, pixel_format)
