@@ -101,12 +101,11 @@ int startProcessing() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
-		/*START_LOG_BLOCK(std::string("parser->Analyze"));
+		START_LOG_BLOCK(std::string("parser->Analyze"));
 		//Parse package to find some syntax issues
 		sts = parser->Analyze(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Analyze"));
-		*/
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
@@ -291,8 +290,8 @@ int main()
 {
 	enableLogs(-MEDIUM);
 	//"rtmp://b.sportlevel.com/relay/pooltop"
-	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };

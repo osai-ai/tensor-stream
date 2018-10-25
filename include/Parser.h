@@ -45,8 +45,8 @@ public:
 private:
 	uint8_t* byteData;
 	int dataSize;
-	int byteIndex;
-	int shiftInBits;
+	int byteIndex = 0;
+	int shiftInBits = 0;
 	bool findNAL();
 	std::vector<bool> getVector(int value);
 };
@@ -130,4 +130,8 @@ private:
 	State of component
 	*/
 	bool isClosed = false;
+	/*
+	Frame number for bitstream analyzing, part of H264 bitstream syntax
+	*/
+	int frameNumValue = 0;
 };

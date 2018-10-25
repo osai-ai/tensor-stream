@@ -10,23 +10,29 @@ BitReader::BitReader(uint8_t* _byteData, int _dataSize) {
 
 std::vector<bool> BitReader::getVector(int value) {
 	std::vector<bool> result;
-	while (value) {
+	do {
 		int remainder = value % 2;
-		result.push_back(remainder);
+		result.insert(result.begin(), remainder);
 		value /= 2;
+	} while (value);
+	//need to allign data
+	while (result.size() != 8) {
+		result.insert(result.begin(), 0);
 	}
 	return result;
 }
 
 bool BitReader::findNAL() {
-	while (byteIndex != dataSize)
-	if (Convert(ReadBits(8), BitReader::Base::DEC) == 0) {
-		int startCodeCounter = 1;
-		while (Convert(ReadBits(8), BitReader::Base::DEC) == 0) {
-			startCodeCounter++;
-		}
-		if (startCodeCounter >= 2 && Convert(ReadBits(8), BitReader::Base::DEC) == 1) {
-			return true;
+	int value;
+	while (byteIndex != dataSize) {
+		if ((value = Convert(ReadBits(8), BitReader::Base::DEC)) == 0) {
+			int startCodeCounter = 1;
+			while ((value = Convert(ReadBits(8), BitReader::Base::DEC)) == 0) {
+				startCodeCounter++;
+			}
+			if (startCodeCounter >= 2 && value == 1) {
+				return true;
+			}
 		}
 	}
 	return false;
@@ -36,7 +42,7 @@ std::vector<bool> BitReader::FindNALType() {
 	std::vector<bool> nal_unit_type;
 	if (findNAL()) {
 		SkipBits(1); //forbidden_zero_bit
-		SkipBits(3); //nal_ref_idc
+		SkipBits(2); //nal_ref_idc
 		nal_unit_type = ReadBits(5);
 	}
 	return nal_unit_type;
@@ -63,7 +69,13 @@ std::vector<bool> BitReader::ReadBits(int number) {
 			byteIndex++;
 			value = getVector(byteData[byteIndex]);
 		}
+		//result.insert(result.begin(), value[i % 8]);
 		result.push_back(value[i % 8]);
+		shiftInBits++;
+	}
+	if (shiftInBits == 8) {
+		shiftInBits = 0;
+		byteIndex++;
 	}
 	return result;
 }
@@ -74,12 +86,13 @@ int BitReader::Convert(std::vector<bool> value, Base base) {
 		case Base::DEC: 
 		{
 			int n = 0;
-			for (auto i : value)
+			for (int i = value.size() - 1; i > 0; i--)
 			{
-				if (i)
+				if (value[i])
 				{
-					result += pow(2, n++);
+					result += pow(2, n);
 				}
+				n++;
 			}
 			break;
 		}
@@ -117,19 +130,21 @@ bool BitReader::SkipGolomb() {
 int Parser::Analyze(AVPacket* package) {
 	enum NALTypes {
 		UNKNOWN = 0,
-		SPS,
-		PPS,
-		SEI,
-		SLICE_I,
-		SLICE_P,
-		SLICE_B
+		SPS = 7,
+		PPS = 8,
+		SEI = 6,
+		SLICE_IDR = 5,
+		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
-
-	BitReader bitReader(lastFrame.first->data, lastFrame.first->size);
+/*	for (int i = 0; i < package->size; i++) {
+		std::cout << std::hex << (int) package->data[i] << std::flush;
+	}
+*/
+	BitReader bitReader(package->data, package->size);
 	int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num
 	int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
 	//We need to find SLICE_*
-	while (NALType < SLICE_I) {
+	while (NALType != SLICE_IDR && NALType != SLICE_NOT_IDR) {
 		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Base::DEC));
 		//we have to find log2_max_frame_num_minus4
 		if (NALType == SPS) {
@@ -157,7 +172,7 @@ int Parser::Analyze(AVPacket* package) {
 			}
 		}
 	}
-	if (NALType >= SLICE_I) {
+	if (NALType == SLICE_IDR || NALType == SLICE_NOT_IDR) {
 		//here we have position after NAL header
 		int first_mb_in_slice = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
 		bitReader.SkipGolomb(); //slice_type
@@ -165,6 +180,9 @@ int Parser::Analyze(AVPacket* package) {
 		if (separate_colour_plane_flag == 1)
 			bitReader.SkipBits(2);
 		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Base::DEC);
+		if (frame_num >= frameNumValue + 1)
+			printf("FRAME ERROR\n");
+		frameNumValue = frame_num;
 	}
 	return OK;
 }
