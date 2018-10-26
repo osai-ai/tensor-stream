@@ -32,13 +32,17 @@ public:
 		DEC,
 		HEX
 	};
+	enum Type {
+		RAW,
+		GOLOMB
+	};
 	BitReader(uint8_t* _byteData, int _dataSize);
 	std::vector<bool> FindNALType();
 	std::vector<bool> ReadBits(int number);
 	std::vector<bool> ReadGolomb();
 	bool SkipBits(int number);
 	bool SkipGolomb();
-	int Convert(std::vector<bool> value, Base base);
+	int Convert(std::vector<bool> value, Type type, Base base);
 
 	int getShiftInBits();
 	int getByteIndex();

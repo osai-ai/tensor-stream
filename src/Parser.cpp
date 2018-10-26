@@ -24,10 +24,14 @@ std::vector<bool> BitReader::getVector(int value) {
 
 bool BitReader::findNAL() {
 	int value;
+	if (shiftInBits != 0) {
+		shiftInBits = 0;
+		byteIndex++;
+	}
 	while (byteIndex != dataSize) {
-		if ((value = Convert(ReadBits(8), BitReader::Base::DEC)) == 0) {
+		if ((value = Convert(ReadBits(8), Type::RAW, BitReader::Base::DEC)) == 0) {
 			int startCodeCounter = 1;
-			while ((value = Convert(ReadBits(8), BitReader::Base::DEC)) == 0) {
+			while ((value = Convert(ReadBits(8), Type::RAW, BitReader::Base::DEC)) == 0) {
 				startCodeCounter++;
 			}
 			if (startCodeCounter >= 2 && value == 1) {
@@ -69,8 +73,7 @@ std::vector<bool> BitReader::ReadBits(int number) {
 			byteIndex++;
 			value = getVector(byteData[byteIndex]);
 		}
-		//result.insert(result.begin(), value[i % 8]);
-		result.push_back(value[i % 8]);
+		result.insert(result.begin(), value[i % 8]);
 		shiftInBits++;
 	}
 	if (shiftInBits == 8) {
@@ -80,19 +83,22 @@ std::vector<bool> BitReader::ReadBits(int number) {
 	return result;
 }
 
-int BitReader::Convert(std::vector<bool> value, Base base) {
+int BitReader::Convert(std::vector<bool> value, Type type, Base base) {
 	int result = 0;
 	switch (base) {
 		case Base::DEC: 
 		{
 			int n = 0;
-			for (int i = value.size() - 1; i > 0; i--)
+			for (int i = 0; i < value.size(); i++)
 			{
 				if (value[i])
 				{
 					result += pow(2, n);
 				}
 				n++;
+			}
+			if (type == Type::GOLOMB) {
+				result = pow(2, value.size()) - 1 + result;
 			}
 			break;
 		}
@@ -112,7 +118,7 @@ int BitReader::getShiftInBits() {
 
 std::vector<bool> BitReader::ReadGolomb() {
 	int zerosNumber = 0;
-	while (Convert(ReadBits(1), Base::DEC) == 0) {
+	while (Convert(ReadBits(1), Type::RAW, Base::DEC) == 0) {
 		zerosNumber++;
 	}
 	return ReadBits(zerosNumber);
@@ -121,7 +127,7 @@ std::vector<bool> BitReader::ReadGolomb() {
 
 bool BitReader::SkipGolomb() {
 	int zerosNumber = 0;
-	while (Convert(ReadBits(1), Base::DEC) == 0) {
+	while (Convert(ReadBits(1), Type::RAW, Base::DEC) == 0) {
 		zerosNumber++;
 	}
 	return SkipBits(zerosNumber);
@@ -145,44 +151,50 @@ int Parser::Analyze(AVPacket* package) {
 	int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
 	//We need to find SLICE_*
 	while (NALType != SLICE_IDR && NALType != SLICE_NOT_IDR) {
-		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Base::DEC));
+		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC));
 		//we have to find log2_max_frame_num_minus4
 		if (NALType == SPS) {
-			int profile_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Base::DEC);
+			int profile_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
 			bitReader.SkipBits(8); //reserved
-			bitReader.SkipBits(8); //level_idc
-			bitReader.SkipGolomb(); //seq_parameter_set_id
+			int level_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC); //level_idc
+			int seq_parameter_set_id = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC); //seq_parameter_set_id
 			if (profile_idc == 100 || profile_idc == 110 ||
 				profile_idc == 122 || profile_idc == 244 || profile_idc == 44 ||
 				profile_idc == 83 || profile_idc == 86 || profile_idc == 118 ||
 				profile_idc == 128 || profile_idc == 138 || profile_idc == 139 ||
 				profile_idc == 134 || profile_idc == 135) {
-				int chroma_format_idc = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
+				int chroma_format_idc = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 				if (chroma_format_idc == 3)
-					separate_colour_plane_flag = bitReader.Convert(bitReader.FindNALType(), BitReader::Base::DEC);
+					separate_colour_plane_flag = bitReader.Convert(bitReader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC);
 				bitReader.SkipGolomb(); //bit_depth_luma_minus8
 				bitReader.SkipGolomb(); //bit_depth_chroma_minus8
 				bitReader.SkipBits(1); //qpprime_y_zero_transform_bypass_flag
-				int seq_scaling_matrix_present_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Base::DEC);
+				int seq_scaling_matrix_present_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 				if (seq_scaling_matrix_present_flag) {
 					for (int i = 0; i < ((chroma_format_idc != 3) ? 8 : 12); i++)
 						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
 				}
-				log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
+				log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 			}
 		}
 	}
 	if (NALType == SLICE_IDR || NALType == SLICE_NOT_IDR) {
 		//here we have position after NAL header
-		int first_mb_in_slice = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Base::DEC);
-		bitReader.SkipGolomb(); //slice_type
+		int first_mb_in_slice = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+		//we want analyze only first slice in frame because from frame drop perspective there is no difference between slices
+		if (first_mb_in_slice)
+			return OK;
+		int slice_type = bitReader.SkipGolomb(); //slice_type
 		bitReader.SkipGolomb(); //pic_parameter_set_id
 		if (separate_colour_plane_flag == 1)
 			bitReader.SkipBits(2);
-		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Base::DEC);
-		if (frame_num >= frameNumValue + 1)
+		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
+		if (frame_num > frameNumValue + 1)
 			printf("FRAME ERROR\n");
-		frameNumValue = frame_num;
+		//slice_type = 1 or 6 is B slice
+		if (frame_num == frameNumValue && (slice_type != 1 && slice_type != 6)) {
+			printf("FRAME ERROR\n");
+		}
 	}
 	return OK;
 }
