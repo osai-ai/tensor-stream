@@ -100,7 +100,7 @@ int BitReader::Convert(std::vector<bool> value, Type type, Base base) {
 			if (type == Type::GOLOMB) {
 				result = pow(2, value.size()) - 1 + result;
 			}
-			else if (type == Type::SGOLOMB) {
+			if (type == Type::SGOLOMB) {
 				result = pow(-1, result + 1) * ceil(result / 2);
 			}
 			break;
