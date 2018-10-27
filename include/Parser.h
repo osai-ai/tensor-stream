@@ -34,7 +34,8 @@ public:
 	};
 	enum Type {
 		RAW,
-		GOLOMB
+		GOLOMB,
+		SGOLOMB
 	};
 	BitReader(uint8_t* _byteData, int _dataSize);
 	std::vector<bool> FindNALType();
@@ -137,5 +138,6 @@ private:
 	/*
 	Frame number for bitstream analyzing, part of H264 bitstream syntax
 	*/
-	int frameNumValue = 0;
+	int frameNumValue = -1;
+	int POC = 0;
 };

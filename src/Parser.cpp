@@ -100,6 +100,9 @@ int BitReader::Convert(std::vector<bool> value, Type type, Base base) {
 			if (type == Type::GOLOMB) {
 				result = pow(2, value.size()) - 1 + result;
 			}
+			else if (type == Type::SGOLOMB) {
+				result = pow(-1, result + 1) * ceil(result / 2);
+			}
 			break;
 		}
 		case Base::HEX:
@@ -147,8 +150,13 @@ int Parser::Analyze(AVPacket* package) {
 	}
 */
 	BitReader bitReader(package->data, package->size);
-	int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num
-	int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
+	//should be saved as SPS parameters
+	static int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num
+	static int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
+	static int pic_order_cnt_type = 0;
+	static int frame_mbs_only_flag = 0;
+	static int log2_max_pic_order_cnt_lsb_minus4 = 0;
+	static int gaps_in_frame_num_value_allowed_flag = 0;
 	//We need to find SLICE_*
 	while (NALType != SLICE_IDR && NALType != SLICE_NOT_IDR) {
 		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC));
@@ -175,6 +183,26 @@ int Parser::Analyze(AVPacket* package) {
 						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
 				}
 				log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+				pic_order_cnt_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+				if (pic_order_cnt_type == 0) {
+					log2_max_pic_order_cnt_lsb_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+				}
+				else if (pic_order_cnt_type == 1) {
+					bitReader.SkipBits(1); //delta_pic_order_always_zero_flag
+					bitReader.SkipGolomb(); //offset_for_non_ref_pic
+					bitReader.SkipGolomb(); //offset_for_top_to_bottom_field
+					int num_ref_frames_in_pic_order_cnt_cycle = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+					for (int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++)
+						bitReader.SkipGolomb(); //offset_for_ref_frame
+				}
+				bitReader.SkipGolomb(); //max_num_ref_frames
+				gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
+				//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
+				if (gaps_in_frame_num_value_allowed_flag)
+					LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
+				bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
+				bitReader.SkipGolomb(); //pic_height_in_map_units_minus1
+				frame_mbs_only_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			}
 		}
 	}
@@ -184,17 +212,39 @@ int Parser::Analyze(AVPacket* package) {
 		//we want analyze only first slice in frame because from frame drop perspective there is no difference between slices
 		if (first_mb_in_slice)
 			return OK;
-		int slice_type = bitReader.SkipGolomb(); //slice_type
+		int slice_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 		bitReader.SkipGolomb(); //pic_parameter_set_id
 		if (separate_colour_plane_flag == 1)
 			bitReader.SkipBits(2);
 		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
-		if (frame_num > frameNumValue + 1)
-			printf("FRAME ERROR\n");
-		//slice_type = 1 or 6 is B slice
-		if (frame_num == frameNumValue && (slice_type != 1 && slice_type != 6)) {
-			printf("FRAME ERROR\n");
+		if (!frame_mbs_only_flag) {
+			int field_pic_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
+			if (field_pic_flag)
+				bitReader.SkipBits(1); //bottom_field_flag
 		}
+		int IdrPicFlag = ((NALType == SLICE_IDR) ? 1 : 0);
+		if (IdrPicFlag)
+			bitReader.SkipGolomb(); //idr_pic_id
+		int pic_order_cnt_lsb = 0;
+		if (pic_order_cnt_type == 0) {
+			pic_order_cnt_lsb = bitReader.Convert(bitReader.ReadBits(log2_max_pic_order_cnt_lsb_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
+		}
+		if (gaps_in_frame_num_value_allowed_flag == 0) {
+			if (frame_num == frameNumValue && (slice_type == 1 || slice_type == 6)) {
+				if (pic_order_cnt_lsb <= POC)
+					LOG_VALUE(std::string("[PARSING] B-slice incorrect POC. Current POC: ") + std::to_string(pic_order_cnt_lsb)
+						+ std::string(" previous POC: ") + std::to_string(POC));
+			} else if (frame_num == frameNumValue && (slice_type != 1 && slice_type != 6)) {
+				LOG_VALUE(std::string("[PARSING] frame_num of current frame is equal to previous frame_num. Slice type: ")
+					+ std::to_string(NALType));
+			} else if (frame_num != frameNumValue + 1)
+				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num) 
+					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue));
+			
+		}
+
+		frameNumValue = frame_num;
+		POC = pic_order_cnt_lsb;
 	}
 	return OK;
 }
