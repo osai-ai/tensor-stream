@@ -280,7 +280,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::map<std::string, std::string> parameters) {
-	for (int i = 0; i < 120; i++) {
+	for (int i = 0; i < 300; i++) {
 		getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
 	}
 
@@ -289,9 +289,9 @@ void get_cycle(std::map<std::string, std::string> parameters) {
 int main()
 {
 	enableLogs(-MEDIUM);
-	//"rtmp://b.sportlevel.com/relay/pooltop"
+	int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(startProcessing);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };

@@ -140,4 +140,9 @@ private:
 	*/
 	int frameNumValue = -1;
 	int POC = 0;
+	/*
+	Bitstream filter for converting mp4->h264
+	*/
+	AVBitStreamFilterContext* bitstreamFilter;
+	std::shared_ptr<AVPacket> NALu;
 };

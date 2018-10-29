@@ -145,11 +145,8 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_IDR = 5,
 		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
-/*	for (int i = 0; i < package->size; i++) {
-		std::cout << std::hex << (int) package->data[i] << std::flush;
-	}
-*/
-	BitReader bitReader(package->data, package->size);
+	av_bitstream_filter_filter(bitstreamFilter, formatContext->streams[videoIndex]->codec, NULL, &NALu->data, &NALu->size, package->data, package->size, 0);
+	BitReader bitReader(NALu->data, NALu->size);
 	//should be saved as SPS parameters
 	static int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num
 	static int log2_max_frame_num_minus4 = 0; //should be parsed from SPS because it's size of frame_num
@@ -160,6 +157,8 @@ int Parser::Analyze(AVPacket* package) {
 	//We need to find SLICE_*
 	while (NALType != SLICE_IDR && NALType != SLICE_NOT_IDR) {
 		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC));
+		if (NALType == UNKNOWN)
+			return REPEAT;
 		//we have to find log2_max_frame_num_minus4
 		if (NALType == SPS) {
 			int profile_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
@@ -182,34 +181,35 @@ int Parser::Analyze(AVPacket* package) {
 					for (int i = 0; i < ((chroma_format_idc != 3) ? 8 : 12); i++)
 						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
 				}
-				log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
-				pic_order_cnt_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
-				if (pic_order_cnt_type == 0) {
-					log2_max_pic_order_cnt_lsb_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
-				}
-				else if (pic_order_cnt_type == 1) {
-					bitReader.SkipBits(1); //delta_pic_order_always_zero_flag
-					bitReader.SkipGolomb(); //offset_for_non_ref_pic
-					bitReader.SkipGolomb(); //offset_for_top_to_bottom_field
-					int num_ref_frames_in_pic_order_cnt_cycle = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
-					for (int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++)
-						bitReader.SkipGolomb(); //offset_for_ref_frame
-				}
-				bitReader.SkipGolomb(); //max_num_ref_frames
-				gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
-				//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
-				if (gaps_in_frame_num_value_allowed_flag)
-					LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
-				bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
-				bitReader.SkipGolomb(); //pic_height_in_map_units_minus1
-				frame_mbs_only_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			}
+			log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+			pic_order_cnt_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+			if (pic_order_cnt_type == 0) {
+				log2_max_pic_order_cnt_lsb_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+			}
+			else if (pic_order_cnt_type == 1) {
+				bitReader.SkipBits(1); //delta_pic_order_always_zero_flag
+				bitReader.SkipGolomb(); //offset_for_non_ref_pic
+				bitReader.SkipGolomb(); //offset_for_top_to_bottom_field
+				int num_ref_frames_in_pic_order_cnt_cycle = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
+				for (int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++)
+					bitReader.SkipGolomb(); //offset_for_ref_frame
+			}
+			bitReader.SkipGolomb(); //max_num_ref_frames
+			gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
+			//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
+			if (gaps_in_frame_num_value_allowed_flag)
+				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
+			bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
+			bitReader.SkipGolomb(); //pic_height_in_map_units_minus1
+			frame_mbs_only_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 		}
 	}
 	if (NALType == SLICE_IDR || NALType == SLICE_NOT_IDR) {
 		//here we have position after NAL header
 		int first_mb_in_slice = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 		//we want analyze only first slice in frame because from frame drop perspective there is no difference between slices
+		//btw we should hit only first slice due to return after 1 slice
 		if (first_mb_in_slice)
 			return OK;
 		int slice_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
@@ -217,26 +217,34 @@ int Parser::Analyze(AVPacket* package) {
 		if (separate_colour_plane_flag == 1)
 			bitReader.SkipBits(2);
 		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
+		//LOG_VALUE(std::string("frame_num: ") + std::to_string(frame_num));
 		if (!frame_mbs_only_flag) {
 			int field_pic_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			if (field_pic_flag)
 				bitReader.SkipBits(1); //bottom_field_flag
 		}
-		int IdrPicFlag = ((NALType == SLICE_IDR) ? 1 : 0);
-		if (IdrPicFlag)
+		int idrPicFlag = ((NALType == SLICE_IDR) ? 1 : 0);
+		if (idrPicFlag) {
 			bitReader.SkipGolomb(); //idr_pic_id
+		}
+		//we expect frame_num == 0 at the start of GOP (for any IDR)
+		//also frame_num has maximum size
+		if (idrPicFlag || frameNumValue == pow(2, log2_max_frame_num_minus4 + 4) - 1) {
+			frameNumValue = -1;
+		}
 		int pic_order_cnt_lsb = 0;
 		if (pic_order_cnt_type == 0) {
 			pic_order_cnt_lsb = bitReader.Convert(bitReader.ReadBits(log2_max_pic_order_cnt_lsb_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
 		}
+		if (POC == pow(2, log2_max_pic_order_cnt_lsb_minus4 + 4) - 1) {
+			POC = 0;
+		}
+		//LOG_VALUE(std::string("pic_order_cnt_lsb: ") + std::to_string(pic_order_cnt_lsb));
 		if (gaps_in_frame_num_value_allowed_flag == 0) {
-			if (frame_num == frameNumValue && (slice_type == 1 || slice_type == 6)) {
+			if (frame_num == frameNumValue) {
 				if (pic_order_cnt_lsb <= POC)
 					LOG_VALUE(std::string("[PARSING] B-slice incorrect POC. Current POC: ") + std::to_string(pic_order_cnt_lsb)
 						+ std::string(" previous POC: ") + std::to_string(POC));
-			} else if (frame_num == frameNumValue && (slice_type != 1 && slice_type != 6)) {
-				LOG_VALUE(std::string("[PARSING] frame_num of current frame is equal to previous frame_num. Slice type: ")
-					+ std::to_string(NALType));
 			} else if (frame_num != frameNumValue + 1)
 				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num) 
 					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue));
@@ -276,6 +284,8 @@ int Parser::Init(ParserParameters& input) {
 		//Write file header
 		sts = avformat_write_header(dumpContext, NULL);
 	}
+	NALu = std::make_shared<AVPacket>();
+	bitstreamFilter = av_bitstream_filter_init("h264_mp4toannexb");
 
 	lastFrame = std::make_pair(new AVPacket(), false);
 	isClosed = false;
@@ -305,7 +315,7 @@ int Parser::Read() {
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex)
 			continue;
-		
+
 		videoFrame = true;
 		currentFrame++;
 
@@ -313,19 +323,13 @@ int Parser::Read() {
 		lastFrame.second = false;
 
 		if (state.enableDumps) {
-#ifdef DEBUG_INFO
-			static int count = 0;
-#endif
 			//in our output file only 1 stream is available with index 0
 			lastFrame.first->stream_index = 0;
 			sts = av_write_frame(dumpContext, lastFrame.first);
 			CHECK_STATUS(sts);
 			lastFrame.first->stream_index = videoIndex;
-#ifdef DEBUG_INFO
-			count++;
-			printf("Bitstream %d\n", count);
-#endif
 		}
+		
 	}
 	return sts;
 }
@@ -356,6 +360,7 @@ AVStream* Parser::getStreamHandle() {
 void Parser::Close() {
 	if (isClosed)
 		return;
+	av_bitstream_filter_close(bitstreamFilter);
 	avformat_close_input(&formatContext);
 	
 	if (state.enableDumps) {
