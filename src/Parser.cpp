@@ -146,6 +146,11 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
 	av_bitstream_filter_filter(bitstreamFilter, formatContext->streams[videoIndex]->codec, NULL, &NALu->data, &NALu->size, package->data, package->size, 0);
+	//content in package is already in h264 format, so no need to do mp4->h264 conversion
+	if (NALu->data == nullptr) {
+		NALu->data = package->data;
+		NALu->size = package->size;
+	}
 	BitReader bitReader(NALu->data, NALu->size);
 	//should be saved as SPS parameters
 	static int separate_colour_plane_flag = 0; //should be parsed from SPS for frame_num

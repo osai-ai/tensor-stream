@@ -56,7 +56,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init();
+	sts = vpp->Init(false);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
@@ -154,6 +154,15 @@ int startProcessing() {
 		END_LOG_BLOCK(std::string("sleep"));
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
+	return sts;
+}
+
+int processingWrapper() {
+	int sts = OK;
+	sts = startProcessing();
+	//we should unlock mutex to allow get() function end execution
+	decoder->notifyConsumers();
+	CHECK_STATUS(sts);
 	return sts;
 }
 
@@ -289,11 +298,12 @@ void get_cycle(std::map<std::string, std::string> parameters) {
 int main()
 {
 	enableLogs(-MEDIUM);
-	int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	//int sts = initPipeline("../bitstream.h264");
 	CHECK_STATUS(sts);
-	std::thread pipeline(startProcessing);
+	std::thread pipeline(processingWrapper);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
 	std::thread get(get_cycle, parameters);
 	/*
