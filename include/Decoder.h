@@ -89,4 +89,5 @@ private:
 	State of component
 	*/
 	bool isClosed = false;
+	bool isFinished = false;
 };

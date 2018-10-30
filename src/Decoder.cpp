@@ -80,6 +80,7 @@ int Decoder::notifyConsumers() {
 		for (auto &item : consumerStatus) {
 			item.second = true;
 		}
+		isFinished = true;
 		consumerSync.notify_all();
 	}
 	return OK;
@@ -99,6 +100,9 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 		std::unique_lock<std::mutex> locker(sync);
 		while (!consumerStatus[consumerName]) 
 			consumerSync.wait(locker);
+
+		if (isFinished)
+			throw std::runtime_error("Decoding finished");
 
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;

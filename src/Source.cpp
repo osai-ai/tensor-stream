@@ -257,7 +257,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 	m.def("start", [](void) {
 		py::gil_scoped_release release;
-		return startProcessing();
+		return processingWrapper();
 		});
 
 	m.def("get", [](std::string name, int delay, int pixel_format) {
@@ -289,8 +289,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 void get_cycle(std::map<std::string, std::string> parameters) {
-	for (int i = 0; i < 300; i++) {
-		getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
+	try {
+		for (int i = 0; i < 300; i++) {
+			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
+		}
+	}
+	catch (std::runtime_error e) {
+		return;
 	}
 
 }
