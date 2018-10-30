@@ -74,6 +74,16 @@ void saveNV12(AVFrame *avFrame, FILE* dump)
 	fflush(dump);
 }
 
+int Decoder::notifyConsumers() {
+	{
+		std::unique_lock<std::mutex> locker(sync);
+		for (auto &item : consumerStatus) {
+			item.second = true;
+		}
+		consumerSync.notify_all();
+	}
+	return OK;
+}
 
 AVCodecContext* Decoder::getDecoderContext() {
 	return decoderContext;

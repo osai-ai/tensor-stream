@@ -52,6 +52,7 @@ public:
 	void Close();
 	unsigned int getFrameIndex();
 	AVCodecContext* getDecoderContext();
+	int notifyConsumers();
 private:
 	/*
 	It help understand whether allowed or not return frame. If some frame was reported to current consumer and no any new frames were decoded need to wait.

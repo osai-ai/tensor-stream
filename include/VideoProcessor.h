@@ -32,7 +32,7 @@ int NV12ToBGR24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 
 class VideoProcessor {
 public:
-	int Init(bool _enableDumps);
+	int Init(bool _enableDumps = false);
 	/*
 	Check if VPP conversion for input package is needed and perform conversion.
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution

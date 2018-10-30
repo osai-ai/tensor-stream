@@ -101,12 +101,11 @@ int startProcessing() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
-		/*START_LOG_BLOCK(std::string("parser->Analyze"));
+		START_LOG_BLOCK(std::string("parser->Analyze"));
 		//Parse package to find some syntax issues
 		sts = parser->Analyze(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Analyze"));
-		*/
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
@@ -155,6 +154,15 @@ int startProcessing() {
 		END_LOG_BLOCK(std::string("sleep"));
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
+	return sts;
+}
+
+int processingWrapper() {
+	int sts = OK;
+	sts = startProcessing();
+	//we should unlock mutex to allow get() function end execution
+	decoder->notifyConsumers();
+	CHECK_STATUS(sts);
 	return sts;
 }
 
@@ -280,35 +288,36 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 
 
-//void get_cycle(std::map<std::string, std::string> parameters) {
-//	for (int i = 0; i < 120; i++) {
-//		getFrame(parameters);
-//	}
-//
-//}
+void get_cycle(std::map<std::string, std::string> parameters) {
+	for (int i = 0; i < 300; i++) {
+		getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
+	}
+
+}
 
 int main()
 {
-//	enableLogs(-MEDIUM);
-//	//"rtmp://b.sportlevel.com/relay/pooltop"
-//	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-//	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
-//	CHECK_STATUS(sts);
-//	std::thread pipeline(startProcessing);
-//	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-//	std::thread get(get_cycle, parameters);
-//	/*
-//	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-//	std::thread get2(get_cycle, parameters);
-//	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
-//	std::thread get3(get_cycle, parameters);
-//	*/
-//	get.join();
-//	/*
-//	get2.join();
-//	get3.join();
-//	*/
-//	endProcessing(HARD);
-//	pipeline.join();
+	enableLogs(-MEDIUM);
+	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	//int sts = initPipeline("../bitstream.h264");
+	CHECK_STATUS(sts);
+	std::thread pipeline(processingWrapper);
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::thread get(get_cycle, parameters);
+	/*
+	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::thread get2(get_cycle, parameters);
+	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
+	std::thread get3(get_cycle, parameters);
+	*/
+	get.join();
+	/*
+	get2.join();
+	get3.join();
+	*/
+	endProcessing(HARD);
+	pipeline.join();
 	return 0;
 }

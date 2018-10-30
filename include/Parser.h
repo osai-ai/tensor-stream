@@ -25,6 +25,37 @@ struct ParserParameters {
 	bool enableDumps;
 };
 
+class BitReader {
+public:
+	enum Base {
+		NONE,
+		DEC,
+		HEX
+	};
+	enum Type {
+		RAW,
+		GOLOMB,
+		SGOLOMB
+	};
+	BitReader(uint8_t* _byteData, int _dataSize);
+	std::vector<bool> FindNALType();
+	std::vector<bool> ReadBits(int number);
+	std::vector<bool> ReadGolomb();
+	bool SkipBits(int number);
+	bool SkipGolomb();
+	int Convert(std::vector<bool> value, Type type, Base base);
+
+	int getShiftInBits();
+	int getByteIndex();
+private:
+	uint8_t* byteData;
+	int dataSize;
+	int byteIndex = 0;
+	int shiftInBits = 0;
+	bool findNAL();
+	std::vector<bool> getVector(int value);
+};
+
 /*
 The class allows to read frames from defined stream.
 */
@@ -104,4 +135,14 @@ private:
 	State of component
 	*/
 	bool isClosed = false;
+	/*
+	Frame number for bitstream analyzing, part of H264 bitstream syntax
+	*/
+	int frameNumValue = -1;
+	int POC = 0;
+	/*
+	Bitstream filter for converting mp4->h264
+	*/
+	AVBitStreamFilterContext* bitstreamFilter;
+	std::shared_ptr<AVPacket> NALu;
 };

@@ -20,7 +20,7 @@ int VideoProcessor::DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
 	return OK;
 }
 
-int VideoProcessor::Init(bool _enableDumps = false) {
+int VideoProcessor::Init(bool _enableDumps) {
 	enableDumps = _enableDumps;
 
 	cudaGetDeviceProperties(&prop, 0);
