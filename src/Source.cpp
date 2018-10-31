@@ -33,10 +33,21 @@ std::vector<at::Tensor> tensors;
 std::mutex freeSync;
 std::mutex closeSync;
 
+void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
+	if (level > AV_LOG_ERROR)
+		return;
+
+	std::vector<char> buffer(256);
+	vsnprintf_s(&buffer[0], buffer.size(), buffer.size() + strlen(fmt), fmt, vargs);
+	std::string logMessage(&buffer[0]);
+	logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
+	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
+}
+
 int initPipeline(std::string inputFile) {
 	int sts = OK;
 	shouldWork = true;
-	//av_log_set_level(AV_LOG_TRACE);
+	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
@@ -161,7 +172,8 @@ int processingWrapper() {
 	int sts = OK;
 	sts = startProcessing();
 	//we should unlock mutex to allow get() function end execution
-	decoder->notifyConsumers();
+	if (shouldWork)
+		decoder->notifyConsumers();
 	CHECK_STATUS(sts);
 	return sts;
 }
@@ -194,8 +206,10 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 	}
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
+	int sts = OK;
 	VPPParameters VPPArgs = { 0, 0, format };
-	vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
+	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
+	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque), 
