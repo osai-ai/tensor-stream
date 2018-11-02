@@ -38,17 +38,20 @@ if __name__ == '__main__':
         'pixel_format': FourCC.RGB24,
         'return_index': False
     }
-
+    try:
     # Warm up
-    for i in range(100):
-        tensor = reader.read(**parameters)
+        for i in range(100):
+            tensor = reader.read(**parameters)
 
-    profiler = DeltaTimeProfiler()
-    for i in range(100):
-        profiler.start()
-        tensor = reader.read(**parameters)
-        profiler.end()
-        time.sleep(0.016)  # Simulate consumer work
+        profiler = DeltaTimeProfiler()
+        for i in range(100):
+            profiler.start()
+            tensor = reader.read(**parameters)
+            profiler.end()
+            time.sleep(0.016)  # Simulate consumer work
+
+    except RuntimeError:
+           print("Bad things happened\n")
 
     print("Frame size: ", reader.frame_size)
     print("FPS: ", reader.fps)
