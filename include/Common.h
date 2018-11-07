@@ -7,8 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-
-#define TIMINGS
+#include <thread>
 
 enum {
 	REPEAT = -1,

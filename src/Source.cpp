@@ -38,7 +38,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 
 	std::vector<char> buffer(256);
-	vsnprintf_s(&buffer[0], buffer.size(), buffer.size() + strlen(fmt), fmt, vargs);
+	vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
 	std::string logMessage(&buffer[0]);
 	logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
 	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
