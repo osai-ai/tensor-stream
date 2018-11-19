@@ -40,6 +40,46 @@ int VideoProcessor::Init(bool _enableDumps) {
 	return OK;
 }
 
+void resize(AVFrame* input, AVFrame* output) {
+	std::shared_ptr<FILE> dump(fopen("resized.yuv", "wb+"), std::fclose);
+	int o_width = output->width * 2;
+	int o_height = output->height * 2;
+	std::shared_ptr<uint8_t> rawData(new uint8_t[1* o_width * o_height], std::default_delete<uint8_t[]>());
+	//output->data[0] = rawData.get();
+	float x_ratio = ((float)(input->width - 1)) / o_width; //why -1? due to boundaries?
+	float y_ratio = ((float)(input->height - 1)) / o_height;
+	int offset = 0;
+	for (int i = 0; i < o_height; i++) {
+		for (int j = 0; j < o_width; j++) {
+			int x = (int)(x_ratio * j); //it's coordinate of pixel in source image
+			int y = (int)(y_ratio * i); //
+			float x_w = (x_ratio * j) - x;
+			float y_h = (y_ratio * i) - y;
+			int index = y * input->linesize[0] + x; //index in source image
+
+			// range is 0 to 255 thus bitwise AND with 0xff
+			int A = input->data[0][index] & 0xff;
+			int B = input->data[0][index + 1] & 0xff;
+			int C = input->data[0][index + input->linesize[0]] & 0xff;
+			int D = input->data[0][index + input->linesize[0] + 1] & 0xff;
+
+			// Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
+			int gray = (int)(
+				A*(1 - x_w)*(1 - y_h) + B * (x_w)*(1 - y_h) +
+				C * (y_h)*(1 - x_w) + D * (x_w*y_h)
+				);
+
+			rawData.get()[offset++] = gray;
+		}
+	}
+	AVFrame* tmp = new AVFrame();
+	tmp->width = o_width;
+	tmp->height = o_height;
+	tmp->data[0] = rawData.get();
+	tmp->channels = 1;
+	saveFrame(tmp, dump.get());
+}
+
 int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
 	/*
 	Should decide which method call
@@ -50,8 +90,9 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
 	}
-	output->width = input->width;
-	output->height = input->height;
+
+	output->width = format.width;
+	output->height = format.height;
 	switch (format.dstFourCC) {
 	case (RGB24):
 		{
@@ -73,6 +114,11 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		}
 	case (Y800):
 		{
+			uint8_t* data = new uint8_t[input->linesize[0]*input->height];
+			cudaError err = cudaMemcpy(data, input->data[0], input->linesize[0]* input->height * 1, cudaMemcpyDeviceToHost);
+			input->data[0] = data;
+			resize(input, output);
+			/*
 			output->format = AV_PIX_FMT_GRAY8;
 			output->channels = 1;
 			//NV12 has one plane with Y only component, so need just copy first plane
@@ -80,6 +126,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			CHECK_STATUS(err);
 			err = cudaMemcpy2D(output->opaque, output->width, input->data[0], input->linesize[0], output->width, output->height, cudaMemcpyDeviceToDevice);
 			CHECK_STATUS(err);
+			*/
 			break;
 		}
 	}

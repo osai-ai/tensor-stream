@@ -55,7 +55,7 @@ extern std::mutex logsMutex;
 		std::unique_lock<std::mutex> locker(logsMutex); \
 		if (logsLevel) \
 		{ \
-			std::string finalMessage = messageIn + std::string(" +\n"); \
+			std::string finalMessage = messageIn + std::string("\n"); \
 			if (logsLevel < 0) \
 				std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			else if (logsFile.is_open()) \

@@ -207,7 +207,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = OK;
-	VPPParameters VPPArgs = { 0, 0, format };
+	VPPParameters VPPArgs = { decoded->width, decoded->height, format };
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
@@ -319,7 +319,7 @@ int main()
 	enableLogs(-MEDIUM);
 	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	int sts = initPipeline("../streams/Full.h264");
 	//int sts = initPipeline("../bitstream.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(processingWrapper);
