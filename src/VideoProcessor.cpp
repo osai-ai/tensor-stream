@@ -30,12 +30,6 @@ int VideoProcessor::Init(bool _enableDumps) {
 		streamArr.push_back(std::make_pair(std::string("empty"), stream));
 	}
 	
-	if (enableDumps) {
-		for (int i = 0; i < maxConsumers; i++) {
-			std::string fileName = std::string("Processed_") + std::to_string(i) + std::string(".yuv");
-			dumpArr.push_back(std::make_pair(std::string("empty"), std::shared_ptr<FILE>(fopen(fileName.c_str(), "wb+"), std::fclose)));
-		}
-	}
 	isClosed = false;
 	return OK;
 }
@@ -131,12 +125,12 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		}
 	}
 	if (enableDumps) {
-		std::shared_ptr<FILE> dumpFile;
+		std::string fileName = std::string("Processed_") + consumerName + std::string(".yuv");
+		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose));
 		{
 			std::unique_lock<std::mutex> locker(dumpSync);
-			dumpFile = findFree<std::shared_ptr<FILE> >(consumerName, dumpArr);
+			DumpFrame(output, dumpFile);
 		}
-		DumpFrame(output, dumpFile);
 	}
 	av_frame_unref(input);
 	return sts;

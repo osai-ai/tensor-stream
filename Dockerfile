@@ -37,4 +37,4 @@ ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES video,compute,utility
 ENV LD_PRELOAD "/usr/lib/libtcmalloc_minimal.so.4"
 
-# ENTRYPOINT python setup.py install
+#ENTRYPOINT python setup.py install && python examples/sample.py
