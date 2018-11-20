@@ -79,7 +79,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(codecTmp->framerate.num == 0);
 	realTimeDelay = ((float)codecTmp->framerate.den /
 		(float)codecTmp->framerate.num) * 1000;
-	LOG_VALUE(std::string("Native frame rate: ") + std::to_string(realTimeDelay));
+	LOG_VALUE(std::string("Native frame rate: ") + std::to_string((int) (codecTmp->framerate.num / codecTmp->framerate.den)));
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }
