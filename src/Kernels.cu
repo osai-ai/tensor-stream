@@ -88,8 +88,8 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
-	int width = dst->width;
-	int height = dst->height;
+	int width = src->width;
+	int height = src->height;
 	unsigned char* RGB = nullptr;
 	clock_t tStart = clock();
 	cudaError err = cudaMalloc(&RGB, dst->channels * width * height * sizeof(unsigned char));
@@ -106,8 +106,8 @@ int NV12ToBGR24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
-	int width = dst->width;
-	int height = dst->height;
+	int width = src->width;
+	int height = src->height;
 	unsigned char* BGR = nullptr;
 	cudaError err = cudaMalloc(&BGR, dst->channels * width * height * sizeof(unsigned char));
 	//need to execute for width and height

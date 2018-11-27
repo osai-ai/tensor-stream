@@ -67,7 +67,7 @@ int initPipeline(std::string inputFile) {
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(false);
+	sts = vpp->Init(true);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
@@ -207,7 +207,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = OK;
-	VPPParameters VPPArgs = { 0, 0, format };
+	VPPParameters VPPArgs = { 1920, 1080, format };
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
@@ -305,7 +305,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 void get_cycle(std::map<std::string, std::string> parameters) {
 	try {
 		for (int i = 0; i < 300; i++) {
-			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["name"].c_str()));
+			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["format"].c_str()));
 		}
 	}
 	catch (std::runtime_error e) {
@@ -318,12 +318,12 @@ int main()
 {
 	enableLogs(-MEDIUM);
 	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	//int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	int sts = initPipeline("../streams/Without_first_non-IDR.h264");
+	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
 	//int sts = initPipeline("../bitstream.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(processingWrapper);
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(Y800)} };
 	std::thread get(get_cycle, parameters);
 	/*
 	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
