@@ -56,72 +56,113 @@ int VideoProcessor::Init(bool _enableDumps) {
 	return OK;
 }
 
-void resize(AVFrame* input, AVFrame* output) {
-	int o_width = output->width;
-	int o_height = output->height;
-	uint8_t *rawData = new uint8_t[1* o_width * o_height];
-	float x_ratio = ((float)(input->width - 1)) / o_width; //why -1? due to boundaries?
-	float y_ratio = ((float)(input->height - 1)) / o_height;
-	int offset = 0;
-	for (int i = 0; i < o_height; i++) {
-		for (int j = 0; j < o_width; j++) {
-			int x = (int)(x_ratio * j); //it's coordinate of pixel in source image
-			int y = (int)(y_ratio * i); //
-			float x_w = (x_ratio * j) - x;
-			float y_h = (y_ratio * i) - y;
-			int index = y * input->linesize[0] + x; //index in source image
+int calculateBillinearInterpolation(uint8_t* data, int startIndex, int xDiff, int yDiff, int linesize, int weightX, int weightY) {
+	// range is 0 to 255 thus bitwise AND with 0xff
+	int A = data[startIndex] & 0xff;
+	int B = data[startIndex + xDiff] & 0xff;
+	int C = data[startIndex + linesize] & 0xff;
+	int D = data[startIndex + linesize + yDiff] & 0xff;
 
-			// range is 0 to 255 thus bitwise AND with 0xff
-			int A = input->data[0][index] & 0xff;
-			int B = input->data[0][index + 1] & 0xff;
-			int C = input->data[0][index + input->linesize[0]] & 0xff;
-			int D = input->data[0][index + input->linesize[0] + 1] & 0xff;
-
-			// Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-			int gray = (int)(
-				A*(1 - x_w)*(1 - y_h) + B * (x_w)*(1 - y_h) +
-				C * (y_h)*(1 - x_w) + D * (x_w*y_h)
-				);
-
-			rawData[offset++] = gray;
-		}
-	}
-	output->data[0] = rawData;
+	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
+	int value = (int)(
+		A * (1 - weightX) * (1 - weightY) + 
+		B * (    weightX) * (1 - weightY) +
+		C * (    weightY) * (1 - weightX) + 
+		D * (    weightX  *      weightY)
+		);
+	return value;
 }
 
-void resizeNV12(AVFrame* input, AVFrame* output) {
-	int o_width = output->width;
-	int o_height = output->height;
-	uint8_t *YData = new uint8_t[1 * o_width * o_height];
-	uint8_t *UVData = new uint8_t[1 * o_width * o_height / 2];
-	float x_ratio = ((float)(input->width - 1)) / o_width; //why -1? due to boundaries?
-	float y_ratio = ((float)(input->height - 1)) / o_height;
-	int offset = 0;
-	for (int i = 0; i < o_height; i++) {
-		for (int j = 0; j < o_width; j++) {
-			int x = (int)(x_ratio * j); //it's coordinate of pixel in source image
-			int y = (int)(y_ratio * i); //
-			float x_w = (x_ratio * j) - x;
-			float y_h = (y_ratio * i) - y;
-			int index = y * input->linesize[0] + x; //index in source image
-
-			// range is 0 to 255 thus bitwise AND with 0xff
-			int A = input->data[0][index] & 0xff;
-			int B = input->data[0][index + 1] & 0xff;
-			int C = input->data[0][index + input->linesize[0]] & 0xff;
-			int D = input->data[0][index + input->linesize[0] + 1] & 0xff;
-
-			// Y = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-			int gray = (int)(
-				A*(1 - x_w)*(1 - y_h) + B * (x_w)*(1 - y_h) +
-				C * (y_h)*(1 - x_w) + D * (x_w*y_h)
-				);
-
-			YData[offset++] = gray;
-
+void resizeBilinearNV12(AVFrame* input, AVFrame* output) {
+	int oWidth = output->width;
+	int oHeight = output->height;
+	int iWidth = input->width;
+	int iHeight = input->height;
+	int yLinesize = input->linesize[0];
+	int cLinesize = input->linesize[1];
+	uint8_t *YData = new uint8_t[1 * oWidth * oHeight];
+	uint8_t *UVData = new uint8_t[1 * oWidth * oHeight / 2];
+	float xRatio = ((float)(iWidth - 1)) / oWidth; //if not -1 we should examine 2x2 square with top-left corner in the last pixel of src, so it's impossible
+	float yRatio = ((float)(iHeight - 1)) / oHeight;
+	int offsetLuma = 0;
+	int offsetChroma = 0;
+	for (int i = 0; i < oHeight; i++) {
+		int y = (int)(yRatio * i); //
+		float yFloat = (yRatio * i) - y;
+		for (int j = 0; j < oWidth; j++) {
+			int x = (int)(xRatio * j); //it's coordinate of pixel in source image
+			float xFloat = (xRatio * j) - x;
+			int index = y * yLinesize + x; //index in source image
+			int gray = calculateBillinearInterpolation(input->data[0], index, 1, 1, yLinesize, xFloat, yFloat);
+			YData[offsetLuma++] = gray;
+			//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
+			//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+			if (j % 2 == 0 && i < oHeight / 2) {
+				index = y * cLinesize + x; //index in source image
+				int indexU, indexV;
+				if (index % 2 == 0) {
+					indexU = index;
+					indexV = index + 1;
+				}
+				else {
+					indexU = index - 1;
+					indexV = index;
+				}
+				int u = calculateBillinearInterpolation(input->data[1], indexU, 2, 2, cLinesize, xFloat, yFloat);
+				int v = calculateBillinearInterpolation(input->data[1], indexV, 2, 2, cLinesize, xFloat, yFloat);
+				UVData[offsetChroma++] = u;
+				UVData[offsetChroma++] = v;
+			}
 		}
 	}
-	output->data[0] = rawData;
+	output->data[0] = YData;
+	output->data[1] = UVData;
+}
+
+void resizeNearestNV12(AVFrame* input, AVFrame* output) {
+	int oWidth = output->width;
+	int oHeight = output->height;
+	int iWidth = input->width;
+	int iHeight = input->height;
+	int yLinesize = input->linesize[0];
+	int cLinesize = input->linesize[1];
+	uint8_t *YData = new uint8_t[1 * oWidth * oHeight];
+	uint8_t *UVData = new uint8_t[1 * oWidth * oHeight / 2];
+	float xRatio = ((float)(iWidth - 1)) / oWidth; //if not -1 we should examine 2x2 square with top-left corner in the last pixel of src, so it's impossible
+	float yRatio = ((float)(iHeight - 1)) / oHeight;
+	int offsetLuma = 0;
+	int offsetChroma = 0;
+	for (int i = 0; i < oHeight; i++) {
+		int y = (int)(yRatio * i); //
+		float yFloat = (yRatio * i) - y;
+		for (int j = 0; j < oWidth; j++) {
+			int x = (int)(xRatio * j); //it's coordinate of pixel in source image
+			float xFloat = (xRatio * j) - x;
+			int index = y * yLinesize + x; //index in source image
+			int gray = input->data[0][index];
+			YData[offsetLuma++] = gray;
+			//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
+			//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+			if (j % 2 == 0 && i < oHeight / 2) {
+				index = y * cLinesize + x; //index in source image
+				int indexU, indexV;
+				if (index % 2 == 0) {
+					indexU = index;
+					indexV = index + 1;
+				}
+				else {
+					indexU = index - 1;
+					indexV = index;
+				}
+				int u = input->data[1][indexU];
+				int v = input->data[1][indexV];
+				UVData[offsetChroma++] = u;
+				UVData[offsetChroma++] = v;
+			}
+		}
+	}
+	output->data[0] = YData;
+	output->data[1] = UVData;
 }
 
 int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
@@ -173,8 +214,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			input->format = AV_PIX_FMT_NV12;
 			output->format = AV_PIX_FMT_NV12;
 			input->channels = 1;
-			saveFrame(input, dump.get());
-			resize(input, output);
+			resizeNearestNV12(input, output);
+			saveFrame(output, dump.get());
 			err = cudaMalloc(&output->opaque, output->channels * output->width * output->height * sizeof(unsigned char));
 			err = cudaMemcpy(output->opaque, output->data[0], output->width * output->height * output->channels, cudaMemcpyHostToDevice);
 			delete[] output->data[0];

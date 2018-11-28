@@ -304,7 +304,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 void get_cycle(std::map<std::string, std::string> parameters) {
 	try {
-		for (int i = 0; i < 300; i++) {
+		for (int i = 0; i < 1000; i++) {
 			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["format"].c_str()));
 		}
 	}
