@@ -150,16 +150,6 @@ int startProcessing() {
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
 											std::chrono::high_resolution_clock::now() - waitTime).count();
 		if (sleepTime > 0) {
-			/*auto start = std::chrono::system_clock::now();
-			bool sleep = true;
-			while (sleep)
-			{
-				auto now = std::chrono::system_clock::now();
-				auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
-				if (elapsed.count() > sleepTime)
-					sleep = false;
-			}
-			*/
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 		}
 		END_LOG_BLOCK(std::string("sleep"));
@@ -180,12 +170,12 @@ int processingWrapper() {
 
 std::mutex syncDecoded;
 std::mutex syncRGB;
-std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pixel_format) {
+std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth = 0, int dstHeight = 0) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
-	FourCC format = static_cast<FourCC>(pixel_format);
+	FourCC format = static_cast<FourCC>(pixelFormat);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -207,7 +197,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = OK;
-	VPPParameters VPPArgs = { 1920, 1080, format };
+	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
@@ -274,9 +264,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		return processingWrapper();
 		});
 
-	m.def("get", [](std::string name, int delay, int pixel_format) {
+	m.def("get", [](std::string name, int delay, int pixelFormat, int dstWidth, int dstHeight) {
 		py::gil_scoped_release release;
-		return getFrame(name, delay, pixel_format);
+		return getFrame(name, delay, pixelFormat, dstWidth, dstHeight);
 	});
 
 	m.def("dump", [](at::Tensor stream, std::string consumerName) {
@@ -304,8 +294,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
 void get_cycle(std::map<std::string, std::string> parameters) {
 	try {
-		for (int i = 0; i < 1000; i++) {
-			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["format"].c_str()));
+		for (int i = 0; i < 100; i++) {
+			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["format"].c_str()), 
+				     std::atoi(parameters["width"].c_str()), std::atoi(parameters["height"].c_str()));
 		}
 	}
 	catch (std::runtime_error e) {
@@ -323,7 +314,7 @@ int main()
 	//int sts = initPipeline("../bitstream.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(processingWrapper);
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(Y800)} };
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
 	std::thread get(get_cycle, parameters);
 	/*
 	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
