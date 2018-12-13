@@ -202,7 +202,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque), 
+	outputTensor = torch::CUDA(at::kFloat).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque), 
 		{ processedFrame->height, processedFrame->width, processedFrame->channels});
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
