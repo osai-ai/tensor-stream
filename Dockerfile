@@ -1,4 +1,4 @@
-FROM floydhub/pytorch:0.4.0-gpu.cuda9cudnn7-py3.31
+FROM floydhub/pytorch:1.0.0-gpu.cuda9cudnn7-py3.38
 
 RUN apt-get update &&\
     apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools libtcmalloc-minimal4
@@ -22,13 +22,6 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
     --extra-libs=-lpthread \
     --nvccflags="-gencode arch=compute_61,code=sm_61 -O3" &&\
     make -j$(nproc) && make install && ldconfig
-
-RUN git clone https://github.com/pytorch/pytorch \
-    && cd pytorch \
-    && git checkout 1421a9d7041d0c877ffdecb92ea90ead5425c0a5 \
-    && git submodule update --init \
-    && python setup.py install \
-    && cd .. && rm -rf pytorch
 
 COPY . /app
 WORKDIR /app

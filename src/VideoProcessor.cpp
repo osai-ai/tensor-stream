@@ -2,11 +2,27 @@
 #include "Common.h"
 
 void saveFrame(AVFrame *avFrame, FILE* dump) {
+	
 	uint8_t *frame = avFrame->data[0];
 	for (uint32_t i = 0; i < avFrame->height; i++) {
-		fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
-		frame += avFrame->channels * avFrame->width;
+		int sts = fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
+		if (avFrame->linesize[0])
+			frame += avFrame->channels * avFrame->linesize[0];
+		else
+			frame += avFrame->channels * avFrame->width;
 	}
+	
+	if (avFrame->format == AV_PIX_FMT_NV12) {
+		uint8_t *frame = avFrame->data[1];
+		for (uint32_t i = 0; i < avFrame->height / 2; i++) {
+			fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
+			if (avFrame->linesize[1])
+				frame += avFrame->channels * avFrame->linesize[1];
+			else
+				frame += avFrame->channels * avFrame->width;
+		}
+	}
+	
 	fflush(dump);
 }
 
@@ -44,15 +60,29 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
 	}
-	output->width = input->width;
-	output->height = input->height;
+
+	output->width = format.width;
+	output->height = format.height;
+	bool resize = false;
+	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
+		resize = true;
+		resizeNV12Nearest(input, output, prop.maxThreadsPerBlock, &stream);
+	}
+	else if (output->width == 0 || output->height == 0) {
+		output->width = input->width;
+		output->height = input->height;
+	}
+
 	switch (format.dstFourCC) {
 	case (RGB24):
 		{
 			output->format = AV_PIX_FMT_RGB24;
 			//this field is used only for audio so let's write number of planes there
 			output->channels = 3;
-			sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
+			if (resize)
+				sts = NV12ToRGB24(output, output, prop.maxThreadsPerBlock, &stream);
+			else
+				sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
 			CHECK_STATUS(sts);
 			break;
 		}
@@ -61,7 +91,10 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			output->format = AV_PIX_FMT_BGR24;
 			//this field is used only for audio so let's write number of planes there
 			output->channels = 3;
-			sts = NV12ToBGR24(input, output, prop.maxThreadsPerBlock, &stream);
+			if (resize)
+				sts = NV12ToBGR24(output, output, prop.maxThreadsPerBlock, &stream);
+			else
+				sts = NV12ToBGR24(input, output, prop.maxThreadsPerBlock, &stream);
 			CHECK_STATUS(sts);
 			break;
 		}
@@ -70,9 +103,12 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			output->format = AV_PIX_FMT_GRAY8;
 			output->channels = 1;
 			//NV12 has one plane with Y only component, so need just copy first plane
-			cudaError err = cudaMalloc(&output->opaque, output->channels * output->width * output->height * sizeof(unsigned char));
+			cudaError err = cudaMalloc(&output->opaque, output->width * output->height * sizeof(unsigned char));
 			CHECK_STATUS(err);
-			err = cudaMemcpy2D(output->opaque, output->width, input->data[0], input->linesize[0], output->width, output->height, cudaMemcpyDeviceToDevice);
+			if (resize)
+				err = cudaMemcpy(output->opaque, output->data[0], output->width * output->height, cudaMemcpyDeviceToDevice);
+			else
+				err = cudaMemcpy2D(output->opaque, output->width, input->data[0], input->linesize[0], output->width, output->height, cudaMemcpyDeviceToDevice);
 			CHECK_STATUS(err);
 			break;
 		}

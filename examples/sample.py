@@ -36,7 +36,9 @@ if __name__ == '__main__':
         'name': "first",
         'delay': 0,
         'pixel_format': FourCC.RGB24,
-        'return_index': False
+        'return_index': False,
+        'width': 720,
+        'height': 420
     }
     try:
     # Warm up
