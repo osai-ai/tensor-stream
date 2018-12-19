@@ -28,7 +28,9 @@ message(STATUS "Python headers found ${PYTHON_INCLUDE_DIRS}")
 
 #NVTX includes
 set(NVTOOLSEXT_PATH $ENV{NVTOOLSEXT_PATH})
-strip_quotes_slash(NVTOOLSEXT_PATH)
+if (${NVTOOLSEXT_PATH})
+	strip_quotes_slash(NVTOOLSEXT_PATH)
+endif()
 if (NOT "${NVTOOLSEXT_PATH}/include" STREQUAL "/include")
 	include_directories(${NVTOOLSEXT_PATH}/include)
 	message(STATUS "NVTX headers found ${NVTOOLSEXT_PATH}/include")
@@ -39,7 +41,9 @@ endif()
 
 #FFmpeg includes
 set(FFMPEG_PATH $ENV{FFMPEG_PATH})
-strip_quotes_slash(FFMPEG_PATH)
+if (${FFMPEG_PATH})
+	strip_quotes_slash(FFMPEG_PATH)
+endif()
 if (NOT "${FFMPEG_PATH}/include" STREQUAL "/include")
 	include_directories(${FFMPEG_PATH}/include)
 	message(STATUS "FFmpeg headers found ${FFMPEG_PATH}/include")
@@ -50,7 +54,9 @@ endif()
 
 #pytorch include for windows
 set(PYTORCH_PATH $ENV{PYTORCH_PATH})
-strip_quotes_slash(PYTORCH_PATH)
+if (${PYTORCH_PATH})
+	strip_quotes_slash(PYTORCH_PATH)
+endif()
 if (NOT "${PYTORCH_PATH}/lib/include" STREQUAL "/lib/include")
 	list(APPEND PYTORCH_INCLUDES ${PYTORCH_PATH}/lib/include)
 	list(APPEND PYTORCH_INCLUDES ${PYTORCH_PATH}/lib/include/ATen)
