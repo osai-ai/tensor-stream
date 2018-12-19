@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.5)
 
 function(strip_quotes_slash name)
 	string(REGEX REPLACE "\"$" "" ${name} ${${name}})
@@ -28,7 +28,7 @@ message(STATUS "Python headers found ${PYTHON_INCLUDE_DIRS}")
 
 #NVTX includes
 set(NVTOOLSEXT_PATH $ENV{NVTOOLSEXT_PATH})
-if (${NVTOOLSEXT_PATH})
+if (NOT ${NVTOOLSEXT_PATH} STREQUAL "")
 	strip_quotes_slash(NVTOOLSEXT_PATH)
 endif()
 if (NOT "${NVTOOLSEXT_PATH}/include" STREQUAL "/include")
@@ -41,7 +41,7 @@ endif()
 
 #FFmpeg includes
 set(FFMPEG_PATH $ENV{FFMPEG_PATH})
-if (${FFMPEG_PATH})
+if (NOT ${FFMPEG_PATH} STREQUAL "")
 	strip_quotes_slash(FFMPEG_PATH)
 endif()
 if (NOT "${FFMPEG_PATH}/include" STREQUAL "/include")
@@ -54,7 +54,7 @@ endif()
 
 #pytorch include for windows
 set(PYTORCH_PATH $ENV{PYTORCH_PATH})
-if (${PYTORCH_PATH})
+if (NOT ${PYTORCH_PATH} STREQUAL "")
 	strip_quotes_slash(PYTORCH_PATH)
 endif()
 if (NOT "${PYTORCH_PATH}/lib/include" STREQUAL "/lib/include")
