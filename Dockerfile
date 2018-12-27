@@ -23,6 +23,15 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
     --nvccflags="-gencode arch=compute_61,code=sm_61 -O3" &&\
     make -j$(nproc) && make install && ldconfig
 
+RUN apt-get -y remove cmake
+RUN git clone https://github.com/Kitware/CMake.git && \
+    cd CMake && ./bootstrap && make && make install
+
+RUN apt-get -y remove protobuf
+RUN git clone https://github.com/protocolbuffers/protobuf.git && \
+    cd protobuf && git submodule update --init --recursive && \
+    ./autogen.sh
+
 COPY . /app
 WORKDIR /app
 
