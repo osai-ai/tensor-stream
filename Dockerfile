@@ -27,7 +27,7 @@ RUN apt-get -y remove cmake
 RUN git clone https://github.com/Kitware/CMake.git && \
     cd CMake && ./bootstrap && make && make install
 
-RUN apt-get -y remove protobuf
+RUN apt-get -y remove protobuf-compiler
 RUN git clone https://github.com/protocolbuffers/protobuf.git && \
     cd protobuf && git submodule update --init --recursive && \
     ./autogen.sh
