@@ -24,6 +24,7 @@
 #include <thread>
 #include <time.h>
 #include <chrono>
+#include "nvrtc.h"
 
 std::shared_ptr<Parser> parser;
 std::shared_ptr<Decoder> decoder;
@@ -55,6 +56,8 @@ int initPipeline(std::string inputFile) {
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
+        int majorCUDAVersion, minorCUDAVersion;
+        nvrtcVersion(&majorCUDAVersion, &minorCUDAVersion);
 	at::Tensor gt_target = at::empty({ 1 }, at::CUDA(at::kByte));
 	END_LOG_BLOCK(std::string("Tensor CUDA init"));
 	parser = std::make_shared<Parser>();
