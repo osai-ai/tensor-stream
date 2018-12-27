@@ -6,15 +6,19 @@
 #include <torch/torch.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
-#include <pybind11/pybind11.h>
-#include <torch/csrc/utils/pybind.h>
+#if (_linux_)
+	#include <pybind11/pybind11.h>
+	#include <torch/csrc/utils/pybind.h>
+#endif
 #define _DEBUG
 #else
 #include <torch/torch.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
-#include <pybind11/pybind11.h>
-#include <torch/csrc/utils/pybind.h>
+#if (_linux_)
+	#include <pybind11/pybind11.h>
+	#include <torch/csrc/utils/pybind.h>
+#endif
 #endif
 
 #include "Common.h"
