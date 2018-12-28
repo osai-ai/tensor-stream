@@ -80,7 +80,7 @@ endif()
 ###############################
 
 #include headers to project (so they will be shown in include folder)
-add_executable(VideoReader ${APP_HEADERS} ${APP_SOURCE})
+add_library(VideoReader ${APP_HEADERS} ${APP_SOURCE})
 
 #Python libraries
 target_link_libraries(VideoReader ${PYTHON_LIBRARIES})

@@ -1,46 +1,13 @@
-#include <iostream>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#ifdef _DEBUG
-#undef _DEBUG
-#include <torch/torch.h>
-#include <THC/THC.h>
-#include <ATen/ATen.h>
-#if (__linux__)
-	#include <pybind11/pybind11.h>
-	#include <torch/csrc/utils/pybind.h>
-#endif
-#define _DEBUG
-#else
-#include <torch/torch.h>
-#include <THC/THC.h>
-#include <ATen/ATen.h>
-#if (__linux__)
-	#include <pybind11/pybind11.h>
-	#include <torch/csrc/utils/pybind.h>
-#endif
-#endif
-
-#include "Common.h"
-#include "Parser.h"
-#include "Decoder.h"
-#include "VideoProcessor.h"
+#include "Wrapper.h"
 #include <thread>
 #include <time.h>
 #include <chrono>
+#if (__linux__)
 #include "nvrtc.h"
+#endif
 
-std::shared_ptr<Parser> parser;
-std::shared_ptr<Decoder> decoder;
-std::shared_ptr<VideoProcessor> vpp;
-AVPacket* parsed;
-int realTimeDelay = 0;
-bool shouldWork;
-std::vector<std::pair<std::string, AVFrame*> > decodedArr;
-std::vector<std::pair<std::string, AVFrame*> > processedArr;
-std::vector<at::Tensor> tensors;
-std::mutex freeSync;
-std::mutex closeSync;
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	if (level > AV_LOG_ERROR)
@@ -53,7 +20,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
 }
 
-int initPipeline(std::string inputFile) {
+int VideoReader::initPipeline(std::string inputFile) {
 	int sts = OK;
 	shouldWork = true;
 	av_log_set_callback(logCallback);
@@ -97,7 +64,7 @@ int initPipeline(std::string inputFile) {
 	return sts;
 }
 
-std::map<std::string, int> getInitializedParams() {
+std::map<std::string, int> VideoReader::getInitializedParams() {
 	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
 	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
@@ -107,7 +74,7 @@ std::map<std::string, int> getInitializedParams() {
 	return params;
 }
 
-int startProcessing() {
+int VideoReader::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = OK;
 	//change to end of file
@@ -171,9 +138,9 @@ int startProcessing() {
 	return sts;
 }
 
-int processingWrapper() {
+int VideoReader::startProcessing() {
 	int sts = OK;
-	sts = startProcessing();
+	sts = processingLoop();
 	//we should unlock mutex to allow get() function end execution
 	if (shouldWork)
 		decoder->notifyConsumers();
@@ -181,9 +148,7 @@ int processingWrapper() {
 	return sts;
 }
 
-std::mutex syncDecoded;
-std::mutex syncRGB;
-std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth = 0, int dstHeight = 0) {
+std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
@@ -233,7 +198,7 @@ std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pi
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
-void endProcessing(int mode = HARD) {
+void VideoReader::endProcessing(int mode) {
 	shouldWork = false;
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
@@ -255,7 +220,7 @@ void endProcessing(int mode = HARD) {
 	}
 }
 
-void enableLogs(int _logsLevel) {
+void VideoReader::enableLogs(int _logsLevel) {
 	if (_logsLevel) {
 		logsLevel = static_cast<LogsLevel>(_logsLevel);
 		if (!logsFile.is_open() && _logsLevel > 0) {
@@ -263,84 +228,7 @@ void enableLogs(int _logsLevel) {
 		}
 	}
 }
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-	m.def("init", [](std::string rtmp) -> int {
-		return initPipeline(rtmp);
-	});
 
-	m.def("getPars", []() -> std::map<std::string, int> {
-		return getInitializedParams();
-	});
-
-	m.def("start", [](void) {
-		py::gil_scoped_release release;
-		return processingWrapper();
-		});
-
-	m.def("get", [](std::string name, int delay, int pixelFormat, int dstWidth, int dstHeight) {
-		py::gil_scoped_release release;
-		return getFrame(name, delay, pixelFormat, dstWidth, dstHeight);
-	});
-
-	m.def("dump", [](at::Tensor stream, std::string consumerName) {
-		py::gil_scoped_release release;
-		AVFrame output;
-		output.opaque = stream.data_ptr();
-		output.width = stream.size(1);
-		output.height = stream.size(0);
-		output.channels = stream.size(2);
-		std::string dumpName = consumerName + std::string(".yuv");
-		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
-		return vpp->DumpFrame(&output, dumpFrame);
-	});
-
-	m.def("enableLogs", [](int logsLevel) {
-		enableLogs(logsLevel);
-	});
-
-	m.def("close", [](int mode) {
-		endProcessing(mode);
-	});
-}
-
-
-
-void get_cycle(std::map<std::string, std::string> parameters) {
-	try {
-		for (int i = 0; i < 100; i++) {
-			getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), std::atoi(parameters["format"].c_str()), 
-				     std::atoi(parameters["width"].c_str()), std::atoi(parameters["height"].c_str()));
-		}
-	}
-	catch (std::runtime_error e) {
-		return;
-	}
-
-}
-
-int main()
-{
-	enableLogs(-MEDIUM);
-	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
-	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
-	//int sts = initPipeline("../bitstream.h264");
-	CHECK_STATUS(sts);
-	std::thread pipeline(processingWrapper);
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
-	std::thread get(get_cycle, parameters);
-	/*
-	parameters = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)} };
-	std::thread get2(get_cycle, parameters);
-	parameters = { {"name", "third"}, {"delay", "0"}, {"format", std::to_string(BGR24)} };
-	std::thread get3(get_cycle, parameters);
-	*/
-	get.join();
-	/*
-	get2.join();
-	get3.join();
-	*/
-	endProcessing(HARD);
-	pipeline.join();
-	return 0;
+int VideoReader::dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
+	return vpp->DumpFrame(output, dumpFile);
 }
