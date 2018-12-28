@@ -1,3 +1,4 @@
+#include "Wrapper.h"
 
 void get_cycle(std::map<std::string, std::string> parameters) {
 	try {
@@ -14,6 +15,7 @@ void get_cycle(std::map<std::string, std::string> parameters) {
 
 int main()
 {
+
 	enableLogs(-MEDIUM);
 	//int sts = initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	int sts = initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
