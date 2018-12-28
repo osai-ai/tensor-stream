@@ -6,7 +6,7 @@
 #include <torch/torch.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
-#if (_linux_)
+#if (__linux__)
 	#include <pybind11/pybind11.h>
 	#include <torch/csrc/utils/pybind.h>
 #endif
@@ -15,7 +15,7 @@
 #include <torch/torch.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
-#if (_linux_)
+#if (__linux__)
 	#include <pybind11/pybind11.h>
 	#include <torch/csrc/utils/pybind.h>
 #endif
@@ -60,7 +60,7 @@ int initPipeline(std::string inputFile) {
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
 	START_LOG_BLOCK(std::string("Tensor CUDA init"));
-#if (_linux_)
+#if (__linux__)
 	int majorCUDAVersion, minorCUDAVersion;
     nvrtcVersion(&majorCUDAVersion, &minorCUDAVersion);
 #endif
