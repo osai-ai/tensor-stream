@@ -46,6 +46,7 @@ private:
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::vector<at::Tensor> tensors;
+	std::vector<std::shared_ptr<uint8_t> > processedFrames;
 	std::mutex freeSync;
 	std::mutex closeSync;
 };

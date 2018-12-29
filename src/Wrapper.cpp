@@ -148,6 +148,50 @@ int VideoReader::startProcessing() {
 	return sts;
 }
 
+std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
+	AVFrame* decoded;
+	AVFrame* processedFrame;
+	at::Tensor outputTensor;
+	std::tuple<uint8_t*, int> outputTuple;
+	FourCC format = static_cast<FourCC>(pixelFormat);
+	START_LOG_FUNCTION(std::string("GetFrame()"));
+	START_LOG_BLOCK(std::string("findFree decoded frame"));
+	{
+		std::unique_lock<std::mutex> locker(syncDecoded);
+		decoded = findFree<AVFrame*>(consumerName, decodedArr);
+	}
+	END_LOG_BLOCK(std::string("findFree decoded frame"));
+	START_LOG_BLOCK(std::string("findFree converted frame"));
+	{
+		std::unique_lock<std::mutex> locker(syncRGB);
+		processedFrame = findFree<AVFrame*>(consumerName, processedArr);
+	}
+	END_LOG_BLOCK(std::string("findFree converted frame"));
+	int indexFrame = REPEAT;
+	START_LOG_BLOCK(std::string("decoder->GetFrame"));
+	while (indexFrame == REPEAT) {
+		indexFrame = decoder->GetFrame(index, consumerName, decoded);
+	}
+	END_LOG_BLOCK(std::string("decoder->GetFrame"));
+	START_LOG_BLOCK(std::string("vpp->Convert"));
+	int sts = OK;
+	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
+	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
+	CHECK_STATUS_THROW(sts);
+	END_LOG_BLOCK(std::string("vpp->Convert"));
+	std::shared_ptr<uint8_t> cudaFrame(processedFrame->opaque);
+	outputTuple = std::make_tuple(cudaFrame, indexFrame);
+	/*
+	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
+	*/
+	START_LOG_BLOCK(std::string("add tensor"));
+	std::unique_lock<std::mutex> locker(freeSync);
+	processedFrames.push_back(cudaFrame);
+	END_LOG_BLOCK(std::string("add tensor"));
+	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
+	return outputTuple;
+}
+
 std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
