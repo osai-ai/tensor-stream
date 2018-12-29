@@ -113,6 +113,13 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			break;
 		}
 	}
+	if (resize) {
+		//need to free allocated in resize memory for Y and UV
+		cudaError err = cudaFree(output->data[0]);
+		CHECK_STATUS(err);
+		err = cudaFree(output->data[1]);
+		CHECK_STATUS(err);
+	}
 	if (enableDumps) {
 		std::string fileName = std::string("Processed_") + consumerName + std::string(".yuv");
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose));
