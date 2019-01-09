@@ -1,13 +1,13 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "Wrapper.h"
+#include "WrapperC.h"
 #include <thread>
 #include <time.h>
 #include <chrono>
 #if (__linux__)
 #include "nvrtc.h"
 #endif
-
+#include <algorithm>
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	if (level > AV_LOG_ERROR)
@@ -31,7 +31,6 @@ int VideoReader::initPipeline(std::string inputFile) {
 	int majorCUDAVersion, minorCUDAVersion;
     nvrtcVersion(&majorCUDAVersion, &minorCUDAVersion);
 #endif
-	at::Tensor gt_target = at::empty({ 1 }, at::CUDA(at::kByte));
 	END_LOG_BLOCK(std::string("Tensor CUDA init"));
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
@@ -104,27 +103,29 @@ int VideoReader::processingLoop() {
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		CHECK_STATUS(sts);
+		
 		START_LOG_BLOCK(std::string("check tensor to free"));
 		std::unique_lock<std::mutex> locker(freeSync);
-		/*
-		Need to check count of references of output Tensor and free if strong_refs = 1
-		*/
-		tensors.erase(
+		
+		//Need to check count of references of output Tensor and free if strong_refs = 1
+		
+		CUDAOutputs.erase(
 			std::remove_if(
-				tensors.begin(),
-				tensors.end(),
-				[](at::Tensor & item) {
+				CUDAOutputs.begin(),
+				CUDAOutputs.end(),
+				[](std::shared_ptr<uint8_t> & item) {
 					if (item.use_count() == 1) {
-						cudaFree(item.data_ptr());
+						cudaFree(item.get());
+
 						return true;
 					}
 					return false;
 				}
 			),
-			tensors.end()
+			CUDAOutputs.end()
 		);
 		END_LOG_BLOCK(std::string("check tensor to free"));
-
+		
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -151,8 +152,7 @@ int VideoReader::startProcessing() {
 std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
-	at::Tensor outputTensor;
-	std::tuple<uint8_t*, int> outputTuple;
+	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
 	FourCC format = static_cast<FourCC>(pixelFormat);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
@@ -179,7 +179,7 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	std::shared_ptr<uint8_t> cudaFrame(processedFrame->opaque);
+	std::shared_ptr<uint8_t> cudaFrame((uint8_t*) processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	/*
 	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
@@ -187,53 +187,6 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 	START_LOG_BLOCK(std::string("add tensor"));
 	std::unique_lock<std::mutex> locker(freeSync);
 	processedFrames.push_back(cudaFrame);
-	END_LOG_BLOCK(std::string("add tensor"));
-	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
-	return outputTuple;
-}
-
-std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
-	AVFrame* decoded;
-	AVFrame* processedFrame;
-	at::Tensor outputTensor;
-	std::tuple<at::Tensor, int> outputTuple;
-	FourCC format = static_cast<FourCC>(pixelFormat);
-	START_LOG_FUNCTION(std::string("GetFrame()"));
-	START_LOG_BLOCK(std::string("findFree decoded frame"));
-	{
-		std::unique_lock<std::mutex> locker(syncDecoded);
-		decoded = findFree<AVFrame*>(consumerName, decodedArr);
-	}
-	END_LOG_BLOCK(std::string("findFree decoded frame"));
-	START_LOG_BLOCK(std::string("findFree converted frame"));
-	{
-		std::unique_lock<std::mutex> locker(syncRGB);
-		processedFrame = findFree<AVFrame*>(consumerName, processedArr);
-	}
-	END_LOG_BLOCK(std::string("findFree converted frame"));
-	int indexFrame = REPEAT;
-	START_LOG_BLOCK(std::string("decoder->GetFrame"));
-	while (indexFrame == REPEAT) {
-		indexFrame = decoder->GetFrame(index, consumerName, decoded);
-	}
-	END_LOG_BLOCK(std::string("decoder->GetFrame"));
-	START_LOG_BLOCK(std::string("vpp->Convert"));
-	int sts = OK;
-	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
-	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
-	CHECK_STATUS_THROW(sts);
-	END_LOG_BLOCK(std::string("vpp->Convert"));
-	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque), 
-		{ processedFrame->height, processedFrame->width, processedFrame->channels});
-	outputTuple = std::make_tuple(outputTensor, indexFrame);
-	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	/*
-	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
-	*/
-	START_LOG_BLOCK(std::string("add tensor"));
-	std::unique_lock<std::mutex> locker(freeSync);
-	tensors.push_back(outputTensor);
 	END_LOG_BLOCK(std::string("add tensor"));
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
@@ -258,7 +211,7 @@ void VideoReader::endProcessing(int mode) {
 			av_frame_free(&item.second);
 		decodedArr.clear();
 		processedArr.clear();
-		tensors.clear();
+		processedFrames.clear();
 		delete parsed;
 		parsed = nullptr;
 	}

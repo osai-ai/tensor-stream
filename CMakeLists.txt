@@ -12,14 +12,19 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
-
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT VideoReader)
 #affects all projects, add folder "include" to include section in VS
 include_directories("include")
+include_directories("include/Wrappers")
 
-FILE(GLOB_RECURSE APP_SOURCE "src/*.c*")
+FILE(GLOB APP_SOURCE "src/*.c*")
+FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c*)
+list(APPEND APP_SOURCE ${WRAPPER_SOURCE})
 source_group("src" FILES ${APP_SOURCE})
 
-FILE(GLOB_RECURSE APP_HEADERS "include/*.h*")
+FILE(GLOB APP_HEADERS "include/*.h*")
+FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h*)
+list(APPEND APP_HEADERS ${WRAPPER_HEADER})
 source_group("include" FILES ${APP_HEADERS})
 
 #Python includes
