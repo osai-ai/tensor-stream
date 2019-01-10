@@ -124,6 +124,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		std::string fileName = std::string("Processed_") + consumerName + std::string(".yuv");
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose));
 		{
+			//avoid situations when several threads write to IO (some possible collisions can be observed)
 			std::unique_lock<std::mutex> locker(dumpSync);
 			DumpFrame(output, dumpFile);
 		}

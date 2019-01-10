@@ -12,7 +12,7 @@ public:
 	std::tuple<std::shared_ptr<uint8_t>, int> getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth = 0, int dstHeight = 0);
 	void endProcessing(int mode = HARD);
 	void enableLogs(int _logsLevel);
-	int dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile);
+	int dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile);
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
@@ -25,8 +25,6 @@ private:
 	bool shouldWork;
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
-	std::vector<std::shared_ptr<uint8_t> > CUDAOutputs;
-	std::vector<std::shared_ptr<uint8_t> > processedFrames;
 	std::mutex freeSync;
 	std::mutex closeSync;
 };

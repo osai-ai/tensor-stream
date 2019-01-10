@@ -4,9 +4,6 @@
 #include <thread>
 #include <time.h>
 #include <chrono>
-#if (__linux__)
-#include "nvrtc.h"
-#endif
 #include <algorithm>
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
@@ -26,12 +23,10 @@ int VideoReader::initPipeline(std::string inputFile) {
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
-	START_LOG_BLOCK(std::string("Tensor CUDA init"));
-#if (__linux__)
-	int majorCUDAVersion, minorCUDAVersion;
-    nvrtcVersion(&majorCUDAVersion, &minorCUDAVersion);
-#endif
-	END_LOG_BLOCK(std::string("Tensor CUDA init"));
+	START_LOG_BLOCK(std::string("CUDA init"));
+	sts = cudaFree(0);
+	CHECK_STATUS(sts);
+	END_LOG_BLOCK(std::string("CUDA init"));
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
@@ -104,28 +99,6 @@ int VideoReader::processingLoop() {
 			continue;
 		CHECK_STATUS(sts);
 		
-		START_LOG_BLOCK(std::string("check tensor to free"));
-		std::unique_lock<std::mutex> locker(freeSync);
-		
-		//Need to check count of references of output Tensor and free if strong_refs = 1
-		
-		CUDAOutputs.erase(
-			std::remove_if(
-				CUDAOutputs.begin(),
-				CUDAOutputs.end(),
-				[](std::shared_ptr<uint8_t> & item) {
-					if (item.use_count() == 1) {
-						cudaFree(item.get());
-
-						return true;
-					}
-					return false;
-				}
-			),
-			CUDAOutputs.end()
-		);
-		END_LOG_BLOCK(std::string("check tensor to free"));
-		
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -154,6 +127,8 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 	AVFrame* processedFrame;
 	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
 	FourCC format = static_cast<FourCC>(pixelFormat);
+	//TODO: add NV12 support
+	CHECK_STATUS_THROW(format == NV12);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -179,14 +154,13 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	std::shared_ptr<uint8_t> cudaFrame((uint8_t*) processedFrame->opaque);
+	std::shared_ptr<uint8_t> cudaFrame((uint8_t*) processedFrame->opaque, cudaFree);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	/*
 	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
 	*/
 	START_LOG_BLOCK(std::string("add tensor"));
 	std::unique_lock<std::mutex> locker(freeSync);
-	processedFrames.push_back(cudaFrame);
 	END_LOG_BLOCK(std::string("add tensor"));
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
@@ -211,7 +185,6 @@ void VideoReader::endProcessing(int mode) {
 			av_frame_free(&item.second);
 		decodedArr.clear();
 		processedArr.clear();
-		processedFrames.clear();
 		delete parsed;
 		parsed = nullptr;
 	}
@@ -226,6 +199,28 @@ void VideoReader::enableLogs(int _logsLevel) {
 	}
 }
 
-int VideoReader::dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
-	return vpp->DumpFrame(output, dumpFile);
+int VideoReader::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile) {
+	AVFrame* output = av_frame_alloc();
+	output->opaque = frame.get();
+	output->width = output->linesize[0] = width;
+	output->height = output->linesize[1] = height;
+	output->channels = (format == RGB24 || format == BGR24) ? 3 : 1;
+	switch (format) {
+		case RGB24:
+			output->format = AV_PIX_FMT_RGB24;
+		break;
+		case BGR24:
+			output->format = AV_PIX_FMT_BGR24;
+		break;
+		case NV12:
+			//TODO: unsupported, need to implement
+			return UNSUPPORTED;
+		break;
+		case Y800:
+			output->format = AV_PIX_FMT_GRAY8;
+		break;
+	}
+	int status = vpp->DumpFrame(output, dumpFile);
+	av_frame_free(&output);
+	return status;
 }
