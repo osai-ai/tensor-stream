@@ -10,10 +10,10 @@
 #include <thread>
 
 enum Internal {
-	ERROR = -3,
-	UNSUPPORTED = -2,
-    REPEAT = -1,
-	OK = 0
+	VREADER_ERROR = -3,
+	VREADER_UNSUPPORTED = -2,
+	VREADER_REPEAT = -1,
+	VREADER_OK = 0
 };
 
 

@@ -84,7 +84,7 @@ int Decoder::notifyConsumers() {
 		isFinished = true;
 		consumerSync.notify_all();
 	}
-	return OK;
+	return VREADER_OK;
 }
 
 AVCodecContext* Decoder::getDecoderContext() {
@@ -115,7 +115,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			if (allignedIndex < 0) {
 				allignedIndex += state.bufferDeep;
 				if (allignedIndex < 0 || !framesBuffer[allignedIndex])
-					return REPEAT;
+					return VREADER_REPEAT;
 			}
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
@@ -125,7 +125,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 }
 
 int Decoder::Decode(AVPacket* pkt) {
-	int sts = OK;
+	int sts = VREADER_OK;
 	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {

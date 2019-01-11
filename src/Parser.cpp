@@ -163,7 +163,7 @@ int Parser::Analyze(AVPacket* package) {
 	while (NALType != SLICE_IDR && NALType != SLICE_NOT_IDR) {
 		NALType = static_cast<NALTypes>(bitReader.Convert(bitReader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC));
 		if (NALType == UNKNOWN)
-			return REPEAT;
+			return VREADER_REPEAT;
 		//we have to find log2_max_frame_num_minus4
 		if (NALType == SPS) {
 			int profile_idc = bitReader.Convert(bitReader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
@@ -216,7 +216,7 @@ int Parser::Analyze(AVPacket* package) {
 		//we want analyze only first slice in frame because from frame drop perspective there is no difference between slices
 		//btw we should hit only first slice due to return after 1 slice
 		if (first_mb_in_slice)
-			return OK;
+			return VREADER_OK;
 		int slice_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 		bitReader.SkipGolomb(); //pic_parameter_set_id
 		if (separate_colour_plane_flag == 1)
@@ -259,12 +259,12 @@ int Parser::Analyze(AVPacket* package) {
 		frameNumValue = frame_num;
 		POC = pic_order_cnt_lsb;
 	}
-	return OK;
+	return VREADER_OK;
 }
 
 int Parser::Init(ParserParameters& input) {
 	state = input;
-	int sts = OK;
+	int sts = VREADER_OK;
 	//packet_buffer - isn't empty
 	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, /*&opts*/0);
 	CHECK_STATUS(sts);
@@ -313,7 +313,7 @@ Parser::Parser() {
 }
 
 int Parser::Read() {
-	int sts = OK;
+	int sts = VREADER_OK;
 	bool videoFrame = false;
 	while (videoFrame == false) {
 		sts = av_read_frame(formatContext, lastFrame.first);
@@ -350,7 +350,7 @@ int Parser::Get(AVPacket* output) {
 		0;
 		//need to wait until frame is available
 	}
-	return OK;
+	return VREADER_OK;
 }
 
 

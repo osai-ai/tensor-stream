@@ -33,7 +33,7 @@ int VideoProcessor::DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
 	cudaError err = cudaMemcpy(output->data[0], output->opaque, output->channels * output->width * output->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(output, dumpFile.get());
-	return OK;
+	return VREADER_OK;
 }
 
 int VideoProcessor::Init(bool _enableDumps) {
@@ -47,7 +47,7 @@ int VideoProcessor::Init(bool _enableDumps) {
 	}
 	
 	isClosed = false;
-	return OK;
+	return VREADER_OK;
 }
 
 int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
@@ -55,7 +55,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 	Should decide which method call
 	*/
 	cudaStream_t stream;
-	int sts = OK;
+	int sts = VREADER_OK;
 	{
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
@@ -113,7 +113,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			break;
 		}
 	default:
-		return UNSUPPORTED;
+		return VREADER_UNSUPPORTED;
 	}
 	if (resize) {
 		//need to free allocated in resize memory for Y and UV

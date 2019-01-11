@@ -12,7 +12,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 }
 
 int VideoReader::initPipeline(std::string inputFile) {
-	int sts = OK;
+	int sts = VREADER_OK;
 	shouldWork = true;
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
@@ -67,7 +67,7 @@ std::map<std::string, int> VideoReader::getInitializedParams() {
 
 int VideoReader::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
-	int sts = OK;
+	int sts = VREADER_OK;
 	//change to end of file
 	while (shouldWork) {
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
@@ -130,7 +130,7 @@ int VideoReader::processingLoop() {
 }
 
 int VideoReader::startProcessing() {
-	int sts = OK;
+	int sts = VREADER_OK;
 	sts = processingLoop();
 	//we should unlock mutex to allow get() function end execution
 	if (shouldWork)
@@ -158,14 +158,14 @@ std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int 
 		processedFrame = findFree<AVFrame*>(consumerName, processedArr);
 	}
 	END_LOG_BLOCK(std::string("findFree converted frame"));
-	int indexFrame = REPEAT;
+	int indexFrame = VREADER_REPEAT;
 	START_LOG_BLOCK(std::string("decoder->GetFrame"));
-	while (indexFrame == REPEAT) {
+	while (indexFrame == VREADER_REPEAT) {
 		indexFrame = decoder->GetFrame(index, consumerName, decoded);
 	}
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
-	int sts = OK;
+	int sts = VREADER_OK;
 	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
