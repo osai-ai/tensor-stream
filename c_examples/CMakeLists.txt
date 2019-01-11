@@ -43,10 +43,10 @@ add_executable(Sample ${APP_SOURCE})
 if (WIN32)
     get_filename_component(CUDA_LIB_DIR ${CUDA_LIBRARIES} PATH)
     file(GLOB_RECURSE CUDA_LIBS ${CUDA_LIB_DIR}/*cuda*.lib)
+    target_link_libraries(Sample ${CUDA_LIBS})
 else()
-    file(GLOB_RECURSE CUDA_LIBS ${CUDA_TOOLKIT_ROOT_DIR}/*cuda*.a)
+    target_link_libraries(Sample ${CUDA_LIBRARIES})
 endif()
-target_link_libraries(Sample ${CUDA_LIBS})
 
 #FFmpeg static libraries
 if (UNIX)
@@ -75,8 +75,7 @@ endif()
 ###############################
 
 if (WIN32)
-    target_link_libraries(Sample debug ${PROJECT_SOURCE_DIR}/../build/Debug/VideoReader.lib)
-    target_link_libraries(Sample optimized ${PROJECT_SOURCE_DIR}/../build/Release/VideoReader.lib)
+    target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/VideoReader.lib)
 else()
-    target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/VideoReader.a)
+    target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/libVideoReader.so)
 endif()

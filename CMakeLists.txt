@@ -8,6 +8,10 @@ function(strip_quotes_slash name)
     set(${name} ${${name}} PARENT_SCOPE)
 endfunction()
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT VideoReader)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -51,8 +55,12 @@ endif()
 ###############################
 
 #include headers to project (so they will be shown in include folder)
-add_library(VideoReader ${APP_HEADERS} ${APP_SOURCE})
 
+if(WIN32)
+    add_library(VideoReader ${APP_HEADERS} ${APP_SOURCE})
+else()
+    add_library(VideoReader SHARED ${APP_HEADERS} ${APP_SOURCE})
+endif()
 #CUDA libraries
 if (WIN32)
     #set_target_properties(VideoReader PROPERTIES CUDA_SEPERABLE_COMPILATION ON)
