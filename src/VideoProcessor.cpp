@@ -112,6 +112,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			CHECK_STATUS(err);
 			break;
 		}
+	default:
+		return UNSUPPORTED;
 	}
 	if (resize) {
 		//need to free allocated in resize memory for Y and UV

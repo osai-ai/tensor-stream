@@ -127,8 +127,6 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 	AVFrame* processedFrame;
 	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
 	FourCC format = static_cast<FourCC>(pixelFormat);
-	//TODO: add NV12 support
-	CHECK_STATUS_THROW(format == NV12);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -212,12 +210,11 @@ int VideoReader::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height
 		case BGR24:
 			output->format = AV_PIX_FMT_BGR24;
 		break;
-		case NV12:
-			//TODO: unsupported, need to implement
-			return UNSUPPORTED;
-		break;
 		case Y800:
 			output->format = AV_PIX_FMT_GRAY8;
+		break;
+		default:
+			return UNSUPPORTED;
 		break;
 	}
 	int status = vpp->DumpFrame(output, dumpFile);
