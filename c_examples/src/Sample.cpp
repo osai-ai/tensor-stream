@@ -28,8 +28,6 @@ int main()
 	reader.enableLogs(-MEDIUM);
 	//int sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	int sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	//int sts = initPipeline("../streams/Without_first_non-IDR.h264");
-	//int sts = initPipeline("../bitstream.h264");
 	CHECK_STATUS(sts);
 	std::thread pipeline(&VideoReader::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"}};
