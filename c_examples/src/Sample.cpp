@@ -26,7 +26,6 @@ void get_cycle(std::map<std::string, std::string> parameters) {
 int main()
 {
 	reader.enableLogs(-MEDIUM);
-	//int sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 	int sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);
 	std::thread pipeline(&VideoReader::startProcessing, &reader);

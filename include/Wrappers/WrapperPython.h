@@ -1,7 +1,7 @@
 #include <iostream>
 #ifdef _DEBUG
 #undef _DEBUG
-#include <torch/torch.h>
+#include <torch/extension.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 #if (__linux__)
@@ -10,7 +10,7 @@
 #endif
 #define _DEBUG
 #else
-#include <torch/torch.h>
+#include <torch/extension.h>
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 #if (__linux__)

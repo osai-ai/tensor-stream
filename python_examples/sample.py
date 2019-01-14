@@ -49,9 +49,8 @@ if __name__ == '__main__':
         for i in range(100):
             profiler.start()
             tensor = reader.read(**parameters)
-            reader.dump(tensor, "dump")
             profiler.end()
-            time.sleep(0.043)  # Simulate consumer work
+            reader.dump(tensor, "dump")
 
     except RuntimeError:
            print("Bad things happened\n")
