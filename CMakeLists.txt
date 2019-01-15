@@ -57,10 +57,11 @@ endif()
 #include headers to project (so they will be shown in include folder)
 
 if(WIN32)
-    add_library(VideoReader ${APP_HEADERS} ${APP_SOURCE})
-else()
-    add_library(VideoReader SHARED ${APP_HEADERS} ${APP_SOURCE})
+	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
+
+add_library(VideoReader SHARED ${APP_HEADERS} ${APP_SOURCE})
+
 #CUDA libraries
 if (WIN32)
     #set_target_properties(VideoReader PROPERTIES CUDA_SEPERABLE_COMPILATION ON)

@@ -76,6 +76,7 @@ endif()
 
 if (WIN32)
     target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/VideoReader.lib)
+    FILE(COPY ${PROJECT_SOURCE_DIR}/../build/VideoReader.dll DESTINATION ${PROJECT_SOURCE_DIR}/build)
 else()
     target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/libVideoReader.so)
 endif()
