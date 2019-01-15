@@ -5,7 +5,7 @@ VideoReader.egg-info
 build_python.bat
 logs.txt
 setup_win.py
-windows_build.bat
+*.bat
 
 
 # Byte-compiled / optimized / DLL files
