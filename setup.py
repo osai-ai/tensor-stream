@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import platform
 from setuptools import setup, find_packages, Extension
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import torch
@@ -19,15 +20,28 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
-
 readme = read('README.md')
 
 VERSION = find_version('video_reader', '__init__.py')
 
 include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["include/"]
+include_path += ["include/Wrappers/"]
+ffmpeg_path = ""
+if (platform.system() == 'Windows'):
+    if (not os.getenv('FFMPEG_PATH')):
+        raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
+
+    ffmpeg_path = os.getenv('FFMPEG_PATH')
+    include_path += [ffmpeg_path + "/include"]
 
 library_path = torch.utils.cpp_extension.library_paths(cuda=True)
+if (platform.system() == 'Windows'):
+    if (ffmpeg_path):
+        library_path += [ffmpeg_path + "/bin"]
+    else:
+        raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
+
 library = ["cudart"]
 library += ["cuda"]
 library += ["cudadevrt"]
@@ -39,15 +53,21 @@ library += ["avformat"]
 library += ["avutil"]
 library += ["swresample"]
 library += ["swscale"]
+if (platform.system() == 'Windows'):
+    library += ["caffe2"]
+    library += ["torch"]
+    library += ["torch_python"]
+    library += ["caffe2_gpu"]
+    library += ["c10"]
+    library += ["_C"]
 
 app_src_path = []
 app_src_path += ["src/Decoder.cpp"]
 app_src_path += ["src/General.cpp"]
 app_src_path += ["src/Kernels.cu"]
 app_src_path += ["src/Parser.cpp"]
-app_src_path += ["src/Source.cpp"]
 app_src_path += ["src/VideoProcessor.cpp"]
-
+app_src_path += ["src/Wrappers/WrapperPython.cpp"]
 
 setup(
     name='video_reader',

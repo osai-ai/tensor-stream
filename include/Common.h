@@ -9,10 +9,13 @@
 #include <chrono>
 #include <thread>
 
-enum {
-	REPEAT = -1,
-	OK = 0
+enum Internal {
+	VREADER_ERROR = -3,
+	VREADER_UNSUPPORTED = -2,
+	VREADER_REPEAT = -1,
+	VREADER_OK = 0
 };
+
 
 #define CHECK_STATUS(status) \
 	if (status != 0) { \

@@ -3,7 +3,6 @@ DockerRun.txt
 external
 VideoReader.egg-info
 build_python.bat
-CMakeLists.txt
 logs.txt
 setup_win.py
 windows_build.bat

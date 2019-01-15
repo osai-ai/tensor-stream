@@ -24,6 +24,7 @@ int Decoder::Init(DecoderParameters& input) {
 
 	//Assign runtime CUDA context to ffmpeg decoder
 	sts = cuCtxGetCurrent(&CUDAContext->cuda_ctx);
+	CHECK_STATUS(CUDAContext->cuda_ctx == nullptr);
 	CHECK_STATUS(sts);
 	sts = av_hwdevice_ctx_init(deviceReference);
 	CHECK_STATUS(sts);
@@ -83,7 +84,7 @@ int Decoder::notifyConsumers() {
 		isFinished = true;
 		consumerSync.notify_all();
 	}
-	return OK;
+	return VREADER_OK;
 }
 
 AVCodecContext* Decoder::getDecoderContext() {
@@ -114,18 +115,17 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			if (allignedIndex < 0) {
 				allignedIndex += state.bufferDeep;
 				if (allignedIndex < 0 || !framesBuffer[allignedIndex])
-					return REPEAT;
+					return VREADER_REPEAT;
 			}
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
-			//printf("GetFrame %x %d\n", framesBuffer[allignedIndex]->data, allignedIndex);
 		}
 	}
 	return currentFrame;
 }
 
 int Decoder::Decode(AVPacket* pkt) {
-	int sts = OK;
+	int sts = VREADER_OK;
 	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
@@ -142,11 +142,9 @@ int Decoder::Decode(AVPacket* pkt) {
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {
-			//printf("Clear decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
 			av_frame_unref(framesBuffer[(currentFrame) % state.bufferDeep]);
 		}
 		framesBuffer[(currentFrame) % state.bufferDeep] = decodedFrame;
-		//printf("New decoded %x %d\n", framesBuffer[(currentFrame - 1) % state.bufferDeep]->data, (currentFrame - 1) % state.bufferDeep);
 		//Frame changed, consumers can take it
 		currentFrame++;
 

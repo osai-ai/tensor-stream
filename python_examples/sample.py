@@ -27,9 +27,9 @@ class DeltaTimeProfiler:
 
 
 if __name__ == '__main__':
-    url = "rtmp://b.sportlevel.com/relay/pooltop"
+    url = "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"
     reader = StreamVideoReader(url, repeat_number=20)
-    reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
+    reader.enable_logs(LogsLevel.MEDIUM, LogsType.CONSOLE)
 
     reader.start()
     parameters = {
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         'pixel_format': FourCC.RGB24,
         'return_index': False,
         'width': 720,
-        'height': 420
+        'height': 480
     }
     try:
     # Warm up
@@ -50,7 +50,7 @@ if __name__ == '__main__':
             profiler.start()
             tensor = reader.read(**parameters)
             profiler.end()
-            time.sleep(0.016)  # Simulate consumer work
+            reader.dump(tensor, "dump")
 
     except RuntimeError:
            print("Bad things happened\n")

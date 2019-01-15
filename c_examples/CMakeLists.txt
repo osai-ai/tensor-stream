@@ -8,30 +8,17 @@ function(strip_quotes_slash name)
     set(${name} ${${name}} PARENT_SCOPE)
 endfunction()
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT VideoReader)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Sample)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
 
-
-#affects all projects, add folder "include" to include section in VS
-include_directories("include")
-include_directories("include/Wrappers")
-
-FILE(GLOB APP_SOURCE "src/*.c*")
-FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c*)
-list(APPEND APP_SOURCE ${WRAPPER_SOURCE})
+FILE(GLOB_RECURSE APP_SOURCE "src/*.c*")
 source_group("src" FILES ${APP_SOURCE})
 
-FILE(GLOB APP_HEADERS "include/*.h*")
-FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h*)
-list(APPEND APP_HEADERS ${WRAPPER_HEADER})
-source_group("include" FILES ${APP_HEADERS})
-
+include_directories("${PROJECT_SOURCE_DIR}/../include")
+include_directories("${PROJECT_SOURCE_DIR}/../include/Wrappers")
+#include headers to project (so they will be shown in include folder)
 #FFmpeg includes
 if (WIN32)
     set(FFMPEG_PATH $ENV{FFMPEG_PATH})
@@ -48,31 +35,18 @@ if (WIN32)
     endif()
 endif()
 
-enable_language(CUDA)
-if (UNIX)
-    include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-endif()
+find_package(CUDA REQUIRED)
+include_directories(${CUDA_INCLUDE_DIRS})
 ###############################
+add_executable(Sample ${APP_SOURCE})
 
-#include headers to project (so they will be shown in include folder)
-
-if(WIN32)
-	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-endif()
-
-add_library(VideoReader SHARED ${APP_HEADERS} ${APP_SOURCE})
-
-#CUDA libraries
 if (WIN32)
-    #set_target_properties(VideoReader PROPERTIES CUDA_SEPERABLE_COMPILATION ON)
-    #do we need cuda.lib here?
-    set(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES cuda.lib)
+    get_filename_component(CUDA_LIB_DIR ${CUDA_LIBRARIES} PATH)
+    file(GLOB_RECURSE CUDA_LIBS ${CUDA_LIB_DIR}/*cuda*.lib)
+    target_link_libraries(Sample ${CUDA_LIBS})
 else()
-    find_library(CUDA_COMMON cuda PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-    find_library(CUDA_COMMON_RT cudart PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-    target_link_libraries(VideoReader ${CUDA_COMMON} ${CUDA_COMMON_RT})
+    target_link_libraries(Sample ${CUDA_LIBRARIES})
 endif()
-###############################
 
 #FFmpeg static libraries
 if (UNIX)
@@ -87,9 +61,10 @@ if (WIN32)
     FILE(GLOB_RECURSE FFMPEG_DLLS ${FFMPEG_PATH}/bin/*.dll)
     FILE(COPY ${FFMPEG_DLLS} DESTINATION ${PROJECT_SOURCE_DIR}/build)
     set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
+    #set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
 endif()
 if (FFMPEG_AVCODEC AND FFMPEG_AVUTIL AND FFMPEG_AVFORMAT)
-    target_link_libraries(VideoReader ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
+    target_link_libraries(Sample ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
 else()
     if(WIN32)
         message(FATAL_ERROR "Add path to FFmpeg folder to FFMPEG_PATH environment variable")
@@ -98,3 +73,10 @@ else()
     endif()
 endif()
 ###############################
+
+if (WIN32)
+    target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/VideoReader.lib)
+    FILE(COPY ${PROJECT_SOURCE_DIR}/../build/VideoReader.dll DESTINATION ${PROJECT_SOURCE_DIR}/build)
+else()
+    target_link_libraries(Sample ${PROJECT_SOURCE_DIR}/../build/libVideoReader.so)
+endif()
