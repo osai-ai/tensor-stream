@@ -8,6 +8,11 @@ BitReader::BitReader(uint8_t* _byteData, int _dataSize) {
 	dataSize = _dataSize;
 }
 
+BitReader::BitReader() {
+	byteData = nullptr;
+	dataSize = 0;
+}
+
 std::vector<bool> BitReader::getVector(int value) {
 	std::vector<bool> result;
 	do {
@@ -312,6 +317,7 @@ Parser::Parser() {
 
 }
 
+//no need any sync due to executing in 1 thread only
 int Parser::Read() {
 	int sts = VREADER_OK;
 	bool videoFrame = false;
@@ -324,7 +330,6 @@ int Parser::Read() {
 		videoFrame = true;
 		currentFrame++;
 
-		//TODO: critical section + need to uninit?
 		lastFrame.second = false;
 
 		if (state.enableDumps) {
@@ -339,6 +344,7 @@ int Parser::Read() {
 	return sts;
 }
 
+//no need any sync due to executing in 1 thread only
 int Parser::Get(AVPacket* output) {
 	if (lastFrame.second == false && lastFrame.first->stream_index == videoIndex) {
 		//decoder is responsible for deallocating

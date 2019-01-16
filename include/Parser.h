@@ -38,6 +38,7 @@ public:
 		SGOLOMB
 	};
 	BitReader(uint8_t* _byteData, int _dataSize);
+	BitReader();
 	std::vector<bool> FindNALType();
 	std::vector<bool> ReadBits(int number);
 	std::vector<bool> ReadGolomb();
@@ -108,7 +109,7 @@ private:
 	*/
 	ParserParameters state;
 	/*
-	Latest parsed frame and index indicated if this frame was passed to decoder
+	Latest parsed frame and index indicated if this frame was taken from parser by Get() function
 	*/
 	std::pair<AVPacket*, bool> lastFrame;
 	/*
