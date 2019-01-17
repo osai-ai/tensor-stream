@@ -70,6 +70,8 @@ std::vector<bool> BitReader::ReadBits(int number) {
 	std::vector<bool> result;
 	int startIndex = shiftInBits;
 	int endIndex   = shiftInBits + number;
+	//getVector returns vector where most significant bit is placed to zero index (just read from memory bits and push back to vector), next cycle 
+	//re-order vector as it should be (the less significant bit is placed to zero index)
 	std::vector<bool> value = getVector(byteData[byteIndex]);
 	for (int i = startIndex; i < endIndex; i++) {
 		//we read we last bit, need to take next byte
@@ -150,6 +152,7 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_IDR = 5,
 		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
+	int errorBitstream = AnalyzeErrors::NONE;
 	av_bitstream_filter_filter(bitstreamFilter, formatContext->streams[videoIndex]->codec, NULL, &NALu->data, &NALu->size, package->data, package->size, 0);
 	//content in package is already in h264 format, so no need to do mp4->h264 conversion
 	if (NALu->data == nullptr) {
@@ -208,8 +211,10 @@ int Parser::Analyze(AVPacket* package) {
 			bitReader.SkipGolomb(); //max_num_ref_frames
 			gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
-			if (gaps_in_frame_num_value_allowed_flag)
+			if (gaps_in_frame_num_value_allowed_flag) {
 				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
+				errorBitstream = errorBitstream | AnalyzeErrors::GAPS_FRAME_NUM;
+			}
 			bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
 			bitReader.SkipGolomb(); //pic_height_in_map_units_minus1
 			frame_mbs_only_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
@@ -252,19 +257,24 @@ int Parser::Analyze(AVPacket* package) {
 		//LOG_VALUE(std::string("pic_order_cnt_lsb: ") + std::to_string(pic_order_cnt_lsb));
 		if (gaps_in_frame_num_value_allowed_flag == 0) {
 			if (frame_num == frameNumValue) {
-				if (pic_order_cnt_lsb <= POC)
+				if (pic_order_cnt_lsb <= POC) {
 					LOG_VALUE(std::string("[PARSING] B-slice incorrect POC. Current POC: ") + std::to_string(pic_order_cnt_lsb)
 						+ std::string(" previous POC: ") + std::to_string(POC));
-			} else if (frame_num != frameNumValue + 1)
-				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num) 
+					errorBitstream = errorBitstream | AnalyzeErrors::B_POC;
+				}
+			}
+			else if (frame_num != frameNumValue + 1) {
+				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num)
 					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue));
+				errorBitstream = errorBitstream | AnalyzeErrors::FRAME_NUM;
+			}
 			
 		}
 
 		frameNumValue = frame_num;
 		POC = pic_order_cnt_lsb;
 	}
-	return VREADER_OK;
+	return errorBitstream;
 }
 
 int Parser::Init(ParserParameters& input) {

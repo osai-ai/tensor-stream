@@ -78,6 +78,9 @@ TEST(Parser_ReadGet, BitstreamEnd) {
 	EXPECT_EQ(parser.Read(), AVERROR_EOF);
 }
 
+//to convert functions bits are sent as they stored in memory, so 
+//vector with bits filled by push_back, so indexes are inverted: 0, 1, 0, 1 = 10 not 5
+//because 2^0 * 0 + 2^1 * 1 + 2^2 * 0 + 2^3 * 1
 TEST(Parser_Bitreader, Convert) {
 	std::vector<bool> SPS = { 1, 1, 1, 0, 0, 0, 0, 0 };
 	std::vector<bool> PPS = { 0, 0, 0, 1, 0, 0, 0, 0 };
@@ -108,20 +111,112 @@ protected:
 };
 
 TEST_F(Parser_Bitreader_Internal, ReadBits) {
-	reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
-	reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
-	reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC);
+	//read RAW bits
+	EXPECT_EQ(reader.getByteIndex(), 0);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC), 0);
+	EXPECT_EQ(reader.getByteIndex(), 1);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC), 0);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC), 0);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC), 1);
+	EXPECT_EQ(reader.getShiftInBits(), 0);
+	EXPECT_EQ(reader.getByteIndex(), 4);
+	//0, 1, 1, 0, 0, 1, 1, 1 (103) -> 0, 1, 1 (3) ; 0, 0, 1, 1, 1 (7)
+	EXPECT_EQ(reader.Convert(reader.ReadBits(3), BitReader::Type::RAW, BitReader::Base::DEC), 3);
+	EXPECT_EQ(reader.getByteIndex(), 4);
+	EXPECT_EQ(reader.getShiftInBits(), 3);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(5), BitReader::Type::RAW, BitReader::Base::DEC), 7);
+	EXPECT_EQ(reader.getByteIndex(), 5);
+	//1, 1, 1, 1, 0, 1, 0, 1 (244), 0, 0, 0, 0, 0, 0, 0, 0 (0) 
+	EXPECT_EQ(reader.Convert(reader.ReadBits(16), BitReader::Type::RAW, BitReader::Base::DEC), 62464);
+	//read Golomb
+	//0, 0, 0, 1, 1, 1, 1, 1
+	EXPECT_EQ(reader.Convert(reader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC), 14);
+	EXPECT_EQ(reader.getShiftInBits(), 7);
+	EXPECT_EQ(reader.getByteIndex(), 7);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC), 1);
 }
 
-TEST(Parser_Bitreader, ReadBits) {
-
+TEST_F(Parser_Bitreader_Internal, SkipBits) {
+	EXPECT_EQ(reader.SkipBits(32), true);
+	EXPECT_EQ(reader.getByteIndex(), 4);
+	EXPECT_EQ(reader.getShiftInBits(), 0);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(8), BitReader::Type::RAW, BitReader::Base::DEC), 103);
+	EXPECT_EQ(reader.getByteIndex(), 5);
+	EXPECT_EQ(reader.SkipBits(3), true);
+	EXPECT_EQ(reader.getByteIndex(), 5);
+	EXPECT_EQ(reader.getShiftInBits(), 3);
+	EXPECT_EQ(reader.Convert(reader.ReadBits(13), BitReader::Type::RAW, BitReader::Base::DEC), 5120);
+	EXPECT_EQ(reader.getByteIndex(), 7);
+	EXPECT_EQ(reader.getShiftInBits(), 0);
 }
 
-TEST(Parser_Analyze, WithoutSPS) {
-
+TEST_F(Parser_Bitreader_Internal, FindNAL) {
+	//SPS = 7
+	EXPECT_EQ(reader.Convert(reader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC), 7);
+	//we read start code 00 00 00 01 = 4 bytes
+	EXPECT_EQ(reader.getByteIndex(), 5);
+	EXPECT_EQ(reader.getShiftInBits(), 0);
+	//PPS = 8
+	EXPECT_EQ(reader.Convert(reader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC), 8);
+	//SEI = 6
+	EXPECT_EQ(reader.Convert(reader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC), 6);
+	//SLICE_IDR = 5
+	EXPECT_EQ(reader.Convert(reader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC), 5);
+	//the bitstream contains only 1 frame with 1 slice, so no more NALu
+	//LONG TEST
+	EXPECT_EQ(reader.Convert(reader.FindNALType(), BitReader::Type::RAW, BitReader::Base::DEC), 0);
 }
 
-TEST(Parser_Analyze, WithoutPPS) {
+//Redirect ffmpeg output to avoid noise in cmd
+class Parser_Analyze_Broken : public ::testing::Test {
+protected:
+	void SetUp()
+	{
+		av_log_set_callback([](void *ptr, int level, const char *fmt, va_list vargs) {
+			return;
+		});
+	}
+};
 
+TEST_F(Parser_Analyze_Broken, WithoutIDR) {
+	Parser parser;
+	ParserParameters parserArgs = { "../resources/broken/Without_IDR.h264" };
+	parser.Init(parserArgs);
+	AVPacket parsed;
+	parser.Read();
+	parser.Get(&parsed);
+	//expect IDR frame, but observe not-IDR
+	EXPECT_EQ(parser.Analyze(&parsed), 2);
 }
 
+TEST_F(Parser_Analyze_Broken, WithoutFirstNonIDR) {
+	Parser parser;
+	ParserParameters parserArgs = { "../resources/broken/Without_first_non-IDR.h264" };
+	parser.Init(parserArgs);
+	AVPacket parsed;
+	//Read IDR
+	parser.Read();
+	parser.Get(&parsed);
+	EXPECT_EQ(parser.Analyze(&parsed), 0);
+	parser.Read();
+	parser.Get(&parsed);
+	//expect IDR frame, but observe not-IDR
+	EXPECT_EQ(parser.Analyze(&parsed), 2);
+}
+
+TEST_F(Parser_Analyze_Broken, LastFrameRepeat) {
+	Parser parser;
+	//this stream contains gaps_in_frame_num_value_allowed_flag flag so don't check correctnes during first 9 frames (Analyze can't handle this flag and return warning)
+	ParserParameters parserArgs = { "../resources/broken/Sample.h264" };
+	parser.Init(parserArgs);
+	AVPacket parsed;
+	for (int i = 0; i < 10; i++) {
+		parser.Read();
+		parser.Get(&parsed);
+		parser.Analyze(&parsed);
+	}
+	parser.Read();
+	parser.Get(&parsed);
+	//the same frame_num with the same (wrong) POC
+	EXPECT_EQ(parser.Analyze(&parsed), 1);
+}

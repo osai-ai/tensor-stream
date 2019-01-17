@@ -10,11 +10,13 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	if (level > AV_LOG_ERROR)
 		return;
 
-	std::vector<char> buffer(256);
-	vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
-	std::string logMessage(&buffer[0]);
-	logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
-	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
+	if (logsLevel) {
+		std::vector<char> buffer(256);
+		vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
+		std::string logMessage(&buffer[0]);
+		logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
+		LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
+	}
 }
 
 int VideoReader::initPipeline(std::string inputFile) {
@@ -87,9 +89,8 @@ int VideoReader::processingLoop() {
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
 		START_LOG_BLOCK(std::string("parser->Analyze"));
-		//Parse package to find some syntax issues
+		//Parse package to find some syntax issues, don't handle errors returned from this function
 		sts = parser->Analyze(parsed);
-		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Analyze"));
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);

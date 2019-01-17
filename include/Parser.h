@@ -79,6 +79,13 @@ public:
 	*/
 	int Get(AVPacket* outputFrame);
 
+	enum AnalyzeErrors {
+		NONE = 0,
+		B_POC,
+		FRAME_NUM,
+		GAPS_FRAME_NUM,
+	};
+
 	/*
 	Analyze package for possible issues in syntax
 	*/
