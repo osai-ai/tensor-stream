@@ -1,19 +1,6 @@
 #include <gtest/gtest.h>
 #include "Parser.h"
 
-int main(int argc, char *argv[])
-{
-	testing::InitGoogleTest(&argc, argv);
-	//	::testing::GTEST_FLAG(filter) = "Pointer.Callstack";
-	
-	//Disable cout output from library
-	std::ofstream   fout("/dev/null");
-	std::cout.rdbuf(fout.rdbuf());
-	
-	return RUN_ALL_TESTS();
-	std::getchar(); // keep console window open until Return keystroke
-}
-
 TEST(Parser_Init, WrongInputPath) {
 	Parser parser;
 	ParserParameters parserArgs = { "wrong_path" };
@@ -27,7 +14,7 @@ TEST(Parser_Init, CorrectInputPath) {
 	ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" };
 	EXPECT_EQ(parser.Init(parserArgs), VREADER_OK);
 	parser.Close();
-	parserArgs = { "../resources/bbb_1080x608_10.h264" };
+	parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
 	EXPECT_EQ(parser.Init(parserArgs), VREADER_OK);
 	EXPECT_EQ(parser.getWidth(), 1080);
 	EXPECT_EQ(parser.getHeight(), 608);
@@ -37,13 +24,13 @@ TEST(Parser_Init, CorrectInputPath) {
 
 TEST(Parser_ReadGet, CheckFrame) {
 	Parser parser;
-	ParserParameters parserArgs = { "../resources/bbb_1080x608_10.h264" };
+	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
 	parser.Init(parserArgs);
 	//Read SPS/PPS/SEI + IDR frame
 	EXPECT_EQ(parser.Read(), VREADER_OK);
 	AVPacket parsed;
 	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
-	std::ifstream firstFrameFile("../resources/bbb_1080x608_headers_IDR.h264", std::ifstream::binary);
+	std::ifstream firstFrameFile("../resources/parser_444/bbb_1080x608_headers_IDR.h264", std::ifstream::binary);
 	std::string firstFrame((std::istreambuf_iterator<char>(firstFrameFile)),
 		std::istreambuf_iterator<char>());
 	firstFrameFile.close();
@@ -53,7 +40,7 @@ TEST(Parser_ReadGet, CheckFrame) {
 	//Read non-IDR frame
 	EXPECT_EQ(parser.Read(), VREADER_OK);
 	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
-	std::ifstream secondFrameFile("../resources/bbb_1080x608_first_non-IDR.h264", std::ifstream::binary);
+	std::ifstream secondFrameFile("../resources/parser_444/bbb_1080x608_first_non-IDR.h264", std::ifstream::binary);
 	std::string secondFrame((std::istreambuf_iterator<char>(secondFrameFile)),
 		std::istreambuf_iterator<char>());
 	secondFrameFile.close();
@@ -63,7 +50,7 @@ TEST(Parser_ReadGet, CheckFrame) {
 
 TEST(Parser_ReadGet, BitstreamEnd) {
 	Parser parser;
-	ParserParameters parserArgs = { "../resources/bbb_1080x608_10.h264" };
+	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
 	parser.Init(parserArgs);
 	AVPacket parsed;
 	//Read all frames except last
@@ -100,7 +87,7 @@ class Parser_Bitreader_Internal : public ::testing::Test {
 protected:
 	void SetUp()
 	{
-		std::ifstream firstFrameFile("../resources/bbb_1080x608_headers_IDR.h264", std::ifstream::binary);
+		std::ifstream firstFrameFile("../resources/parser_444/bbb_1080x608_headers_IDR.h264", std::ifstream::binary);
 		file = std::string((std::istreambuf_iterator<char>(firstFrameFile)),
 			std::istreambuf_iterator<char>());
 		firstFrameFile.close();
@@ -180,7 +167,7 @@ protected:
 
 TEST_F(Parser_Analyze_Broken, WithoutIDR) {
 	Parser parser;
-	ParserParameters parserArgs = { "../resources/broken/Without_IDR.h264" };
+	ParserParameters parserArgs = { "../resources/broken_420/Without_IDR.h264" };
 	parser.Init(parserArgs);
 	AVPacket parsed;
 	parser.Read();
@@ -191,7 +178,7 @@ TEST_F(Parser_Analyze_Broken, WithoutIDR) {
 
 TEST_F(Parser_Analyze_Broken, WithoutFirstNonIDR) {
 	Parser parser;
-	ParserParameters parserArgs = { "../resources/broken/Without_first_non-IDR.h264" };
+	ParserParameters parserArgs = { "../resources/broken_420/Without_first_non-IDR.h264" };
 	parser.Init(parserArgs);
 	AVPacket parsed;
 	//Read IDR
@@ -207,7 +194,7 @@ TEST_F(Parser_Analyze_Broken, WithoutFirstNonIDR) {
 TEST_F(Parser_Analyze_Broken, LastFrameRepeat) {
 	Parser parser;
 	//this stream contains gaps_in_frame_num_value_allowed_flag flag so don't check correctnes during first 9 frames (Analyze can't handle this flag and return warning)
-	ParserParameters parserArgs = { "../resources/broken/Sample.h264" };
+	ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
 	parser.Init(parserArgs);
 	AVPacket parsed;
 	for (int i = 0; i < 10; i++) {

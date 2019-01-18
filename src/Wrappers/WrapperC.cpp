@@ -24,11 +24,6 @@ int VideoReader::initPipeline(std::string inputFile) {
 	shouldWork = true;
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
-	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
-	START_LOG_BLOCK(std::string("CUDA init"));
-	sts = cudaFree(0);
-	CHECK_STATUS(sts);
-	END_LOG_BLOCK(std::string("CUDA init"));
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();

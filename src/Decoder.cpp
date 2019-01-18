@@ -16,7 +16,8 @@ int Decoder::Init(DecoderParameters& input) {
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
-
+	sts = cudaFree(0);
+	CHECK_STATUS(sts);
 	//CUDA device initialization
 	deviceReference = av_hwdevice_ctx_alloc(av_hwdevice_find_type_by_name("cuda"));
 	AVHWDeviceContext* deviceContext = (AVHWDeviceContext*) deviceReference->data;
