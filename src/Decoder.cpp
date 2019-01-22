@@ -113,10 +113,8 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 				index = 0;
 			}
 			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
-			if (allignedIndex < 0) {
-				allignedIndex += state.bufferDeep;
-				if (allignedIndex < 0 || !framesBuffer[allignedIndex])
-					return VREADER_REPEAT;
+			if (allignedIndex < 0 || !framesBuffer[allignedIndex]) {
+				return VREADER_REPEAT;
 			}
 			//can decoder overrun us and start using the same frame? Need sync
 			av_frame_ref(outputFrame, framesBuffer[allignedIndex]);
