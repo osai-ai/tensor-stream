@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	//::testing::GTEST_FLAG(filter) = "Decoder_Init.SeveralThreads";
+	//::testing::GTEST_FLAG(filter) = "Wrapper_Init.CorrectParams";
 
 	//Disable cout output from library
 	std::ofstream fout("/dev/null");
