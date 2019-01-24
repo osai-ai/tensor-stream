@@ -19,7 +19,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	}
 }
 
-int VideoReader::initPipeline(std::string inputFile) {
+int VideoReader::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	av_log_set_callback(logCallback);
@@ -32,7 +32,7 @@ int VideoReader::initPipeline(std::string inputFile) {
 	sts = parser->Init(parserArgs);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
-	DecoderParameters decoderArgs = { parser, false };
+	DecoderParameters decoderArgs = { parser, false, decoderBuffer };
 	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs);
 	CHECK_STATUS(sts);
@@ -216,4 +216,8 @@ int VideoReader::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height
 	int status = vpp->DumpFrame(output, dumpFile);
 	av_frame_free(&output);
 	return status;
+}
+
+int VideoReader::getDelay() {
+	return realTimeDelay;
 }
