@@ -9,7 +9,6 @@ int main(int argc, char *argv[])
 	//Disable cout output from library
 	std::ofstream fout("/dev/null");
 	std::cout.rdbuf(fout.rdbuf());
-
+	fout.close();
 	return RUN_ALL_TESTS();
-	std::getchar(); // keep console window open until Return keystroke
 }

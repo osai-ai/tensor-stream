@@ -101,9 +101,10 @@ void getCycleLD(std::map<std::string, std::string> parameters, VideoReader& read
 			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), format,
 				width, height);
-			int sleepTime = reader.getDelay() - std::chrono::duration_cast<std::chrono::milliseconds>(
+			int sleepTime = std::chrono::duration_cast<std::chrono::milliseconds>(
 				std::chrono::high_resolution_clock::now() - startTime).count();
-			if (sleepTime > 0) {
+			//skip first several frames due to some possible additional time needed for decoded/parser to start processing
+			if (i > 3) {
 				ASSERT_GT(sleepTime, reader.getDelay() - 3);
 				ASSERT_LT(sleepTime, reader.getDelay() + 3);
 			}
