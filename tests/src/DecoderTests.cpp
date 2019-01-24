@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 #include "Decoder.h"
 #include <vector>
-#include <future>
 extern "C" {
 	#include "libavutil/crc.h"
 }
@@ -77,15 +76,15 @@ TEST_F(Decoder_Init, PositiveIndexBuffer) {
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
-	std::future<int> result = std::async([&decoder, &output]() {
-		return decoder.GetFrame(1, "visualize", output);
 
+	int result;
+	std::thread get([&decoder, &output, &result]() {
+		result = decoder.GetFrame(1, "visualize", output);
 	});
-	//wait some time to gurantee that GetFrame will be executed before Decode
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
-	EXPECT_NE(result.get(), VREADER_REPEAT);
+	get.join();
+	EXPECT_NE(result, VREADER_REPEAT);
 	std::vector<uint8_t> outputY(output->width * output->height);
 	std::vector<uint8_t> outputUV(output->width * output->height / 2);
 	ASSERT_EQ(cudaMemcpy2D(&outputY[0], output->width, output->data[0], output->linesize[0], output->width, output->height, cudaMemcpyDeviceToHost), 0);
@@ -105,18 +104,17 @@ TEST_F(Decoder_Init, CheckHWPixelFormat) {
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
-	std::future<int> result = std::async([&decoder, &output]() {
-		return decoder.GetFrame(0, "visualize", output);
-
+	int result;
+	std::thread get([&decoder, &output, &result]() {
+		result = decoder.GetFrame(0, "visualize", output);
 	});
-	//wait some time to gurantee that GetFrame will be executed before Decode
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	AVCodecContext* context = decoder.getDecoderContext();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV420P);
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
+	get.join();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_CUDA);
-	EXPECT_NE(result.get(), VREADER_REPEAT);
+	EXPECT_NE(result, VREADER_REPEAT);
 
 }
 
@@ -136,18 +134,17 @@ TEST(Decoder_Init_YUV444, HWUsupportedPixelFormat) {
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
-	std::future<int> result = std::async([&decoder, &output]() {
-		return decoder.GetFrame(0, "visualize", output);
-
+	int result;
+	std::thread get([&decoder, &output, &result]() {
+		result = decoder.GetFrame(0, "visualize", output);
 	});
-	//wait some time to gurantee that GetFrame will be executed before Decode
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	AVCodecContext* context = decoder.getDecoderContext();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
+	get.join();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
-	EXPECT_NE(result.get(), VREADER_REPEAT);
+	EXPECT_NE(result, VREADER_REPEAT);
 
 }
 
@@ -166,16 +163,17 @@ TEST_F(Decoder_Init, DPBBiggerBuffer) {
 		EXPECT_EQ(sts, VREADER_OK);
 		sts = parser->Get(parsed);
 		EXPECT_EQ(sts, VREADER_OK);
-		std::future<int> result = std::async([&decoder, &output]() {
-			return decoder.GetFrame(0, "visualize", output);
-
+		int result;
+		std::thread get([&decoder, &output, &result]() {
+			result = decoder.GetFrame(0, "visualize", output);
 		});
 		//wait some time to gurantee that GetFrame will be executed before Decode
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		EXPECT_EQ(decoder.getFrameIndex(), i);
 		sts = decoder.Decode(parsed);
 		EXPECT_EQ(sts, VREADER_OK);
-		EXPECT_NE(result.get(), VREADER_REPEAT);
+		get.join();
+		EXPECT_NE(result, VREADER_REPEAT);
 		EXPECT_EQ(decoder.getFrameIndex(), i + 1);
 		//if use parser + decoder without VideoReader class need to ensure that frame from decoder will be deleted due to DPB buffer
 		av_frame_unref(output);
@@ -199,20 +197,26 @@ TEST_F(Decoder_Init, DPBLessBuffer) {
 		EXPECT_EQ(sts, VREADER_OK);
 		sts = parser->Get(parsed);
 		EXPECT_EQ(sts, VREADER_OK);
-		std::future<int> result = std::async([&decoder, &output]() {
-			return decoder.GetFrame(0, "visualize", output);
-
+		int result;
+		std::thread get([&decoder, &output, &result]() {
+			try {
+				result = decoder.GetFrame(0, "visualize", output);
+			}
+			catch (std::runtime_error) {
+			}
 		});
-		//wait some time to gurantee that GetFrame will be executed before Decode
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		EXPECT_EQ(decoder.getFrameIndex(), i);
 		sts = decoder.Decode(parsed);
 		if (sts != 0) {
 			EXPECT_NE(i, 10);
 			decoder.notifyConsumers();
+			//in the end of processing exception is thrown
+			get.join();
 			break;
 		}
-		EXPECT_NE(result.get(), VREADER_REPEAT);
+		get.join();
+		
+		EXPECT_NE(result, VREADER_REPEAT);
 		EXPECT_EQ(decoder.getFrameIndex(), i + 1);
 		//if use parser + decoder without VideoReader class need to ensure that frame from decoder will be deleted due to DPB buffer
 		av_frame_unref(output);

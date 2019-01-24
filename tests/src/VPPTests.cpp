@@ -2,7 +2,6 @@
 #include "VideoProcessor.h"
 #include "Parser.h"
 #include "Decoder.h"
-#include <future>
 extern "C" {
 	#include "libavutil/crc.h"
 }
@@ -33,12 +32,14 @@ protected:
 		EXPECT_EQ(sts, VREADER_OK);
 		sts = parser->Get(parsed);
 		EXPECT_EQ(sts, VREADER_OK);
-		std::future<int> result = std::async([this]() {
-			return decoder.GetFrame(0, "visualize", output.get());
+		int result;
+		std::thread get([this, &result]() {
+			result = decoder.GetFrame(0, "visualize", output.get());
 		});
 		sts = decoder.Decode(parsed);
+		get.join();
 		EXPECT_EQ(sts, VREADER_OK);
-		EXPECT_NE(result.get(), VREADER_REPEAT);
+		EXPECT_NE(result, VREADER_REPEAT);
 	}
 };
 
