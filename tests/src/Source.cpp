@@ -7,8 +7,6 @@ int main(int argc, char *argv[])
 	//::testing::GTEST_FLAG(filter) = "Wrapper_Init.CorrectParams";
 
 	//Disable cout output from library
-	std::ofstream fout("/dev/null");
-	std::cout.rdbuf(fout.rdbuf());
-	fout.close();
+	std::cout.setstate(std::ios_base::failbit);
 	return RUN_ALL_TESTS();
 }

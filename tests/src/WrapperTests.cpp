@@ -105,8 +105,8 @@ void getCycleLD(std::map<std::string, std::string> parameters, VideoReader& read
 				std::chrono::high_resolution_clock::now() - startTime).count();
 			//skip first several frames due to some possible additional time needed for decoded/parser to start processing
 			if (i > 3) {
-				ASSERT_GT(sleepTime, reader.getDelay() - 3);
-				ASSERT_LT(sleepTime, reader.getDelay() + 3);
+				ASSERT_GT(sleepTime, reader.getDelay() - 4);
+				ASSERT_LT(sleepTime, reader.getDelay() + 4);
 			}
 		}
 	}
