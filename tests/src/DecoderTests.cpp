@@ -81,6 +81,8 @@ TEST_F(Decoder_Init, PositiveIndexBuffer) {
 		return decoder.GetFrame(1, "visualize", output);
 
 	});
+	//wait some time to gurantee that GetFrame will be executed before Decode
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
 	EXPECT_NE(result.get(), VREADER_REPEAT);
@@ -107,6 +109,8 @@ TEST_F(Decoder_Init, CheckHWPixelFormat) {
 		return decoder.GetFrame(0, "visualize", output);
 
 	});
+	//wait some time to gurantee that GetFrame will be executed before Decode
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	AVCodecContext* context = decoder.getDecoderContext();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV420P);
 	//Decoder after frame decoding frees memory of parsed frame
@@ -136,6 +140,8 @@ TEST(Decoder_Init_YUV444, HWUsupportedPixelFormat) {
 		return decoder.GetFrame(0, "visualize", output);
 
 	});
+	//wait some time to gurantee that GetFrame will be executed before Decode
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	AVCodecContext* context = decoder.getDecoderContext();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
 	//Decoder after frame decoding frees memory of parsed frame
@@ -164,6 +170,8 @@ TEST_F(Decoder_Init, DPBBiggerBuffer) {
 			return decoder.GetFrame(0, "visualize", output);
 
 		});
+		//wait some time to gurantee that GetFrame will be executed before Decode
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		EXPECT_EQ(decoder.getFrameIndex(), i);
 		sts = decoder.Decode(parsed);
 		EXPECT_EQ(sts, VREADER_OK);
@@ -195,6 +203,8 @@ TEST_F(Decoder_Init, DPBLessBuffer) {
 			return decoder.GetFrame(0, "visualize", output);
 
 		});
+		//wait some time to gurantee that GetFrame will be executed before Decode
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		EXPECT_EQ(decoder.getFrameIndex(), i);
 		sts = decoder.Decode(parsed);
 		if (sts != 0) {
@@ -232,7 +242,8 @@ TEST_F(Decoder_Init, SeveralThreads) {
 			processingFrames.push_back(std::shared_ptr<AVFrame>(output, av_frame_unref));
 		}
 	});
-
+	//wait some time to gurantee that GetFrame will be executed before Decode
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	startProcessing = std::thread(processing, std::ref(parser), std::ref(decoder), std::ref(parsed), 5);
 	startProcessing.join();
 	resultProcessing.join();
