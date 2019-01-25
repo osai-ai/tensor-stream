@@ -1,6 +1,6 @@
 
 # VideoReader README
-VideoReader is a C++ library for video stream (e.g. RTMP) decoding to CUDA memory with some additional features:
+VideoReader is a C++ library for video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python
 * Detecting basic video stream issues related to frames reordering/loss
 * VPP operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
@@ -57,7 +57,7 @@ docker build -t videoreader .
 ### Building examples and tests
 Examples for Python and C++ can be found in ```c_examples``` and ```python_exapmles``` folders.  Tests for C++ can found in ```tests ``` folder.
 #### Python example 
-Can be executed via Python after VideoReader [C++ extenssion for Python](#C++-extenssion-for-Python) installation.
+Can be executed via Python after VideoReader [C++ extenssion for Python](#c-extenssion-for-python) installation.
 ```
 python python_examples/sample.py
 ```
