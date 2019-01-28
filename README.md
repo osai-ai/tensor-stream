@@ -11,7 +11,7 @@ The whole pipeline works on GPU.
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [Pytorch](https://github.com/pytorch/pytorch) 1.0 or above to build C++ extension for Python
+* [Pytorch](https://github.com/pytorch/pytorch) 1.0 to build C++ extension for Python
 
 To build VideoReader on Windows, Visual Studio 2017 14.11 toolset is needed
 ### VideoReader source code
@@ -78,4 +78,4 @@ cd build
 cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 ## License
-TBD (LGPL v2.0?)
+LGPL v2.0
