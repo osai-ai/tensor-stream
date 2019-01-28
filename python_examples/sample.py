@@ -1,6 +1,14 @@
 import time
 from video_reader import StreamVideoReader, LogsLevel, LogsType, FourCC
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-url", help="Path to bitstream (RTMP, local file)")
+parser.add_argument("-width", help="Bitstream width", type=int)
+parser.add_argument("-height", help="Bitstream height", type=int)
+parser.add_argument("-FourCC", choices=["RGB24","BGR24", "Y800"], help="Decoded stream' FourCC")
+parser.add_argument("-v", choices=["LOW", "MEDIUM", "HIGH"],
+                    help="Set output level from library")
+args = parser.parse_args()
 
 class DeltaTimeProfiler:
     def __init__(self):
