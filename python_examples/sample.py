@@ -45,19 +45,19 @@ if __name__ == '__main__':
         for i in range(100):
             tensor = reader.read(**parameters)
 
-        profiler = DeltaTimeProfiler()
+        profiler = DeltaTimeProfiler()        
         for i in range(100):
             profiler.start()
             tensor = reader.read(**parameters)
             profiler.end()
-            reader.dump(tensor, "dump")
+            #reader.dump(tensor, "dump")
 
-    except RuntimeError:
-           print("Bad things happened\n")
+        print("Frame size: ", reader.frame_size)
+        print("FPS: ", reader.fps)
+        print("Mean latancy:", profiler.mean)
+        print("Tensor shape:", tensor.shape)
 
-    print("Frame size: ", reader.frame_size)
-    print("FPS: ", reader.fps)
-    print("Mean latancy:", profiler.mean)
-    print("Tensor shape:", tensor.shape)
-
-    reader.stop()
+        reader.stop()
+    except RuntimeError as e:
+           print("Bad things happened: " + str(e) + "\n")
+           reader.stop()
