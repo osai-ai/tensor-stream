@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+project(VideoReader)
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
@@ -12,7 +13,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT VideoReader)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
@@ -60,17 +61,15 @@ if(WIN32)
 	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-add_library(VideoReader SHARED ${APP_HEADERS} ${APP_SOURCE})
+add_library(${PROJECT_NAME} SHARED ${APP_HEADERS} ${APP_SOURCE})
 
 #CUDA libraries
 if (WIN32)
-    #set_target_properties(VideoReader PROPERTIES CUDA_SEPERABLE_COMPILATION ON)
-    #do we need cuda.lib here?
     set(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES cuda.lib)
 else()
     find_library(CUDA_COMMON cuda PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
     find_library(CUDA_COMMON_RT cudart PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-    target_link_libraries(VideoReader ${CUDA_COMMON} ${CUDA_COMMON_RT})
+    target_link_libraries(${PROJECT_NAME} ${CUDA_COMMON} ${CUDA_COMMON_RT})
 endif()
 ###############################
 
@@ -89,7 +88,7 @@ if (WIN32)
     set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
 endif()
 if (FFMPEG_AVCODEC AND FFMPEG_AVUTIL AND FFMPEG_AVFORMAT)
-    target_link_libraries(VideoReader ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
+    target_link_libraries(${PROJECT_NAME} ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
 else()
     if(WIN32)
         message(FATAL_ERROR "Add path to FFmpeg folder to FFMPEG_PATH environment variable")

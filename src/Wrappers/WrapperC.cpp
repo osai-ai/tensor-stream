@@ -68,7 +68,6 @@ std::map<std::string, int> VideoReader::getInitializedParams() {
 int VideoReader::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
-	//change to end of file
 	while (shouldWork) {
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
 		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
@@ -77,7 +76,6 @@ int VideoReader::processingLoop() {
 		END_LOG_BLOCK(std::string("parser->Read"));
 		if (sts == AVERROR(EAGAIN))
 			continue;
-		//TODO: expect this behavior only in case of EOF
 		CHECK_STATUS(sts);
 		START_LOG_BLOCK(std::string("parser->Get"));
 		sts = parser->Get(parsed);

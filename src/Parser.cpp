@@ -232,7 +232,6 @@ int Parser::Analyze(AVPacket* package) {
 		if (separate_colour_plane_flag == 1)
 			bitReader.SkipBits(2);
 		int frame_num = bitReader.Convert(bitReader.ReadBits(log2_max_frame_num_minus4 + 4), BitReader::Type::RAW, BitReader::Base::DEC);
-		//LOG_VALUE(std::string("frame_num: ") + std::to_string(frame_num));
 		if (!frame_mbs_only_flag) {
 			int field_pic_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			if (field_pic_flag)
@@ -254,7 +253,6 @@ int Parser::Analyze(AVPacket* package) {
 		if (POC == pow(2, log2_max_pic_order_cnt_lsb_minus4 + 4) - 1) {
 			POC = 0;
 		}
-		//LOG_VALUE(std::string("pic_order_cnt_lsb: ") + std::to_string(pic_order_cnt_lsb));
 		if (gaps_in_frame_num_value_allowed_flag == 0) {
 			if (frame_num == frameNumValue) {
 				if (pic_order_cnt_lsb <= POC) {

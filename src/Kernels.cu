@@ -178,7 +178,6 @@ int resizeNV12Nearest(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaSt
 	resizeNV12NearestKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
 		                                                              src->width, src->height, src->linesize[0], src->linesize[1], 
 		                                                              dst->width, dst->height, xRatio, yRatio);
-	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->data[0] = outputY;
 	dst->data[1] = outputUV;
 	return err;
@@ -199,7 +198,6 @@ int resizeNV12Bilinear(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaS
 	resizeNV12BilinearKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
 		src->width, src->height, src->linesize[0], src->linesize[1],
 		dst->width, dst->height, xRatio, yRatio);
-	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->data[0] = outputY;
 	dst->data[1] = outputUV;
 	return err;
@@ -223,7 +221,6 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->channels * width);
 	else
 		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, width, dst->channels * width);
-	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->opaque = RGB;
 	return err;
 }
@@ -245,7 +242,6 @@ int NV12ToBGR24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, src->linesize[0], dst->channels * width);
 	else
 		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, width, dst->channels * width);
-	//cudaDeviceSynchronize(); //needed when cudaMemcpy will be deleted
 	dst->opaque = BGR;
 	return err;
 }
