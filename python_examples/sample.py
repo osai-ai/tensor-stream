@@ -12,6 +12,7 @@ parser.add_argument("-h", "--height", default=480, help="Output height (default:
 parser.add_argument("-fc", "--fourcc", default="RGB24", choices=["RGB24","BGR24", "Y800"], help="Decoded stream' FourCC (default: RGB24)")
 parser.add_argument("-v", "--verbose", default="LOW", choices=["LOW", "MEDIUM", "HIGH"], help="Set output level from library (default: LOW)")
 parser.add_argument("-n", "--number", default=100, help="Number of frame to parse (default: 100)", type=int)
+parser.add_argument("-d", "--dump", default=False, help="Dump output to file", action="store_true")
 args = parser.parse_args()
 
 class DeltaTimeProfiler:
@@ -62,7 +63,8 @@ if __name__ == '__main__':
             profiler.start()
             tensor = reader.read(**parameters)
             profiler.end()
-            reader.dump(tensor, args.output)
+            if (args.dump):
+                reader.dump(tensor, args.output)
 
         print("Frame size: ", reader.frame_size)
         print("FPS: ", reader.fps)
