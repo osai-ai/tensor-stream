@@ -1,13 +1,17 @@
 import time
 from video_reader import StreamVideoReader, LogsLevel, LogsType, FourCC
+import argparse
+import os
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-url", help="Path to bitstream (RTMP, local file)")
-parser.add_argument("-width", help="Bitstream width", type=int)
-parser.add_argument("-height", help="Bitstream height", type=int)
-parser.add_argument("-FourCC", choices=["RGB24","BGR24", "Y800"], help="Decoded stream' FourCC")
-parser.add_argument("-v", choices=["LOW", "MEDIUM", "HIGH"],
-                    help="Set output level from library")
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--help', action='help', help='show this help message and exit')
+parser.add_argument("-i", "--input", default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4", help="Path to bitstream: RTMP, local file")
+parser.add_argument("-o", "--output", default="dump.yuv", help="Name of output raw stream (default: dump.yuv)")
+parser.add_argument("-w", "--width", default=720, help="Output width (default: 720)", type=int)
+parser.add_argument("-h", "--height", default=480, help="Output height (default: 480)", type=int)
+parser.add_argument("-fc", "--fourcc", default="RGB24", choices=["RGB24","BGR24", "Y800"], help="Decoded stream' FourCC (default: RGB24)")
+parser.add_argument("-v", "--verbose", default="LOW", choices=["LOW", "MEDIUM", "HIGH"], help="Set output level from library (default: LOW)")
+parser.add_argument("-n", "--number", default=100, help="Number of frame to parse (default: 100)", type=int)
 args = parser.parse_args()
 
 class DeltaTimeProfiler:
@@ -35,30 +39,30 @@ class DeltaTimeProfiler:
 
 
 if __name__ == '__main__':
-    url = "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4"
-    reader = StreamVideoReader(url, repeat_number=20)
-    reader.enable_logs(LogsLevel.MEDIUM, LogsType.CONSOLE)
+    reader = StreamVideoReader(args.input, repeat_number=20)
+    reader.enable_logs(LogsLevel[args.verbose], LogsType.CONSOLE)
+    reader.initialize()
 
     reader.start()
     parameters = {
         'name': "first",
         'delay': 0,
-        'pixel_format': FourCC.RGB24,
+        'pixel_format': FourCC[args.fourcc],
         'return_index': False,
-        'width': 720,
-        'height': 480
+        'width': args.width,
+        'height': args.height,
     }
-    try:
-    # Warm up
-        for i in range(100):
-            tensor = reader.read(**parameters)
 
+    if os.path.exists(args.output):
+        os.remove(args.output)
+
+    try:
         profiler = DeltaTimeProfiler()        
-        for i in range(100):
+        for i in range(args.number):
             profiler.start()
             tensor = reader.read(**parameters)
             profiler.end()
-            #reader.dump(tensor, "dump")
+            reader.dump(tensor, args.output)
 
         print("Frame size: ", reader.frame_size)
         print("FPS: ", reader.fps)

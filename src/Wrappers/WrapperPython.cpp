@@ -1,4 +1,5 @@
 #include "WrapperPython.h"
+#include <iostream>
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	if (level > AV_LOG_ERROR)
@@ -247,7 +248,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		output.width = stream.size(1);
 		output.height = stream.size(0);
 		output.channels = stream.size(2);
-		std::string dumpName = consumerName + std::string(".yuv");
+		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
+		std::string dumpName = consumerName + std::string("");
 		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
 		return reader.dumpFrame(&output, dumpFrame);
 	});

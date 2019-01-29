@@ -2,35 +2,35 @@ import torch
 import VideoReader
 import threading
 import logging
+from enum import Enum
 
-
-class StatusLevel:
+class StatusLevel(Enum):
     OK = 0
     REPEAT = 1
     ERROR = 2
 
 
-class LogsLevel:
+class LogsLevel(Enum):
+    NONE = 0
     LOW = 1
     MEDIUM = 2
     HIGH = 3
 
 
-class LogsType:
+class LogsType(Enum):
     FILE = 1
     CONSOLE = 2
 
 
-class CloseLevel:
+class CloseLevel(Enum):
     HARD = 1
     SOFT = 2
 
 
-class FourCC:
+class FourCC(Enum):
     Y800 = 0
     RGB24 = 1
     BGR24 = 2
-    NV12 = 3
 
 
 class StreamVideoReader:
@@ -43,15 +43,14 @@ class StreamVideoReader:
 
         self.stream_url = stream_url
         self.repeat_number = repeat_number
-        self.initialize()
 
     def initialize(self):
         self.log.info("Initialize VideoStream")
-        status = StatusLevel.REPEAT
+        status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
-        while status != StatusLevel.OK and repeat > 0:
+        while status != StatusLevel.OK.value and repeat > 0:
             status = VideoReader.init(self.stream_url)
-            if status != StatusLevel.OK:
+            if status != StatusLevel.OK.value:
                 # Mode 1 - full close, mode 2 - soft close (for reset)
                 self.stop(CloseLevel.SOFT)
             repeat = repeat - 1
@@ -65,9 +64,9 @@ class StreamVideoReader:
 
     def enable_logs(self, level, log_type):
         if log_type == LogsType.FILE:
-            VideoReader.enableLogs(level)
+            VideoReader.enableLogs(level.value)
         else:
-            VideoReader.enableLogs(-level)
+            VideoReader.enableLogs(-level.value)
 
     def read(self,
              name: str,
@@ -76,7 +75,7 @@ class StreamVideoReader:
              return_index=False,
              width=0,
              height=0):
-        tensor, index = VideoReader.get(name, delay, pixel_format, width, height)
+        tensor, index = VideoReader.get(name, delay, pixel_format.value, width, height)
         if return_index:
             return tensor, index
         else:
@@ -94,7 +93,7 @@ class StreamVideoReader:
 
     def stop(self, level=CloseLevel.HARD):
         self.log.info("Stop VideoStream")
-        VideoReader.close(level)
+        VideoReader.close(level.value)
         if self.thread is not None:
             self.thread.join()
 
