@@ -14,6 +14,7 @@ The whole pipeline works on GPU.
 
 To build VideoReader on Windows, Visual Studio 2017 14.11 toolset is needed
 ### VideoReader source code
+
 ```
 git clone https://github.com/Fonbet/argus-video-reader.git
 cd argus-video-reader
