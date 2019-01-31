@@ -84,7 +84,7 @@ Python example demonstrates RTMP to Pytorch tensor conversion. Let's consider so
 ```
 python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -o dump.yuv
 ```
-> **Warning:** Dumps significantly influent to performance
+> **Warning:** Dumps significantly affect performance
 * The same scenario with downscaling:
 ```
 python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -n 100 -w 720 -h 480 -o dump.yuv
