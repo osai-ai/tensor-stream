@@ -8,14 +8,23 @@ extern "C" {
 #include <vector>
 #include <cuda_runtime.h>
 #include <mutex>
-/*
-List of supported output formats
+
+/** @addtogroup cppAPI
+@{
+*/
+
+/** Class with supported frame output color formats
+ @details Used in @ref VideoReader::getFrame() function
 */
 enum FourCC {
 	Y800,
 	RGB24,
 	BGR24
 };
+
+/**
+@}
+*/
 
 /*
 Structure contains description of desired conversions.
