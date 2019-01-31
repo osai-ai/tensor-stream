@@ -116,7 +116,7 @@ int VideoReader::startProcessing() {
 	return sts;
 }
 
-std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
@@ -182,10 +182,10 @@ void VideoReader::endProcessing(int mode) {
 	}
 }
 
-void VideoReader::enableLogs(int _logsLevel) {
-	if (_logsLevel) {
-		logsLevel = static_cast<LogsLevel>(_logsLevel);
-		if (!logsFile.is_open() && _logsLevel > 0) {
+void VideoReader::enableLogs(int level) {
+	if (level) {
+		logsLevel = static_cast<LogsLevel>(level);
+		if (!logsFile.is_open() && level > 0) {
 			logsFile.open(logFileName);
 		}
 	}

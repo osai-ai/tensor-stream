@@ -9,13 +9,39 @@
 #include <chrono>
 #include <thread>
 
+/** @addtogroup cppAPI
+@{ 
+*/
+
+/** Enum with error codes can be return from VideoReader
+*/
 enum Internal {
-	VREADER_ERROR = -3,
-	VREADER_UNSUPPORTED = -2,
-	VREADER_REPEAT = -1,
-	VREADER_OK = 0
+	VREADER_ERROR = -3, /**< Unknown error appeared */
+	VREADER_UNSUPPORTED = -2, /**< Requested functionality is unsupported */
+	VREADER_REPEAT = -1, /**< Need to repeat last request */
+	VREADER_OK = 0 /**< No errors */
 };
 
+/** Class with list of modes for logs output
+ @details Used in @ref VideoReader::enableLogs() function
+*/
+enum LogsLevel {
+	NONE, /**< No logs are needed */
+	LOW, /**< Print the indexes of processed frames */
+	MEDIUM, /**< Print also frame processing duration */
+	HIGH, /**< Print also the detailed information about functions in callstack */
+};
+
+/** Class with possible C++ extension module close options
+ @details Used in @ref VideoReader::endProcessing() function
+*/
+enum CloseLevel {
+	HARD = 1, /**< Close all opened handlers, free resources */
+	SOFT /**< Close all opened handlers except logs file handler, free resources */
+};
+/**
+@}
+*/
 
 #define CHECK_STATUS(status) \
 	if (status != 0) { \
@@ -34,18 +60,6 @@ enum Internal {
 		std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "\n" << std::flush; \
 		throw std::runtime_error(std::to_string(status)); \
 	} \
-
-enum LogsLevel {
-	NONE,
-	LOW, //start and end with frame indexes
-	MEDIUM, //LOW + times
-	HIGH, //whole pipeline with times + notices if latency is greater
-};
-
-enum CloseLevel {
-	HARD = 1,
-	SOFT
-};
 
 const std::string logFileName = "logs.txt";
 
