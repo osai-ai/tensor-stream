@@ -32,6 +32,8 @@ RUN git clone https://github.com/protocolbuffers/protobuf.git && \
     cd protobuf && git submodule update --init --recursive && \
     ./autogen.sh
 
+RUN pip install twine
+
 COPY . /app
 WORKDIR /app
 
