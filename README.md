@@ -6,7 +6,12 @@ VideoReader is a C++ library for video stream (e.g. RTMP) decoding to CUDA memor
 * VPP operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
 
 The whole pipeline works on GPU.
-## Installation
+## Binaries
+Extension for Python can be installed via pip:
+```
+pip install TBD
+```
+## Installation from source
 ### Install dependencies
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
@@ -93,11 +98,6 @@ python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 * Number of frames can be limited by -n option:
 ```
 python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -n 100 -w 720 -h 480 -o dump.yuv -n 100
-```
-## Binaries
-Extension for Python can be installed via pip:
-```
-pip install TBD
 ```
 ## Documentation
 Documentation for Python and C++ API can be found TBD
