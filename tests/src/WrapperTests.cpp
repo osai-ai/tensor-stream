@@ -144,7 +144,7 @@ TEST(Wrapper_Init, OneThreadHang) {
 		remove(parameters["dumpName"].c_str());
 		std::thread get(getCycle, parameters, std::ref(reader));
 		//wait for some processing happened
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		//Close Reader before joining any thread, expect no hangs at the end of program
 		reader.endProcessing(HARD);
 		get.join();
@@ -154,6 +154,6 @@ TEST(Wrapper_Init, OneThreadHang) {
 		ended = true;
 	});
 	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-	mainThread.join();
 	ASSERT_EQ(ended, true);
+	mainThread.join();
 }
