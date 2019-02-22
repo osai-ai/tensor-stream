@@ -74,7 +74,6 @@ int VideoReader::processingLoop() {
 		END_LOG_BLOCK(std::string("parser->Read"));
 		if (sts == AVERROR(EAGAIN))
 			continue;
-		//TODO: expect this behavior only in case of EOF
 		CHECK_STATUS(sts);
 		START_LOG_BLOCK(std::string("parser->Get"));
 		sts = parser->Get(parsed);
@@ -83,7 +82,6 @@ int VideoReader::processingLoop() {
 		START_LOG_BLOCK(std::string("parser->Analyze"));
 		//Parse package to find some syntax issues
 		sts = parser->Analyze(parsed);
-		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Analyze"));
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);

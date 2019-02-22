@@ -110,8 +110,7 @@ int VideoReader::startProcessing() {
 	int sts = VREADER_OK;
 	sts = processingLoop();
 	//we should unlock mutex to allow get() function end execution
-	if (shouldWork)
-		decoder->notifyConsumers();
+	decoder->notifyConsumers();
 	CHECK_STATUS(sts);
 	return sts;
 }

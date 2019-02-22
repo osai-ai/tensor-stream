@@ -17,9 +17,9 @@ extern "C" {
  @details Used in @ref VideoReader::getFrame() function
 */
 enum FourCC {
-	Y800,
-	RGB24,
-	BGR24
+	Y800, /**< Monochrome format, 8 bit for pixel */
+	RGB24, /**< RGB format, 24 bit for pixel, color plane order: R, G, B */
+	BGR24 /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
 };
 
 /**

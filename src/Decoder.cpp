@@ -100,8 +100,9 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 	
 	{
 		std::unique_lock<std::mutex> locker(sync);
-		while (!consumerStatus[consumerName]) 
-			consumerSync.wait(locker);
+		if (isFinished == false)
+			while (!consumerStatus[consumerName]) 
+				consumerSync.wait(locker);
 
 		if (isFinished)
 			throw std::runtime_error("Decoding finished");
