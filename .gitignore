@@ -6,7 +6,7 @@ build_python.bat
 logs.txt
 setup_win.py
 *.bat
-
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
