@@ -75,6 +75,7 @@ setup(
     author='Bykadorov Roman',
     description='Stream video reader',
     long_description=readme,
+    long_description_content_type='text/markdown',
     ext_modules=[
         Extension(
             name='VideoReader',
