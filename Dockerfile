@@ -1,5 +1,17 @@
 FROM floydhub/pytorch:1.0.0-gpu.cuda9cudnn7-py3.38
 
+RUN cd /tmp &&\
+    git clone https://github.com/doxygen/doxygen.git &&\
+    cd doxygen &&\
+    git checkout dc89ac0 &&\
+    mkdir build &&\
+    cd build &&\
+    sudo apt-get install -y flex bison &&\
+    cmake -G "Unix Makefiles" .. &&\
+    make install &&\
+    cd / &&\
+    rm -rf /tmp/doxygen
+
 RUN apt-get update &&\
     apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools libtcmalloc-minimal4
 
