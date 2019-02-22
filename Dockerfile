@@ -45,7 +45,8 @@ RUN git clone https://github.com/protocolbuffers/protobuf.git && \
     cd protobuf && git submodule update --init --recursive && \
     ./autogen.sh
 
-RUN pip install twine awscli
+RUN pip install twine
+RUN pip install awscli
 
 COPY . /app
 WORKDIR /app
