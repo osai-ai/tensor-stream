@@ -6,7 +6,8 @@ RUN cd /tmp &&\
     git checkout dc89ac0 &&\
     mkdir build &&\
     cd build &&\
-    sudo apt-get install -y flex bison &&\
+    apt-get update &&\
+    apt-get install -y flex bison &&\
     cmake -G "Unix Makefiles" .. &&\
     make install &&\
     cd / &&\
