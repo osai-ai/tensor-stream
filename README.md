@@ -9,7 +9,7 @@ The whole pipeline works on GPU.
 ## Binaries
 Extension for Python can be installed via pip:
 ```
-pip install TBD
+pip install tensor-stream
 ```
 ## Installation from source
 ### Install dependencies
