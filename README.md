@@ -22,7 +22,7 @@ To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is needed
 ### TensorStream source code
 
 ```
-git clone https://github.com/Fonbet/argus-tensor-stream.git
+git clone -b master --single-branch https://github.com/Fonbet/argus-tensor-stream.git
 cd argus-tensor-stream
 ```
 ### Install TensorStream
