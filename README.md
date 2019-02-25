@@ -1,6 +1,6 @@
 
 # VideoReader README
-VideoReader is a C++ library for video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
+VideoReader is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python
 * Detecting basic video stream issues related to frames reordering/loss
 * VPP operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
