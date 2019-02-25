@@ -61,7 +61,7 @@ Dockerfile can be found at the top level of repository. Build as usual:
 docker build -t tensorstream .
 ```
 ### Building examples and tests
-Examples for Python and C++ can be found in ```c_examples``` and ```python_exapmles``` folders.  Tests for C++ can found in ```tests ``` folder.
+Examples for Python and C++ can be found in ```c_examples``` and ```python_examples``` folders.  Tests for C++ can be found in ```tests ``` folder.
 #### Python example 
 Can be executed via Python after TensorStream [C++ extenssion for Python](#c-extenssion-for-python) installation.
 ```
