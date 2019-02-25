@@ -26,7 +26,7 @@ git clone -b master --single-branch https://github.com/Fonbet/argus-tensor-strea
 cd argus-tensor-stream
 ```
 ### Install TensorStream
-#### C++ extenssion for Python
+#### C++ extension for Python
 
 On Linux:
 ```
@@ -63,7 +63,7 @@ docker build -t tensorstream .
 ### Building examples and tests
 Examples for Python and C++ can be found in ```c_examples``` and ```python_examples``` folders.  Tests for C++ can be found in ```tests ``` folder.
 #### Python example 
-Can be executed via Python after TensorStream [C++ extenssion for Python](#c-extenssion-for-python) installation.
+Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
 ```
 python python_examples/sample.py
 ```
