@@ -4,7 +4,7 @@
 #include "Decoder.h"
 #include "VideoProcessor.h"
 /** @defgroup cppAPI C++ API
-@brief The list of VideoReader components can be used via C++ interface
+@brief The list of TensorStream components can be used via C++ interface
 @details Here are all the classes, enums, functions described which can be used via C++ to do RTMP/local stream converting to CUDA memory with additional post-processing conversions
 @{
 */
@@ -12,9 +12,9 @@
 /**
 Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 */
-class VideoReader {
+class TensorStream {
 public:
-/** Initialization of VideoReader pipeline
+/** Initialization of TensorStream pipeline
  @param[in] inputFile Path to stream should be decoded
  @anchor decoderBuffer
  @param[in] decoderBuffer How many decoded frames should be stored in internal buffer
@@ -42,11 +42,11 @@ public:
  @return Decoded frame in CUDA memory and index of decoded frame
 */
 	std::tuple<std::shared_ptr<uint8_t>, int> getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth = 0, int dstHeight = 0);
-/** Close VideoReader session
+/** Close TensorStream session
  @param[in] mode Value from @ref ::CloseLevel
 */
 	void endProcessing(int mode = HARD);
-/** Enable logs from VideoReader
+/** Enable logs from TensorStream
  @param[in] level Specify output level of logs, see @ref ::LogsLevel for supported values
 */
 	void enableLogs(int level);

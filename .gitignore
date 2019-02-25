@@ -1,12 +1,11 @@
 
 DockerRun.txt
 external
-VideoReader.egg-info
-build_python.bat
-logs.txt
-setup_win.py
+TensorStream.egg-info
 *.bat
 .idea
+*.yuv
+*.pdb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

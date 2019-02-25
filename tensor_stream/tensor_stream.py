@@ -1,26 +1,26 @@
 import torch
-import VideoReader
+import TensorStream
 import threading
 import logging
 from enum import Enum
 
 ## @defgroup pythonAPI Python API
-# @brief The list of VideoReader components can be used via Python interface
+# @brief The list of TensorStream components can be used via Python interface
 # @details Here are all the classes, enums, functions described which can be used via Python to do RTMP/local stream converting to Pytorch Tensor with additional post-processing conversions
 # @{
 
-## Class with list of possible error statuses can be returned from VideoReader extension
-# @warning These statuses are used only in Python wrapper that communicates with VideoReader C++ extension 
+## Class with list of possible error statuses can be returned from TensorStream extension
+# @warning These statuses are used only in Python wrapper that communicates with TensorStream C++ extension 
 class StatusLevel(Enum):
     ## No errors
     OK = 0
-    ## Need to call %VideoReader API one more time
+    ## Need to call %TensorStream API one more time
     REPEAT = 1
-    ## Some issue in %VideoReader component occured
+    ## Some issue in %TensorStream component occured
     ERROR = 2
 
 ## Class with list of modes for logs output
-# @details Used in @ref StreamVideoReader.enable_logs() function
+# @details Used in @ref TensorStreamConverter.enable_logs() function
 class LogsLevel(Enum):
     ## No logs are needed
     NONE = 0
@@ -32,7 +32,7 @@ class LogsLevel(Enum):
     HIGH = 3
 
 ## Class with list of places the log file has to be written to
-# @details Used in @ref StreamVideoReader.enable_logs() function
+# @details Used in @ref TensorStreamConverter.enable_logs() function
 class LogsType(Enum):
     ## Print all logs to file
     FILE = 1
@@ -41,7 +41,7 @@ class LogsType(Enum):
 
 
 ## Class with possible C++ extension module close options
-# @details Used in @ref StreamVideoReader.stop() function
+# @details Used in @ref TensorStreamConverter.stop() function
 class CloseLevel(Enum):
     ## Close all opened handlers, free resources
     HARD = 1
@@ -49,7 +49,7 @@ class CloseLevel(Enum):
     SOFT = 2
 
 ## Class with supported frame output color formats
-# @details Used in @ref StreamVideoReader.read() function
+# @details Used in @ref TensorStreamConverter.read() function
 class FourCC(Enum):
     ## Monochrome format, 8 bit for pixel
     Y800 = 0
@@ -60,8 +60,8 @@ class FourCC(Enum):
 
 
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
-class StreamVideoReader:
-    ## Constructor of StreamVideoReader class
+class TensorStreamConverter:
+    ## Constructor of TensorStreamConverter class
     # @param[in] stream_url Path to stream should be decoded
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
@@ -84,27 +84,27 @@ class StreamVideoReader:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = VideoReader.init(self.stream_url)
+            status = TensorStream.init(self.stream_url)
             if status != StatusLevel.OK.value:
                 # Mode 1 - full close, mode 2 - soft close (for reset)
                 self.stop(CloseLevel.SOFT)
             repeat = repeat - 1
 
         if repeat == 0:
-            raise RuntimeError("Can't initialize VideoReader")
+            raise RuntimeError("Can't initialize TensorStream")
         else:
-            params = VideoReader.getPars()
+            params = TensorStream.getPars()
             self.fps = params['framerate_num'] / params['framerate_den']
             self.frame_size = (params['width'], params['height'])
 
-    ## Enable logs from VideoReader C++ extension
+    ## Enable logs from TensorStream C++ extension
     # @param[in] level Specify output level of logs, see @ref LogsLevel for supported values
     # @param[in] log_type Specify where the logs should be printed, see @ref LogsType for supported values
     def enable_logs(self, level, log_type):
         if log_type == LogsType.FILE:
-            VideoReader.enableLogs(level.value)
+            TensorStream.enableLogs(level.value)
         else:
-            VideoReader.enableLogs(-level.value)
+            TensorStream.enableLogs(-level.value)
 
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
@@ -121,7 +121,7 @@ class StreamVideoReader:
              return_index = False,
              width = 0,
              height = 0):
-        tensor, index = VideoReader.get(name, delay, pixel_format.value, width, height)
+        tensor, index = TensorStream.get(name, delay, pixel_format.value, width, height)
         if return_index:
             return tensor, index
         else:
@@ -131,10 +131,10 @@ class StreamVideoReader:
     # @param[in] tensor Tensor which should be dumped
     # @param[in] name The name of file with dumps
     def dump(self, tensor, name):
-        VideoReader.dump(tensor, name)
+        TensorStream.dump(tensor, name)
 
     def _start(self):
-        VideoReader.start()
+        TensorStream.start()
 
     ## Start processing with parameters set via @ref initialize() function
     # This functions is being executed in separate thread
@@ -142,11 +142,11 @@ class StreamVideoReader:
         self.thread = threading.Thread(target=self._start)
         self.thread.start()
 
-    ## Close VideoReader session
+    ## Close TensorStream session
     # @param[in] level Value from @ref CloseLevel
     def stop(self, level = CloseLevel.HARD):
         self.log.info("Stop VideoStream")
-        VideoReader.close(level.value)
+        TensorStream.close(level.value)
         if self.thread is not None:
             self.thread.join()
 

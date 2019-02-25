@@ -76,8 +76,8 @@ endif()
 ###############################
 
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/VideoReader.lib)
-    FILE(COPY ${PROJECT_SOURCE_DIR}/../build/VideoReader.dll DESTINATION ${PROJECT_SOURCE_DIR}/build)
+    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/TensorStream.lib)
+    FILE(COPY ${PROJECT_SOURCE_DIR}/../build/TensorStream.dll DESTINATION ${PROJECT_SOURCE_DIR}/build)
 else()
-    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/libVideoReader.so)
+    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/libTensorStream.so)
 endif()

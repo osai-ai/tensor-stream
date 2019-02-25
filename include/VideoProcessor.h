@@ -14,7 +14,7 @@ extern "C" {
 */
 
 /** Class with supported frame output color formats
- @details Used in @ref VideoReader::getFrame() function
+ @details Used in @ref TensorStream::getFrame() function
 */
 enum FourCC {
 	Y800, /**< Monochrome format, 8 bit for pixel */

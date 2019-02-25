@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(VideoReader)
+project(TensorStream)
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})

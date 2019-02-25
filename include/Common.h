@@ -13,7 +13,7 @@
 @{ 
 */
 
-/** Enum with error codes can be return from VideoReader
+/** Enum with error codes can be return from TensorStream
 */
 enum Internal {
 	VREADER_ERROR = -3, /**< Unknown error appeared */
@@ -23,7 +23,7 @@ enum Internal {
 };
 
 /** Class with list of modes for logs output
- @details Used in @ref VideoReader::enableLogs() function
+ @details Used in @ref TensorStream::enableLogs() function
 */
 enum LogsLevel {
 	NONE, /**< No logs are needed */
@@ -33,7 +33,7 @@ enum LogsLevel {
 };
 
 /** Class with possible C++ extension module close options
- @details Used in @ref VideoReader::endProcessing() function
+ @details Used in @ref TensorStream::endProcessing() function
 */
 enum CloseLevel {
 	HARD = 1, /**< Close all opened handlers, free resources */

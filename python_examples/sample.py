@@ -1,5 +1,5 @@
 import time
-from video_reader import StreamVideoReader, LogsLevel, LogsType, FourCC
+from tensor_stream import TensorStreamConverter, LogsLevel, LogsType, FourCC
 import argparse
 import os
 
@@ -39,7 +39,7 @@ class DeltaTimeProfiler:
 
 
 if __name__ == '__main__':
-    reader = StreamVideoReader(args.input, repeat_number=20)
+    reader = TensorStreamConverter(args.input, repeat_number=20)
     reader.enable_logs(LogsLevel[args.verbose], LogsType.CONSOLE)
     reader.initialize()
 

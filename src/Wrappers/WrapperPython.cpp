@@ -12,7 +12,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
 }
 
-int VideoReader::initPipeline(std::string inputFile) {
+int TensorStream::initPipeline(std::string inputFile) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	av_log_set_callback(logCallback);
@@ -52,7 +52,7 @@ int VideoReader::initPipeline(std::string inputFile) {
 	return sts;
 }
 
-std::map<std::string, int> VideoReader::getInitializedParams() {
+std::map<std::string, int> TensorStream::getInitializedParams() {
 	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
 	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
@@ -62,7 +62,7 @@ std::map<std::string, int> VideoReader::getInitializedParams() {
 	return params;
 }
 
-int VideoReader::processingLoop() {
+int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
 	//change to end of file
@@ -124,7 +124,7 @@ int VideoReader::processingLoop() {
 	return sts;
 }
 
-int VideoReader::startProcessing() {
+int TensorStream::startProcessing() {
 	int sts = VREADER_OK;
 	sts = processingLoop();
 	//we should unlock mutex to allow get() function end execution
@@ -134,7 +134,7 @@ int VideoReader::startProcessing() {
 	return sts;
 }
 
-std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
@@ -184,7 +184,7 @@ std::tuple<at::Tensor, int> VideoReader::getFrame(std::string consumerName, int 
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
-void VideoReader::endProcessing(int mode) {
+void TensorStream::endProcessing(int mode) {
 	shouldWork = false;
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
@@ -206,7 +206,7 @@ void VideoReader::endProcessing(int mode) {
 	}
 }
 
-void VideoReader::enableLogs(int _logsLevel) {
+void TensorStream::enableLogs(int _logsLevel) {
 	if (_logsLevel) {
 		logsLevel = static_cast<LogsLevel>(_logsLevel);
 		if (!logsFile.is_open() && _logsLevel > 0) {
@@ -215,11 +215,11 @@ void VideoReader::enableLogs(int _logsLevel) {
 	}
 }
 
-int VideoReader::dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
+int TensorStream::dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
 	return vpp->DumpFrame(output, dumpFile);
 }
 
-static VideoReader reader;
+static TensorStream reader;
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	m.def("init", [](std::string rtmp) -> int {
 		return reader.initPipeline(rtmp);

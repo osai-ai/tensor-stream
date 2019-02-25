@@ -22,7 +22,7 @@ def find_version(*file_paths):
 
 readme = read('README.md')
 
-VERSION = find_version('video_reader', '__init__.py')
+VERSION = find_version('tensor_stream', '__init__.py')
 
 include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["include/"]
@@ -70,7 +70,7 @@ app_src_path += ["src/VideoProcessor.cpp"]
 app_src_path += ["src/Wrappers/WrapperPython.cpp"]
 
 setup(
-    name='video_reader',
+    name='tensor_stream',
     version=VERSION,
     author='Bykadorov Roman',
     description='Stream video reader',
@@ -78,7 +78,7 @@ setup(
     long_description_content_type='text/markdown',
     ext_modules=[
         Extension(
-            name='VideoReader',
+            name='TensorStream',
             sources=app_src_path,
             include_dirs=include_path,
             library_dirs=library_path,

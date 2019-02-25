@@ -1,6 +1,6 @@
 #include "WrapperC.h"
 
-VideoReader reader;
+TensorStream reader;
 
 void get_cycle(std::map<std::string, std::string> parameters) {
 	try {
@@ -29,7 +29,7 @@ int main()
 	reader.enableLogs(-MEDIUM);
 	int sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 	CHECK_STATUS(sts);
-	std::thread pipeline(&VideoReader::startProcessing, &reader);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, parameters);

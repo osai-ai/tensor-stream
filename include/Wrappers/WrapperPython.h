@@ -24,7 +24,7 @@
 #include "Decoder.h"
 #include "VideoProcessor.h"
 
-class VideoReader {
+class TensorStream {
 public:
 	int initPipeline(std::string inputFile);
 	std::map<std::string, int> getInitializedParams();

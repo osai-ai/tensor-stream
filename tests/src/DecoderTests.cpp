@@ -175,7 +175,7 @@ TEST_F(Decoder_Init, DPBBiggerBuffer) {
 		get.join();
 		EXPECT_NE(result, VREADER_REPEAT);
 		EXPECT_EQ(decoder.getFrameIndex(), i + 1);
-		//if use parser + decoder without VideoReader class need to ensure that frame from decoder will be deleted due to DPB buffer
+		//if use parser + decoder without TensorStream class need to ensure that frame from decoder will be deleted due to DPB buffer
 		av_frame_unref(output);
 	}
 }
@@ -218,7 +218,7 @@ TEST_F(Decoder_Init, DPBLessBuffer) {
 		
 		EXPECT_NE(result, VREADER_REPEAT);
 		EXPECT_EQ(decoder.getFrameIndex(), i + 1);
-		//if use parser + decoder without VideoReader class need to ensure that frame from decoder will be deleted due to DPB buffer
+		//if use parser + decoder without TensorStream class need to ensure that frame from decoder will be deleted due to DPB buffer
 		av_frame_unref(output);
 	}
 }

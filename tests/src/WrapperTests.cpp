@@ -5,7 +5,7 @@ extern "C" {
 #include "libavutil/crc.h"
 }
 
-void getCycle(std::map<std::string, std::string> parameters, VideoReader& reader) {
+void getCycle(std::map<std::string, std::string> parameters, TensorStream& reader) {
 	try {
 		int width = std::atoi(parameters["width"].c_str());
 		int height = std::atoi(parameters["height"].c_str());
@@ -47,10 +47,10 @@ void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 }
 
 TEST(Wrapper_Init, OneThread) {
-	VideoReader reader;
+	TensorStream reader;
 	reader.enableLogs(MEDIUM);
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
-	std::thread pipeline(&VideoReader::startProcessing, &reader);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"}, 
 													  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
 	//Remove artifacts from previous runs
@@ -66,9 +66,9 @@ TEST(Wrapper_Init, OneThread) {
 
 //several threads
 TEST(Wrapper_Init, MultipleThreads) {
-	VideoReader reader;
+	TensorStream reader;
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
-	std::thread pipeline(&VideoReader::startProcessing, &reader);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parametersFirst = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "10"}, {"dumpName", "bbb_dumpFirst.yuv"} };
 	std::map<std::string, std::string> parametersSecond = { {"name", "second"}, {"delay", "-1"}, {"format", std::to_string(Y800)}, {"width", "1920"}, {"height", "1080"},
@@ -89,7 +89,7 @@ TEST(Wrapper_Init, MultipleThreads) {
 
 }
 
-void getCycleLD(std::map<std::string, std::string> parameters, VideoReader& reader) {
+void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& reader) {
 	try {
 		int width = std::atoi(parameters["width"].c_str());
 		int height = std::atoi(parameters["height"].c_str());
@@ -117,10 +117,10 @@ void getCycleLD(std::map<std::string, std::string> parameters, VideoReader& read
 
 //delay
 TEST(Wrapper_Init, CheckPerformance) {
-	VideoReader reader;
+	TensorStream reader;
 	reader.enableLogs(HIGH);
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
-	std::thread pipeline(&VideoReader::startProcessing, &reader);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "10"} };
 
@@ -134,10 +134,10 @@ TEST(Wrapper_Init, CheckPerformance) {
 TEST(Wrapper_Init, OneThreadHang) {
 	bool ended = false;
 	std::thread mainThread([&ended]() {
-		VideoReader reader;
+		TensorStream reader;
 		reader.enableLogs(MEDIUM);
 		ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
-		std::thread pipeline(&VideoReader::startProcessing, &reader);
+		std::thread pipeline(&TensorStream::startProcessing, &reader);
 		std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 														  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
 		//Remove artifacts from previous runs

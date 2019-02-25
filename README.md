@@ -1,6 +1,6 @@
 
-# VideoReader README
-VideoReader is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
+# TensorStream README
+TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python
 * Detecting basic video stream issues related to frames reordering/loss
 * VPP operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
@@ -18,14 +18,14 @@ pip install TBD
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
 * [Pytorch](https://github.com/pytorch/pytorch) 1.0 to build C++ extension for Python
 
-To build VideoReader on Windows, Visual Studio 2017 14.11 toolset is needed
-### VideoReader source code
+To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is needed
+### TensorStream source code
 
 ```
-git clone https://github.com/Fonbet/argus-video-reader.git
-cd argus-video-reader
+git clone https://github.com/Fonbet/argus-tensor-stream.git
+cd argus-tensor-stream
 ```
-### Install VideoReader
+### Install TensorStream
 #### C++ extenssion for Python
 
 On Linux:
@@ -58,12 +58,12 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ### Docker image
 Dockerfile can be found at the top level of repository. Build as usual:
 ```
-docker build -t videoreader .
+docker build -t tensorstream .
 ```
 ### Building examples and tests
 Examples for Python and C++ can be found in ```c_examples``` and ```python_exapmles``` folders.  Tests for C++ can found in ```tests ``` folder.
 #### Python example 
-Can be executed via Python after VideoReader [C++ extenssion for Python](#c-extenssion-for-python) installation.
+Can be executed via Python after TensorStream [C++ extenssion for Python](#c-extenssion-for-python) installation.
 ```
 python python_examples/sample.py
 ```
@@ -104,4 +104,4 @@ python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 
 ## Documentation
-Documentation for Python and C++ API can be found on the [site](https://videoreader.argus-ai.com/)
+Documentation for Python and C++ API can be found on the [site](https://tensorstream.argus-ai.com/)

@@ -19,7 +19,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	}
 }
 
-int VideoReader::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	av_log_set_callback(logCallback);
@@ -55,7 +55,7 @@ int VideoReader::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 	return sts;
 }
 
-std::map<std::string, int> VideoReader::getInitializedParams() {
+std::map<std::string, int> TensorStream::getInitializedParams() {
 	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
 	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
@@ -65,7 +65,7 @@ std::map<std::string, int> VideoReader::getInitializedParams() {
 	return params;
 }
 
-int VideoReader::processingLoop() {
+int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
 	while (shouldWork) {
@@ -106,7 +106,7 @@ int VideoReader::processingLoop() {
 	return sts;
 }
 
-int VideoReader::startProcessing() {
+int TensorStream::startProcessing() {
 	int sts = VREADER_OK;
 	sts = processingLoop();
 	//we should unlock mutex to allow get() function end execution
@@ -115,7 +115,7 @@ int VideoReader::startProcessing() {
 	return sts;
 }
 
-std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<std::shared_ptr<uint8_t>, int> TensorStream::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
@@ -160,7 +160,7 @@ std::tuple<std::shared_ptr<uint8_t>, int> VideoReader::getFrame(std::string cons
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
-void VideoReader::endProcessing(int mode) {
+void TensorStream::endProcessing(int mode) {
 	shouldWork = false;
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
@@ -181,7 +181,7 @@ void VideoReader::endProcessing(int mode) {
 	}
 }
 
-void VideoReader::enableLogs(int level) {
+void TensorStream::enableLogs(int level) {
 	if (level) {
 		logsLevel = static_cast<LogsLevel>(level);
 		if (!logsFile.is_open() && level > 0) {
@@ -190,7 +190,7 @@ void VideoReader::enableLogs(int level) {
 	}
 }
 
-int VideoReader::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile) {
+int TensorStream::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile) {
 	AVFrame* output = av_frame_alloc();
 	output->opaque = frame.get();
 	output->width = output->linesize[0] = width;
@@ -215,6 +215,6 @@ int VideoReader::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height
 	return status;
 }
 
-int VideoReader::getDelay() {
+int TensorStream::getDelay() {
 	return realTimeDelay;
 }
