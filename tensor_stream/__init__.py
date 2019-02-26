@@ -5,4 +5,4 @@ from tensor_stream.tensor_stream import TensorStreamConverter,\
     CloseLevel,\
     FourCC
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
