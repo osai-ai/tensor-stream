@@ -46,11 +46,18 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
-	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
-	CHECK_STATUS(codecTmp->framerate.num == 0);
-	realTimeDelay = ((float)codecTmp->framerate.den /
-		(float)codecTmp->framerate.num) * 1000;
-	LOG_VALUE(std::string("Native frame rate: ") + std::to_string((int) (codecTmp->framerate.num / codecTmp->framerate.den)));
+	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
+	std::pair<int, int> frameRate(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
+	if (!frameRate.second) {
+		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"));
+		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
+	}
+
+	CHECK_STATUS(frameRate.second == 0 || frameRate.first == 0);
+	CHECK_STATUS((int) (frameRate.second / frameRate.first) > frameRateConstraints);
+	realTimeDelay = ((float)frameRate.first /
+		(float)frameRate.second) * 1000;
+	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int) (frameRate.second / frameRate.first)));
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }

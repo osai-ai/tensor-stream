@@ -153,6 +153,7 @@ extern std::mutex logsMutex;
 	}
 	
 const int maxConsumers = 5;
+const int frameRateConstraints = 120;
 
 template <class T>
 T findFree(std::string consumerName, std::vector<std::pair<std::string, T> >& entities) {
