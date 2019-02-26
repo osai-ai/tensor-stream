@@ -44,7 +44,7 @@ int TensorStream::initPipeline(std::string inputFile) {
 		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-	std::pair<int, int> frameRate(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
+	frameRate = std::pair<int, int>(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
 	if (!frameRate.second) {
 		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"));
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
@@ -60,10 +60,9 @@ int TensorStream::initPipeline(std::string inputFile) {
 }
 
 std::map<std::string, int> TensorStream::getInitializedParams() {
-	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
-	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
-	params.insert(std::map<std::string, int>::value_type("framerate_den", codecTmp->framerate.den));
+	params.insert(std::map<std::string, int>::value_type("framerate_num", frameRate.second));
+	params.insert(std::map<std::string, int>::value_type("framerate_den", frameRate.first));
 	params.insert(std::map<std::string, int>::value_type("width", decoder->getDecoderContext()->width));
 	params.insert(std::map<std::string, int>::value_type("height", decoder->getDecoderContext()->height));
 	return params;

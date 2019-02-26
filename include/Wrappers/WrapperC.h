@@ -68,6 +68,7 @@ private:
 	std::shared_ptr<VideoProcessor> vpp;
 	AVPacket* parsed;
 	int realTimeDelay = 0;
+	std::pair<int, int> frameRate;
 	bool shouldWork;
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
