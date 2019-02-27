@@ -7,6 +7,9 @@
 #include <algorithm>
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
+	if (level > AV_LOG_ERROR)
+		return;
+
 	if (logsLevel) {
 		std::vector<char> buffer(256);
 		vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
