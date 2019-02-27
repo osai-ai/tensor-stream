@@ -2,14 +2,13 @@
 #include <iostream>
 
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
-	if (level > AV_LOG_ERROR)
-		return;
-
-	std::vector<char> buffer(256);
-	vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
-	std::string logMessage(&buffer[0]);
-	logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
-	LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
+	if (logsLevel) {
+		std::vector<char> buffer(256);
+		vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
+		std::string logMessage(&buffer[0]);
+		logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
+		LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
+	}
 }
 
 int TensorStream::initPipeline(std::string inputFile) {

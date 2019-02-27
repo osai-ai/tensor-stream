@@ -279,7 +279,9 @@ int Parser::Init(ParserParameters& input) {
 	state = input;
 	int sts = VREADER_OK;
 	//packet_buffer - isn't empty
-	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, /*&opts*/0);
+	AVDictionary *opts = 0;
+	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &opts);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
