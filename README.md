@@ -7,9 +7,9 @@ TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to
 
 The whole pipeline works on GPU.
 ## Binaries
-Extension for Python can be installed via pip:
+Extension for Python can be installed via pip (**Linux only**):
 ```
-pip install tensor-stream
+pip install tensor_stream-0.1.3-cp36-cp36m-linux_x86_64.whl
 ```
 ## Installation from source
 ### Install dependencies
