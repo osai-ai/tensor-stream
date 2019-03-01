@@ -9,7 +9,7 @@ The whole pipeline works on GPU.
 ## Binaries
 Extension for Python can be installed via pip (**Linux only**):
 ```
-pip install https://tensorstream.argus-ai.com/wheel/linux/tensor_stream-0.1.4-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/linux/tensor_stream-0.1.5-cp36-cp36m-linux_x86_64.whl
 ```
 Python 3.6 or above is required
 ## Installation from source
