@@ -11,12 +11,14 @@ Extension for Python can be installed via pip (**Linux only**):
 ```
 pip install https://tensorstream.argus-ai.com/wheel/linux/tensor_stream-0.1.4-cp36-cp36m-linux_x86_64.whl
 ```
+Python 3.6 or above is required
 ## Installation from source
 ### Install dependencies
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
 * [Pytorch](https://github.com/pytorch/pytorch) 1.0 to build C++ extension for Python
+* [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is needed
 ### TensorStream source code

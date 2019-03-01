@@ -116,8 +116,10 @@ int TensorStream::processingLoop() {
 int TensorStream::startProcessing() {
 	int sts = VREADER_OK;
 	sts = processingLoop();
+	LOG_VALUE(std::string("Processing was interrupted or stream has ended"));
 	//we should unlock mutex to allow get() function end execution
 	decoder->notifyConsumers();
+	LOG_VALUE(std::string("All consumers were notified about processing end"));
 	CHECK_STATUS(sts);
 	return sts;
 }
@@ -169,8 +171,10 @@ Mode 1 - full close, mode 2 - soft close (for reset)
 */
 void TensorStream::endProcessing(int mode) {
 	shouldWork = false;
+	LOG_VALUE(std::string("End processing async part"));
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
+		LOG_VALUE(std::string("End processing sync part start"));
 		if (mode == HARD && logsFile.is_open()) {
 			logsFile.close();
 		}
@@ -185,6 +189,7 @@ void TensorStream::endProcessing(int mode) {
 		processedArr.clear();
 		delete parsed;
 		parsed = nullptr;
+		LOG_VALUE(std::string("End processing sync part end"));
 	}
 }
 
