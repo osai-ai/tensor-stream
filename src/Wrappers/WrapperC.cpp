@@ -156,12 +156,6 @@ std::tuple<std::shared_ptr<uint8_t>, int> TensorStream::getFrame(std::string con
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	std::shared_ptr<uint8_t> cudaFrame((uint8_t*) processedFrame->opaque, cudaFree);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
-	/*
-	Store tensor to be able get count of references for further releasing CUDA memory if strong_refs = 1
-	*/
-	START_LOG_BLOCK(std::string("add tensor"));
-	std::unique_lock<std::mutex> locker(freeSync);
-	END_LOG_BLOCK(std::string("add tensor"));
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
 }
