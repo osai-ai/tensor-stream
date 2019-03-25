@@ -125,7 +125,7 @@ while(need predictions):
     tensor, index = TensorStream.get("thread name", 0, RGB24, width, height)
     prediction = resnet34(tensor)
 ```
-Initialize tensor stream with video file (e.g. local or RTMP) and start reading it in separate process. Get last frame from read part of stream and do prediction.
+Initialize tensor stream with video file (e.g. local or network video) and start reading it in separate process. Get last frame from read part of stream and do prediction.
 > **Note:** All tasks inside TensorStream processed on GPU, so output tensor also located on GPU.
 
 ## Documentation
