@@ -1,4 +1,5 @@
 
+
 # TensorStream README
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [Pytorch Deep Learning models](#pytorch-example)
@@ -114,8 +115,19 @@ python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -n 100 -w 720 -h 480 -o dump.yuv -n 100
 ```
 ### Pytorch example
+
+Simple example how to use TensorStream for Deep learning (pseudo-code):
+
 ```
-TBD
+TensorStream.init("path-to-video")
+resnet34 = models.resnet34(pretrained=True)
+thread.start(TensorStream.start())
+
+while(need predictions):
+    tensor, index = TensorStream.get("thread name", 0, RGB24, width, height)
+    prediction = resnet34(tensor)
 ```
+Initialize tensor stream with video file (e.g. local or RTMP) and start reading it in separate process. Get last frame from read part of stream and do prediction.
+
 ## Documentation
 Documentation for Python and C++ API can be found on the [site](https://tensorstream.argus-ai.com/)
