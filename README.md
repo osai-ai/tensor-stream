@@ -116,13 +116,11 @@ python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 ### Pytorch example
 
-Simple example how to use TensorStream for Deep learning (pseudo-code):
+Simple example how to use TensorStream for Deep learning tasks (pseudo-code):
 
 ```
 TensorStream.init("path-to-video")
-resnet34 = models.resnet34(pretrained=True)
 thread.start(TensorStream.start())
-
 while(need predictions):
     tensor, index = TensorStream.get("thread name", 0, RGB24, width, height)
     prediction = resnet34(tensor)
