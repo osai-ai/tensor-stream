@@ -175,8 +175,7 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	outputTensor = torch::CUDA(at::kByte).tensorFromBlob(reinterpret_cast<void*>(processedFrame->opaque),
-		{ processedFrame->height, processedFrame->width, processedFrame->channels });
+	outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, torch::CUDA(at::kByte));
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
