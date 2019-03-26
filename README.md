@@ -126,7 +126,7 @@ reader.start()
 parameters = {
     'name': "first",
     'delay': 0,
-    'pixel_format': FourCC.RGB24,
+    'pixel_format': RGB24,
     'return_index': False,
     'width': width,
     'height': height,
