@@ -134,7 +134,7 @@ parameters = {
 
 while(need predictions):
     tensor = reader.read(**parameters)
-    prediction = resnet34(tensor)
+    prediction = model.predict(tensor)
 ```
 Initialize tensor stream with video file (e.g. local or network video) and start reading it in separate process. Get last frame from read part of stream and do prediction.
 > **Note:** All tasks inside TensorStream processed on GPU, so output tensor also located on GPU.
