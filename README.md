@@ -124,7 +124,7 @@ reader = TensorStreamConverter("path-to-video")
 reader.initialize()
 reader.start()
 parameters = {
-    'name': "RGBReader",
+    'name': "RGB_reader",
     'delay': 0,
     'pixel_format': RGB24,
     'return_index': False,
