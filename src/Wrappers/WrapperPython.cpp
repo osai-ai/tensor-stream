@@ -254,8 +254,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 		AVFrame output;
 		output.opaque = stream.data_ptr();
-		output.width = stream.size(1);
-		output.height = stream.size(0);
+		output.width = output.linesize[0] = stream.size(1);
+		output.height = output.linesize[1] = stream.size(0);
 		output.channels = stream.size(2);
 		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
 		std::string dumpName = consumerName + std::string("");
