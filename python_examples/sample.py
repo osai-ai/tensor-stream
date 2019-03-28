@@ -11,7 +11,7 @@ parser.add_argument("-w", "--width", help="Output width (default: input bitstrea
 parser.add_argument("-h", "--height", help="Output height (default: input bitstream height)", type=int)
 parser.add_argument("-fc", "--fourcc", default="RGB24", choices=["RGB24","BGR24", "Y800"], help="Decoded stream' FourCC (default: RGB24)")
 parser.add_argument("-v", "--verbose", default="LOW", choices=["LOW", "MEDIUM", "HIGH"], help="Set output level from library (default: LOW)")
-parser.add_argument("-n", "--number", help="Number of frame to parse (default: 100)", type=int)
+parser.add_argument("-n", "--number", help="Number of frame to parse (default: unlimited)", type=int)
 args = parser.parse_args()
 
 class DeltaTimeProfiler:

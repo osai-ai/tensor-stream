@@ -1,6 +1,7 @@
 
 
 
+
 # TensorStream README
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [Pytorch Deep Learning models](#pytorch-example)
@@ -17,8 +18,13 @@ The whole pipeline works on GPU.
 
 ## Binaries
 Extension for Python can be installed via pip (**Linux only**):
+ - **CUDA 9:**
 ```
 pip install https://tensorstream.argus-ai.com/wheel/linux/tensor_stream-0.1.5-cp36-cp36m-linux_x86_64.whl
+```
+- **CUDA 10:**
+```
+TBD
 ```
 Python 3.6 or above is required
 ## Installation from source
@@ -67,16 +73,22 @@ cd build
 cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 ### Docker image
-Dockerfile can be found at the top level of repository. Build as usual:
+Dockerfiles can be found in ```docker``` folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name  is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+To build image, copy one of Dockerfiles to the top level of repository, remove CUDA specific suffix and execute:
 ```
 docker build -t tensorstream .
+```
+Run with bash command line and follow C++ extension for Python [installation guide](#install-tensorstream)
+```
+nvidia-docker run -ti tensorstream bash
 ```
 ### Building examples and tests
 Examples for Python and C++ can be found in ```c_examples``` and ```python_examples``` folders.  Tests for C++ can be found in ```tests ``` folder.
 #### Python example 
 Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
 ```
-python python_examples/sample.py
+cd python_examples
+python sample.py
 ```
 #### C++ example and unit tests
 On Linux
@@ -108,12 +120,12 @@ python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 
 * The same scenario with downscaling:
 ```
-python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -n 100 -w 720 -h 480 -o dump.yuv
+python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv
 ```
 
 * Number of frames can be limited by -n option:
 ```
-python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -n 100 -w 720 -h 480 -o dump.yuv -n 100
+python sample.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
 ```
 ### Pytorch example
 
