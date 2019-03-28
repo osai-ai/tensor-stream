@@ -2,6 +2,7 @@
 
 
 
+
 # TensorStream README
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [Pytorch Deep Learning models](#pytorch-example)
@@ -32,7 +33,9 @@ Python 3.6 or above is required
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [Pytorch](https://github.com/pytorch/pytorch) 1.0 to build C++ extension for Python
+* [Pytorch](https://github.com/pytorch/pytorch) to build C++ extension for Python
+    * Latest stable version (1.0.0 or above) to build with CUDA 9
+    * Latest nightly version to build with CUDA 10
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is needed
