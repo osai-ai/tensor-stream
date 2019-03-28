@@ -1,8 +1,3 @@
-
-
-
-
-
 # TensorStream README
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [Pytorch Deep Learning models](#pytorch-example)

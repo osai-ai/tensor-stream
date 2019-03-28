@@ -1,7 +1,7 @@
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
 RUN apt-get update &&\
-    apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools libtcmalloc-minimal4 git pkgconf autoconf libtool python python-pip python-dev python-setuptools
+    apt-get -y install build-essential yasm nasm unzip wget sysstat tmux python-setuptools libtcmalloc-minimal4 git pkgconf autoconf libtool python3 python3-pip python3-dev python3-setuptools
 
 RUN git clone -b sdk/8.1 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
     cd nv-codec-headers && make install && cd ..
@@ -32,8 +32,8 @@ RUN git clone https://github.com/protocolbuffers/protobuf.git && \
     cd protobuf && git submodule update --init --recursive && \
     ./autogen.sh
 
-RUN pip install twine
-RUN pip install awscli
+RUN pip3 install twine
+RUN pip3 install awscli
 
 RUN cd /tmp &&\
     git clone https://github.com/doxygen/doxygen.git &&\
@@ -49,8 +49,10 @@ RUN cd /tmp &&\
     rm -rf /tmp/doxygen
 
 # Install pytorch
-RUN pip install numpy torchvision_nightly
-RUN pip install torch_nightly -f https://download.pytorch.org/whl/nightly/cu100/torch_nightly.html
+RUN pip3 install numpy torchvision_nightly
+RUN pip3 install torch_nightly -f https://download.pytorch.org/whl/nightly/cu100/torch_nightly.html
+
+RUN ln -s /usr/bin/python /usr/bin/python3
 
 COPY . /app
 WORKDIR /app
