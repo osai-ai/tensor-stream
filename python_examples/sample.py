@@ -26,7 +26,8 @@ def parse_arguments():
                         choices=["LOW", "MEDIUM", "HIGH"],
                         help="Set output level from library (default: LOW)")
     parser.add_argument("-n", "--number",
-                        help="Number of frame to parse (default: unlimited)", type=int)
+                        help="Number of frame to parse (default: unlimited)",
+                        type=int, default=0)
     return parser.parse_args()
 
 
@@ -66,7 +67,7 @@ if __name__ == '__main__':
         'name': "first",
         'delay': 0,
         'pixel_format': FourCC[args.fourcc],
-        'return_index': False,
+        'return_index': True,
         'width': args.width,
         'height': args.height,
     }
@@ -81,8 +82,13 @@ if __name__ == '__main__':
     try:
         while True:
             profiler.start()
-            tensor = reader.read(**parameters)
+            tensor, index = reader.read(**parameters)
             profiler.end()
+
+            if args.number:
+                if index > args.number:
+                    break
+
             if args.output:
                 reader.dump(tensor, args.output)
     except RuntimeError as e:
