@@ -5,9 +5,9 @@ import os
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--help', action='help',
-                        help='show this help message and exit')
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description="Simple usage example")
+    parser.add_argument('--help', action='help')
     parser.add_argument("-i", "--input",
                         default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
                         help="Path to bitstream: RTMP, local file")
