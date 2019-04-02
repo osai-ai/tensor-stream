@@ -31,30 +31,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-class DeltaTimeProfiler:
-    def __init__(self):
-        self.mean = 0.0
-        self.count = 0
-        self.prev_time = time.time()
-
-    def start(self):
-        self.prev_time = time.time()
-
-    def end(self):
-        self.count += 1
-        now_time = time.time()
-        delta = now_time - self.prev_time
-        self.mean += (delta - self.mean) / self.count
-        self.prev_time = now_time
-
-    def mean_delta(self):
-        return self.mean
-
-    def reset(self):
-        self.mean = 0.0
-        self.count = 0
-
-
 if __name__ == '__main__':
     args = parse_arguments()
 
@@ -71,19 +47,16 @@ if __name__ == '__main__':
         'width': args.width,
         'height': args.height,
     }
-    print("parameters: ", parameters)
+    print("Read parameters: ", parameters)
 
     if args.output:
         if os.path.exists(args.output):
             os.remove(args.output)
 
-    profiler = DeltaTimeProfiler()
     tensor = None
     try:
         while True:
-            profiler.start()
             tensor, index = reader.read(**parameters)
-            profiler.end()
 
             if args.number:
                 if index > args.number:
@@ -96,7 +69,8 @@ if __name__ == '__main__':
     finally:
         print("Frame size: ", reader.frame_size)
         print("FPS: ", reader.fps)
-        print("Mean latency:", profiler.mean)
         if tensor is not None:
             print("Tensor shape:", tensor.shape)
+            print("Tensor dtype:", tensor.dtype)
+            print("Tensor device:", tensor.device)
         reader.stop()
