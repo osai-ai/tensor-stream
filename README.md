@@ -2,13 +2,14 @@
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
-* VPP operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
+* Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
 
 The whole pipeline works on GPU.
 
 ## Table of Contents
  - [Installation](#install-tensorstream)
  - [Usage](#usage)
+ - [Docker](#docker-image)
  - [Documentation](#documentation)
 
 ## Install TensorStream
@@ -32,7 +33,7 @@ pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.
 ```
 pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
 ```
-Python 3.6 or above is required
+
 ### Installation from source
 
 #### TensorStream source code
@@ -100,7 +101,7 @@ cd build
 cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 
-### Docker image
+## Docker image
 Dockerfiles can be found in [docker](docker) folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name  is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
 ```
 docker build -t tensorstream -f docker/Dockerfile_cu10 .
