@@ -78,13 +78,13 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 
 #### Building examples and tests
 Examples for Python and C++ can be found in [c_examples](c_examples) and [python_examples](python_examples) folders.  Tests for C++ can be found in [tests](tests) folder.
-##### Python example 
+#### Python example 
 Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
 ```
 cd python_examples
 python simple.py
 ```
-##### C++ example and unit tests
+#### C++ example and unit tests
 On Linux
 ```
 cd c_examples  # tests
