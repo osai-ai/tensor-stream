@@ -1,5 +1,5 @@
-import time
 from tensor_stream import TensorStreamConverter, LogsLevel, LogsType, FourCC
+
 import argparse
 import os
 
