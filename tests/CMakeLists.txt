@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(Tests)
+project(Tests LANGUAGES CXX CUDA)
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
@@ -10,8 +10,8 @@ function(strip_quotes_slash name)
 endfunction()
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
@@ -49,6 +49,23 @@ include_directories("${PROJECT_SOURCE_DIR}/../include/Wrappers")
 #include headers to project (so they will be shown in include folder)
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 message(STATUS "GTEST SOURCE DIR ${gtest_SOURCE_DIR}")
+
+find_package(TensorStream REQUIRED)
+include_directories(${TensorStream_INCLUDE_DIRS})
+###############################
+add_executable(${PROJECT_NAME} ${APP_SOURCE})
+
+#CUDA libraries
+if (WIN32)
+    set(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES cuda.lib cudart.lib)
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES})
+else()
+    find_library(CUDA_COMMON cuda PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    find_library(CUDA_COMMON_RT cudart PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    target_link_libraries(${PROJECT_NAME} ${CUDA_COMMON} ${CUDA_COMMON_RT})
+endif()
+
+
 #FFmpeg includes
 if (WIN32)
     set(FFMPEG_PATH $ENV{FFMPEG_PATH})
@@ -65,34 +82,17 @@ if (WIN32)
     endif()
 endif()
 
-find_package(CUDA REQUIRED)
-include_directories(${CUDA_INCLUDE_DIRS})
-###############################
-add_executable(${PROJECT_NAME} ${APP_SOURCE})
-
-if (WIN32)
-    get_filename_component(CUDA_LIB_DIR ${CUDA_LIBRARIES} PATH)
-    file(GLOB_RECURSE CUDA_LIBS ${CUDA_LIB_DIR}/*cuda*.lib)
-    target_link_libraries(${PROJECT_NAME} ${CUDA_LIBS})
-else()
-    target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES})
-endif()
-
-#FFmpeg static libraries
+#FFmpeg libraries
 if (UNIX)
     find_library(FFMPEG_AVCODEC avcodec)
     find_library(FFMPEG_AVUTIL avutil)
     find_library(FFMPEG_AVFORMAT avformat)
-endif()
-if (WIN32)
-    find_library(FFMPEG_AVCODEC avcodec ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
+else()
+	find_library(FFMPEG_AVCODEC avcodec ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
     find_library(FFMPEG_AVUTIL avutil ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
     find_library(FFMPEG_AVFORMAT avformat ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
-    FILE(GLOB_RECURSE FFMPEG_DLLS ${FFMPEG_PATH}/bin/*.dll)
-    FILE(COPY ${FFMPEG_DLLS} DESTINATION ${PROJECT_SOURCE_DIR}/build)
-    set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
-    #set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
 endif()
+
 if (FFMPEG_AVCODEC AND FFMPEG_AVUTIL AND FFMPEG_AVFORMAT)
     target_link_libraries(${PROJECT_NAME} ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
 else()
@@ -102,11 +102,19 @@ else()
         message(FATAL_ERROR "Add path to FFmpeg folder to CMAKE_PREFIX_PATH")
     endif()
 endif()
-###############################
 
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/TensorStream.lib)
-    FILE(COPY ${PROJECT_SOURCE_DIR}/../build/TensorStream.dll DESTINATION ${PROJECT_SOURCE_DIR}/build)
+    target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
+else()
+    target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
+endif()
+
+#FFmpeg static libraries
+###############################
+if (WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${TensorStream_DLL_PATH}/$(Configuration) ${CMAKE_BINARY_DIR}/$(Configuration)
+        COMMENT "Copying dependent DLL")
 else()
     target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/libTensorStream.so)
 endif()
