@@ -11,7 +11,7 @@ from tensor_stream import TensorStreamConverter, FourCC
 
 def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
-                                     description="Real-time style transfer on video")
+                                     description="Real-time video style transfer example")
     parser.add_argument('--help', action='help')
     parser.add_argument("-m", "--model",
                         default="saved_models/mosaic.pth",
@@ -22,6 +22,8 @@ def parse_arguments():
     parser.add_argument("-o", "--output",
                          default="video.mp4",
                         help="Output stream or video file")
+    parser.add_argument("--concat_orig", action='store_true',
+                        help="Concatenate original frames to output video")
     parser.add_argument("-w", "--width",
                         help="Output width (default: input width)",
                         type=int, default=0)
@@ -35,7 +37,7 @@ def parse_arguments():
                         help='Encoder codec for output video', type=str)
     parser.add_argument('-p', '--preset', default="slow",
                         help='Preset for output video', type=str)
-    parser.add_argument('-b', '--bitrate', default=10000,
+    parser.add_argument('-b', '--bitrate', default=5000,
                         help='Bitrate (kb/s) for output video', type=int)
     return parser.parse_args()
 
@@ -74,7 +76,8 @@ if __name__ == "__main__":
     height = args.height if args.height else reader.frame_size[1]
 
     writer = FFmpegVideoWriter(args.output,
-                               out_size=(width * 2, height),
+                               out_size=(width * 2 if args.concat_orig else width,
+                                         height),
                                out_fps=reader.fps,
                                bitrate=args.bitrate,
                                codec=args.codec,
@@ -99,11 +102,13 @@ if __name__ == "__main__":
                 output = style_model(tensor)
                 output = torch.clamp(output, 0, 255)
 
-            image = tensor_to_image(tensor)
-            style_image = tensor_to_image(output)
-
-            show_image = np.concatenate((image, style_image), axis=1)
-            writer.write(show_image)
+            style_frame = tensor_to_image(output)
+            if args.concat_orig:
+                orig_frame = tensor_to_image(tensor)
+                write_frame = np.concatenate((orig_frame, style_frame), axis=1)
+            else:
+                write_frame = style_frame
+            writer.write(write_frame)
 
             if args.time:
                 if index > args.time * reader.fps:
