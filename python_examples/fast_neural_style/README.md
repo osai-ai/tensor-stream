@@ -38,7 +38,7 @@ python neural_style.py -m </path/to/saved-model.pth> -i </path/to/input-file-or-
 
 You can stream result video to local address and open with VLC or something else.
 ```
-python neural_style.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth
+python neural_style.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth -w 540 -h 304
 ```
 
 For example open in mplayer:

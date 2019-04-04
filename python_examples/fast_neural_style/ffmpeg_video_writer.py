@@ -10,7 +10,7 @@ class FFmpegVideoWriter:
                  bitrate=2000,
                  codec="h264_nvenc",
                  preset="medium",
-                 loglevel="warning",
+                 loglevel="info",
                  keyframe_freq=30):
         self.logger = logging.getLogger(__name__)
 

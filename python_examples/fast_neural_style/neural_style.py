@@ -71,9 +71,11 @@ if __name__ == "__main__":
 
     reader = TensorStreamConverter(args.input, repeat_number=20)
     reader.initialize()
+    print(f"Input video frame size: {reader.frame_size}, fps: {reader.fps}")
 
     width = args.width if args.width else reader.frame_size[0]
     height = args.height if args.height else reader.frame_size[1]
+    print(f"Model input image width: {width}, height: {height}")
 
     writer = FFmpegVideoWriter(args.output,
                                out_size=(width * 2 if args.concat_orig else width,
