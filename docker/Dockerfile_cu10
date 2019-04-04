@@ -40,9 +40,9 @@ RUN pip3 install --no-cache-dir \
     numpy==1.16.2
 
 # Install PyTorch
-RUN pip3 install --no-cache-dir \
-    torch==1.0.1.post2 \
-    torchvision==0.2.2
+RUN pip3 install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp36-cp36m-linux_x86_64.whl &&\
+    pip3 install torchvision==0.2.2 &&\
+    rm -rf ~/.cache/pip
 
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\
