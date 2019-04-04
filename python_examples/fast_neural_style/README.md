@@ -16,7 +16,7 @@ Description + credentials + gif
 
 Example tested on RTMP stream (1080x608, 24 fps) on with the following hardware:
 * i7 7700k
-* Nvidia GTX 1080Ti
+* Nvidia GTX 1060
 
 
 ## Usage
@@ -41,7 +41,7 @@ You can stream result video to local address and open with VLC or something else
 python neural_style.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth
 ```
 
-In example open with mplayer:
+For example open in mplayer:
 ```
 mplayer -demuxer +mpegts -framedrop -benchmark udp://127.0.0.1:1234?buffer_size=1000000
 ```
