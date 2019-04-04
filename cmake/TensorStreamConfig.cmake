@@ -25,13 +25,24 @@ else()
   get_filename_component(TensorStream_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../" ABSOLUTE)
 endif()
 
+enable_language(CUDA)
 # Include directories.
 set(TensorStream_INCLUDE_DIRS ${TensorStream_INSTALL_PREFIX}/include ${TensorStream_INSTALL_PREFIX}/include/Wrappers ${TensorStream_INSTALL_PREFIX}/build/include)
+if (UNIX)
+    set(TensorStream_INCLUDE_DIRS ${TensorStream_INCLUDE_DIRS} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+endif()
 # TensorStream library only
 find_library(TensorStream_LIBRARY TensorStream PATHS ${TensorStream_INSTALL_PREFIX} PATH_SUFFIXES build)
 add_library(TensorStream UNKNOWN IMPORTED)
 
-set(TensorStream_LIBRARIES ${TensorStream_LIBRARIES} ${TensorStream_LIBRARY})
+if (UNIX)
+    find_library(CUDA_COMMON cuda PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    find_library(CUDA_COMMON_RT cudart PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    set(TensorStream_LIBRARIES ${TensorStream_LIBRARIES} ${TensorStream_LIBRARY} ${CUDA_COMMON} ${CUDA_COMMON_RT})
+else()
+    set(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES cuda.lib cudart.lib)
+    set(TensorStream_LIBRARIES ${TensorStream_LIBRARIES} ${TensorStream_LIBRARY} ${CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES})
+endif()
 
 set_target_properties(TensorStream PROPERTIES
     IMPORTED_LOCATION "${TensorStream_LIBRARY}"

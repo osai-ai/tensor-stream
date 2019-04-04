@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
-project(Sample LANGUAGES CXX CUDA)
+project(Sample LANGUAGES CXX)
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
+if (WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+endif()
 
 FILE(GLOB_RECURSE APP_SOURCE "src/*.c*")
 source_group("src" FILES ${APP_SOURCE})
