@@ -31,6 +31,12 @@ def parse_arguments():
     parser.add_argument("-t", "--time",
                         help="Seconds to record, (default: unlimited)",
                         type=int, default=0)
+    parser.add_argument('-c', '--codec', default="h264_nvenc",
+                        help='Encoder codec for output video', type=str)
+    parser.add_argument('-p', '--preset', default="slow",
+                        help='Preset for output video', type=str)
+    parser.add_argument('-b', '--bitrate', default=10000,
+                        help='Bitrate (kb/s) for output video', type=int)
     return parser.parse_args()
 
 
@@ -59,7 +65,7 @@ def tensor_to_image(tensor):
 if __name__ == "__main__":
     args = parse_arguments()
 
-    style_model = load_model(args.model)
+    style_model = load_model(args.model, device='cuda')
 
     reader = TensorStreamConverter(args.input, repeat_number=20)
     reader.initialize()
@@ -70,7 +76,10 @@ if __name__ == "__main__":
     writer = FFmpegVideoWriter(args.output,
                                out_size=(width * 2, height),
                                out_fps=reader.fps,
-                               bitrate=10000)
+                               bitrate=args.bitrate,
+                               codec=args.codec,
+                               preset=args.preset,
+                               keyframe_freq=int(reader.fps) * 2)
 
     reader.start()
 
