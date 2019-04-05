@@ -3,9 +3,33 @@
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
-* Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800
+* Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
+* Support Linux and Windows  
 
-The whole pipeline works on GPU.
+Simple example how to use TensorStream for deep learning tasks:
+
+```
+from tensor_stream import TensorStreamConverter, FourCC
+
+reader = TensorStreamConverter("rtmp://127.0.0.1/live")
+reader.initialize()
+reader.start()
+
+while need_predictions:
+    # read latest available frame from stream 
+    tensor = reader.read(name="BGR_reader",
+                         pixel_format=FourCC.BGR24,
+                         width=256,
+                         height=256)
+                         
+    # tensor dtype is torch.uint8, device is cuda, shape is (256, 256, 3)
+    prediction = model(tensor)
+    ...
+```
+
+Initialize tensor stream with video file (e.g. local or network video) and start reading it in separate process. Get last frame from read part of stream and do prediction.
+> **Note:** All tasks inside TensorStream processed on GPU, so output tensor also located on GPU.
+
 
 ## Table of Contents
  - [Installation](#install-tensorstream)
@@ -20,21 +44,8 @@ The whole pipeline works on GPU.
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [PyTorch](https://github.com/pytorch/pytorch) to build C++ extension for Python
-    * Stable version (1.0.0 or above) to build with CUDA 9
-    * Latest stable version (1.0.1.post2 or above) to build with CUDA 10
+* [PyTorch](https://github.com/pytorch/pytorch) 1.0.1.post2 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
-
-### Binaries
-Extension for Python can be installed via pip (**Linux only**):
- - **CUDA 9:**
-```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
-```
-- **CUDA 10:**
-```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
-```
 
 ### Installation from source
 
@@ -76,6 +87,17 @@ set FFMPEG_PATH="Path to FFmpeg install folder"
 mkdir build
 cd build
 cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
+```
+
+### Binaries (Linux only)
+Extension for Python can be installed via pip:
+ - **CUDA 9:**
+```
+pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
+```
+- **CUDA 10:**
+```
+pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
@@ -141,34 +163,15 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
 ```
 
-3. Using TensorStream with existing [fast-neural-style](https://github.com/pytorch/examples/tree/master/fast_neural_style) model to augment input frames
-
 ### PyTorch example
 
-Simple example how to use TensorStream for Deep learning tasks:
+Real-time video style transfer example [fast-neural-style](python_examples/fast_neural_style).
 
-```
-reader = TensorStreamConverter(stream_url)
-reader.initialize()
-reader.start()
-parameters = {
-    'name': "RGB_reader",
-    'delay': 0,
-    'pixel_format': FourCC.RGB24,
-    'return_index': False,
-    'width': width,
-    'height': height,
-}
-
-while need_predictions:
-    tensor = reader.read(**parameters)  # tensor dtype is torch.uint8, device is cuda
-    prediction = model(tensor)
-```
-Initialize tensor stream with video file (e.g. local or network video) and start reading it in separate process. Get last frame from read part of stream and do prediction.
-> **Note:** All tasks inside TensorStream processed on GPU, so output tensor also located on GPU.
 
 ## Documentation
+
 Documentation for Python and C++ API can be found on the [site](https://tensorstream.argus-ai.com/).
+
 ## License
 
 TensorStream is LGPL-2.1 licensed, see LICENSE file for details.
