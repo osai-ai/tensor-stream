@@ -89,8 +89,7 @@ if __name__ == "__main__":
 
     try:
         while True:
-            tensor, index = reader.read("style",
-                                        pixel_format=FourCC.RGB24,
+            tensor, index = reader.read(pixel_format=FourCC.RGB24,
                                         return_index=True,
                                         width=width,
                                         height=height)
