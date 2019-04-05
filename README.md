@@ -93,11 +93,11 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 Extension for Python can be installed via pip:
  - **CUDA 9:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.7-cp36-cp36m-linux_x86_64.whl
 ```
 - **CUDA 10:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.6-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.7-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
