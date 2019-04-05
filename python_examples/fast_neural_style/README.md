@@ -2,7 +2,7 @@
 # Real-time video style transfer with TensorStream
 
 This example demonstrates how to use TensorStream with [fast-neural-style](https://github.com/pytorch/examples/tree/master/fast_neural_style) model.
-Input frames taken from RTMP stream are converted to Tensor and passed to trained model so augmented video is produced. The whole pipeline works in realitme
+Input frames taken from RTMP stream are converted to Tensor and passed to trained model so augmented video is produced. The whole pipeline works in realtime
 
 ![](example.gif)
 
