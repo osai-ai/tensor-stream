@@ -1,3 +1,4 @@
+
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -11,6 +12,7 @@ The whole pipeline works on GPU.
  - [Usage](#usage)
  - [Docker](#docker-image)
  - [Documentation](#documentation)
+ - [License](#license)
 
 ## Install TensorStream
 
@@ -113,9 +115,10 @@ nvidia-docker run -ti tensorstream bash
 
 ## Usage
 
-### Sample
-Python example demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
-> **Note:** You can pass **--help** to get list of all available options, their description and default values
+### Samples
+
+ 1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
+ > **Note:** You can pass **--help** to get list of all available options, their description and default values
 
 * Convert RTMP bitstream to RGB24 PyTorch tensor and dump result to dump.yuv file: 
 ```
@@ -127,11 +130,19 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv
 ```
-
 * Number of frames can be limited by -n option:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
 ```
+
+2. [Example](python_examples/many_consumers.py) that demonstrates how to use TensorStream in case of several stream consumers:
+> **Note:** You can pass **--help** to get list of all available options, their description and default values
+```
+python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
+```
+
+3. Using TensorStream with existing [fast-neural-style](https://github.com/pytorch/examples/tree/master/fast_neural_style) model to augment input frames
+
 ### PyTorch example
 
 Simple example how to use TensorStream for Deep learning tasks:
@@ -158,3 +169,11 @@ Initialize tensor stream with video file (e.g. local or network video) and start
 
 ## Documentation
 Documentation for Python and C++ API can be found on the [site](https://tensorstream.argus-ai.com/).
+## License
+
+TensorStream is LGPL-2.1 licensed, see LICENSE file for details.
+
+### Used materials in samples
+
+[Big Buck Bunny](https://peach.blender.org/)  is licensed under the  [Creative Commons Attribution 3.0 license](http://creativecommons.org/licenses/by/3.0/).
+(c) copyright 2008, Blender Foundation /  [www.bigbuckbunny.org](http://www.bigbuckbunny.org/)
