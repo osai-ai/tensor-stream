@@ -39,15 +39,6 @@ if __name__ == '__main__':
     reader.initialize()
 
     reader.start()
-    parameters = {
-        'name': "first",
-        'delay': 0,
-        'pixel_format': FourCC[args.fourcc],
-        'return_index': True,
-        'width': args.width,
-        'height': args.height,
-    }
-    print("Read parameters: ", parameters)
 
     if args.output:
         if os.path.exists(args.output):
@@ -56,7 +47,10 @@ if __name__ == '__main__':
     tensor = None
     try:
         while True:
-            tensor, index = reader.read(**parameters)
+            tensor, index = reader.read(pixel_format=FourCC[args.fourcc],
+                                        return_index=True,
+                                        width=args.width,
+                                        height=args.height)
 
             if args.number:
                 if index > args.number:

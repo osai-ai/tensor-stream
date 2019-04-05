@@ -19,7 +19,7 @@ def parse_arguments():
 
 def consumer1(reader, n_frames):
     for i in range(n_frames):
-        tensor = reader.read("consumer1",
+        tensor = reader.read(name="consumer1",
                              pixel_format=FourCC.RGB24,
                              width=540,
                              height=304)
@@ -31,7 +31,7 @@ def consumer1(reader, n_frames):
 
 def consumer2(reader, n_frames):
     for i in range(n_frames):
-        tensor, index = reader.read("consumer2",
+        tensor, index = reader.read(name="consumer2",
                                     pixel_format=FourCC.BGR24,
                                     return_index=True)
 

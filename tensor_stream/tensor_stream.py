@@ -119,7 +119,7 @@ class TensorStreamConverter:
     # @param[in] height Specify the height of decoded frame
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
-             name: str,
+             name="default",
              delay=0,
              pixel_format=FourCC.RGB24,
              return_index=False,

@@ -8,7 +8,7 @@ TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to
 
 Simple example how to use TensorStream for deep learning tasks:
 
-```
+```python
 from tensor_stream import TensorStreamConverter, FourCC
 
 reader = TensorStreamConverter("rtmp://127.0.0.1/live")
@@ -17,8 +17,7 @@ reader.start()
 
 while need_predictions:
     # read latest available frame from stream 
-    tensor = reader.read(name="BGR_reader",
-                         pixel_format=FourCC.BGR24,
+    tensor = reader.read(pixel_format=FourCC.BGR24,
                          width=256,
                          height=256)
                          
@@ -93,11 +92,11 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 Extension for Python can be installed via pip:
  - **CUDA 9:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.7-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
 ```
 - **CUDA 10:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.7-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
