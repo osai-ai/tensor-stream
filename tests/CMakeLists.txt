@@ -115,8 +115,6 @@ if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_directory ${TensorStream_DLL_PATH}/$(Configuration) ${CMAKE_BINARY_DIR}/$(Configuration)
         COMMENT "Copying dependent DLL")
-else()
-    target_link_libraries(${PROJECT_NAME} ${PROJECT_SOURCE_DIR}/../build/libTensorStream.so)
 endif()
 
 target_link_libraries(${PROJECT_NAME} gtest gtest_main)
