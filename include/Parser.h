@@ -142,7 +142,7 @@ private:
 	/*
 	State of component
 	*/
-	bool isClosed = false;
+	bool isClosed = true;
 	/*
 	Frame number for bitstream analyzing, part of H264 bitstream syntax
 	*/

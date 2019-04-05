@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(TensorStream)
+project(TensorStream LANGUAGES CXX CUDA)
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
@@ -9,10 +9,9 @@ function(strip_quotes_slash name)
     set(${name} ${${name}} PARENT_SCOPE)
 endfunction()
 
+#lib file will be located outside of Debug/Release folders
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -49,14 +48,10 @@ if (WIN32)
     endif()
 endif()
 
-enable_language(CUDA)
 if (UNIX)
     include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
 ###############################
-
-#include headers to project (so they will be shown in include folder)
-
 if(WIN32)
 	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
@@ -66,27 +61,55 @@ add_library(${PROJECT_NAME} SHARED ${APP_HEADERS} ${APP_SOURCE})
 #CUDA libraries
 if (WIN32)
     set(CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES cuda.lib)
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_CUDA_IMPLICIT_LINK_LIBRARIES})
 else()
     find_library(CUDA_COMMON cuda PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
     find_library(CUDA_COMMON_RT cudart PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
     target_link_libraries(${PROJECT_NAME} ${CUDA_COMMON} ${CUDA_COMMON_RT})
 endif()
-###############################
 
-#FFmpeg static libraries
+
+###############################
+#Copy external includes to build folder
+if (WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/include)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${FFMPEG_PATH}/include ${CMAKE_BINARY_DIR}/include
+        COMMENT "Copying external includes")
+endif()
+
+###############################
+#FFmpeg libraries
 if (UNIX)
     find_library(FFMPEG_AVCODEC avcodec)
     find_library(FFMPEG_AVUTIL avutil)
     find_library(FFMPEG_AVFORMAT avformat)
-endif()
-if (WIN32)
+else()
     find_library(FFMPEG_AVCODEC avcodec ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
+    FILE(GLOB_RECURSE FFMPEG_AVCODEC_DLL ${FFMPEG_PATH}/bin/avcodec*.dll)
     find_library(FFMPEG_AVUTIL avutil ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
+    FILE(GLOB_RECURSE FFMPEG_AVUTIL_DLL ${FFMPEG_PATH}/bin/avutil*.dll)
     find_library(FFMPEG_AVFORMAT avformat ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
-    FILE(GLOB_RECURSE FFMPEG_DLLS ${FFMPEG_PATH}/bin/*.dll)
-    FILE(COPY ${FFMPEG_DLLS} DESTINATION ${PROJECT_SOURCE_DIR}/build)
-    set(CMAKE_MSVCIDE_RUN_PATH ${FFMPEG_DLLS})
+    FILE(GLOB_RECURSE FFMPEG_AVFORMAT_DLL ${FFMPEG_PATH}/bin/avformat*.dll)
+    FILE(GLOB_RECURSE SWRESAMPLE_DLL ${FFMPEG_PATH}/bin/swresample*.dll)
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVCODEC_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+        COMMENT "Copying dependent DLL")
+    
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVFORMAT_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+        COMMENT "Copying dependent DLL")
+    
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVUTIL_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+        COMMENT "Copying dependent DLL")
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${SWRESAMPLE_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+        COMMENT "Copying dependent DLL")
 endif()
+
 if (FFMPEG_AVCODEC AND FFMPEG_AVUTIL AND FFMPEG_AVFORMAT)
     target_link_libraries(${PROJECT_NAME} ${FFMPEG_AVCODEC} ${FFMPEG_AVUTIL} ${FFMPEG_AVFORMAT})
 else()
@@ -97,3 +120,4 @@ else()
     endif()
 endif()
 ###############################
+

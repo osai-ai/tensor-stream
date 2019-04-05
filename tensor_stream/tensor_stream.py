@@ -4,6 +4,7 @@ import threading
 import logging
 from enum import Enum
 
+
 ## @defgroup pythonAPI Python API
 # @brief The list of TensorStream components can be used via Python interface
 # @details Here are all the classes, enums, functions described which can be used via Python to do RTMP/local stream converting to Pytorch Tensor with additional post-processing conversions
@@ -19,6 +20,7 @@ class StatusLevel(Enum):
     ## Some issue in %TensorStream component occured
     ERROR = 2
 
+
 ## Class with list of modes for logs output
 # @details Used in @ref TensorStreamConverter.enable_logs() function
 class LogsLevel(Enum):
@@ -30,6 +32,7 @@ class LogsLevel(Enum):
     MEDIUM = 2
     ## Print also the detailed information about functions in callstack
     HIGH = 3
+
 
 ## Class with list of places the log file has to be written to
 # @details Used in @ref TensorStreamConverter.enable_logs() function
@@ -48,6 +51,7 @@ class CloseLevel(Enum):
     ## Close all opened handlers except logs file handler, free resources
     SOFT = 2
 
+
 ## Class with supported frame output color formats
 # @details Used in @ref TensorStreamConverter.read() function
 class FourCC(Enum):
@@ -65,9 +69,9 @@ class TensorStreamConverter:
     # @param[in] stream_url Path to stream should be decoded
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
-    def __init__(self, stream_url, repeat_number = 1):
+    def __init__(self, stream_url, repeat_number=1):
         self.log = logging.getLogger(__name__)
-        self.log.info("Create VideoStream")
+        self.log.info("Create TensorStream")
         self.thread = None
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
         self.fps = None 
@@ -78,9 +82,9 @@ class TensorStreamConverter:
         self.repeat_number = repeat_number
 
     ## Initialization of C++ extension
-    # @warning if initialization attemps exceeded @ref repeat_number, RuntimeError is being thrown
+    # @warning if initialization attempts exceeded @ref repeat_number, RuntimeError is being thrown
     def initialize(self):
-        self.log.info("Initialize VideoStream")
+        self.log.info("Initialize TensorStream")
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
@@ -116,11 +120,11 @@ class TensorStreamConverter:
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
              name: str,
-             delay = 0,
-             pixel_format = FourCC.RGB24,
-             return_index = False,
-             width = 0,
-             height = 0):
+             delay=0,
+             pixel_format=FourCC.RGB24,
+             return_index=False,
+             width=0,
+             height=0):
         tensor, index = TensorStream.get(name, delay, pixel_format.value, width, height)
         if return_index:
             return tensor, index
@@ -144,8 +148,8 @@ class TensorStreamConverter:
 
     ## Close TensorStream session
     # @param[in] level Value from @ref CloseLevel
-    def stop(self, level = CloseLevel.HARD):
-        self.log.info("Stop VideoStream")
+    def stop(self, level=CloseLevel.HARD):
+        self.log.info("Stop TensorStream")
         TensorStream.close(level.value)
         if self.thread is not None:
             self.thread.join()
