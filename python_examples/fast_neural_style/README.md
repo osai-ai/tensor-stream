@@ -1,14 +1,18 @@
+
 # Real-time video style transfer with TensorStream
 
-Description + credentials + gif
+This example demonstrates how to use TensorStream with [fast-neural-style](https://github.com/pytorch/examples/tree/master/fast_neural_style) model.
+Input frames taken from RTMP stream are converted to Tensor and passed to trained model so augmented video is produced. The whole pipeline works in realitme.
+![](example.gif)
+
 
 ## Requirements
 
 * TensorStream and all dependencies
     * FFmpeg
-    * Python 
-    * NumPy 
-    * PyTorch   
+    * Python
+    * NumPy
+    * PyTorch
 
 ## Usage
 
@@ -21,6 +25,7 @@ Run example with default parameters:
 ```
 python neural_style.py -w 808 -h 456 
 ```
+>**Note:** on Windows you have to add path to ffmpeg executable file to PATH
 
 Run example with specific input, output video, different model weights and model input resolution. All arguments you can see with `python neural_style.py --help`.
 ```
