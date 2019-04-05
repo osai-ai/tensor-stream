@@ -83,8 +83,7 @@ if __name__ == "__main__":
                                out_fps=reader.fps,
                                bitrate=args.bitrate,
                                codec=args.codec,
-                               preset=args.preset,
-                               keyframe_freq=int(reader.fps) * 2)
+                               preset=args.preset)
 
     reader.start()
 

@@ -11,7 +11,7 @@ class FFmpegVideoWriter:
                  codec="h264_nvenc",
                  preset="medium",
                  loglevel="info",
-                 keyframe_freq=30):
+                 keyframe_freq=2):
         self.logger = logging.getLogger(__name__)
 
         self.url = url
