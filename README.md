@@ -1,6 +1,6 @@
 
 # TensorStream
-TensorStream is a C++ library for real-time video stream (e.g. RTMP) decoding to CUDA memory which support some additional features:
+TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
 * Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
@@ -16,7 +16,7 @@ reader.initialize()
 reader.start()
 
 while need_predictions:
-    # read latest available frame from stream 
+    # read latest available frame from the stream 
     tensor = reader.read(pixel_format=FourCC.BGR24,
                          width=256,
                          height=256)
@@ -26,8 +26,11 @@ while need_predictions:
     ...
 ```
 
-Initialize tensor stream with video file (e.g. local or network video) and start reading it in separate process. Get last frame from read part of stream and do prediction.
-> **Note:** All tasks inside TensorStream processed on GPU, so output tensor also located on GPU.
+* Initialize tensor stream with a video (e.g., a local file or a network video stream) and start reading it in a separate process.
+
+* Get latest available frame from the stream and make a prediction.
+
+> **Note:** All tasks inside TensorStream processed on a GPU, so output tensor also located on the GPU.
 
 
 ## Table of Contents
@@ -70,7 +73,7 @@ set VS150COMNTOOLS="Path to Visual Studio vcvarsall.bat folder"
 call "%VS150COMNTOOLS%\vcvarsall.bat" x64 -vcvars_ver=14.11
 python setup.py install
 ```
-To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is needed
+To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is required
 
 #### C++ library:
 
@@ -125,7 +128,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 
 ## Docker image
-Dockerfiles can be found in [docker](docker) folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name  is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+Dockerfiles can be found in [docker](docker) folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
 ```
 docker build -t tensorstream -f docker/Dockerfile_cu10 .
 ```
@@ -138,10 +141,10 @@ nvidia-docker run -ti tensorstream bash
 
 ### Samples
 
- 1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
- > **Note:** You can pass **--help** to get list of all available options, their description and default values
+1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
+> **Note:** You can pass **--help** to get the list of all available options, their description and default values
 
-* Convert RTMP bitstream to RGB24 PyTorch tensor and dump result to dump.yuv file: 
+* Convert an RTMP bitstream to RGB24 PyTorch tensors and dump the result to a dump.yuv file: 
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -o dump.yuv
 ```
@@ -151,20 +154,20 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv
 ```
-* Number of frames can be limited by -n option:
+* Number of frames to process can be limited by -n option:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
 ```
 
-2. [Example](python_examples/many_consumers.py) that demonstrates how to use TensorStream in case of several stream consumers:
-> **Note:** You can pass **--help** to get list of all available options, their description and default values
+2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
+
 ```
 python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
 ```
 
 ### PyTorch example
 
-Real-time video style transfer example [fast-neural-style](python_examples/fast_neural_style).
+Real-time video style transfer example: [fast-neural-style](python_examples/fast_neural_style).
 
 
 ## Documentation
@@ -173,7 +176,7 @@ Documentation for Python and C++ API can be found on the [site](https://tensorst
 
 ## License
 
-TensorStream is LGPL-2.1 licensed, see LICENSE file for details.
+TensorStream is LGPL-2.1 licensed, see the [LICENSE](LICENSE) file for details.
 
 ### Used materials in samples
 
