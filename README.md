@@ -49,6 +49,8 @@ while need_predictions:
 * [PyTorch](https://github.com/pytorch/pytorch) 1.0.1.post2 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
+It is convenient to use TensorStream in Docker containers. The provided [Dockerfiles](#docker-image) is supplied to create an image with all the necessary dependencies.
+
 ### Installation from source
 
 #### TensorStream source code
@@ -132,7 +134,7 @@ Dockerfiles can be found in [docker](docker) folder. Please note that for differ
 ```
 docker build -t tensorstream -f docker/Dockerfile_cu10 .
 ```
-Run with bash command line and follow C++ extension for Python [installation guide](#install-tensorstream)
+Run with bash command line and follow [installation guide](#install-tensorstream)
 ```
 nvidia-docker run -ti tensorstream bash
 ```
