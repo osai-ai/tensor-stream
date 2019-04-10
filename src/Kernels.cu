@@ -2,7 +2,7 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
-__global__ void NV12ToRGB32Kernel(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB) {
+__global__ void NV12ToRGB32Kernel(unsigned char* Y, unsigned char* UV, float* RGB, int width, int height, int pitchNV12) {
 	/*
 		R = 1.164(Y - 16) + 1.596(V - 128)
 		B = 1.164(Y - 16)                   + 2.018(U - 128)
@@ -37,13 +37,13 @@ __global__ void NV12ToRGB32Kernel(unsigned char* Y, unsigned char* UV, unsigned 
 			GVal = 255;
 		if (GVal < 0)
 			GVal = 0;
-		RGB[j * 3 + i * pitchRGB + 0/*R*/] = (unsigned char)RVal;
-		RGB[j * 3 + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
-		RGB[j * 3 + i * pitchRGB + 2/*B*/] = (unsigned char)BVal;
+		RGB[j + i * width + 0 * (width * height) /*R*/] = (float)RVal / 255;
+		RGB[j + i * width + 1 * (width * height) /*G*/] = (float)GVal / 255;
+		RGB[j + i * width + 2 * (width * height) /*B*/] = (float)BVal / 255;
 	}
 }
 
-__global__ void NV12ToBGR32Kernel(unsigned char* Y, unsigned char* UV, unsigned char* BGR, int width, int height, int pitchNV12, int pitchRGB) {
+__global__ void NV12ToBGR32Kernel(unsigned char* Y, unsigned char* UV, float* BGR, int width, int height, int pitchNV12) {
 	/*
 		R = 1.164(Y - 16) + 1.596(V - 128)
 		B = 1.164(Y - 16)                   + 2.018(U - 128)
@@ -78,9 +78,9 @@ __global__ void NV12ToBGR32Kernel(unsigned char* Y, unsigned char* UV, unsigned 
 			GVal = 255;
 		if (GVal < 0)
 			GVal = 0;
-		BGR[j * 3 + i * pitchRGB + 0/*B*/] = (unsigned char)BVal;
-		BGR[j * 3 + i * pitchRGB + 1 /*G*/] = (unsigned char)GVal;
-		BGR[j * 3 + i * pitchRGB + 2/*R*/] = (unsigned char)RVal;
+		BGR[j + i * width + 0 * (width * height)/*B*/] = (float)BVal / 255;
+		BGR[j + i * width + 1 * (width * height)/*G*/] = (float)GVal / 255;
+		BGR[j + i * width + 2 * (width * height)/*R*/] = (float)RVal / 255;
 	}
 }
 
@@ -209,18 +209,18 @@ int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	*/
 	int width = src->width;
 	int height = src->height;
-	unsigned char* RGB = nullptr;
+	float* RGB = nullptr;
 	clock_t tStart = clock();
-	cudaError err = cudaMalloc(&RGB, dst->channels * width * height * sizeof(unsigned char));
+	cudaError err = cudaMalloc(&RGB, width * dst->channels * height * sizeof(float));
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
-	int blockX = std::ceil(dst->channels * width / (float)threadsPerBlock.x);
-	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
+	int blockX = std::ceil(width / (float)threadsPerBlock.x);
+	int blockY = std::ceil(dst->channels * dst->height / (float)threadsPerBlock.y);
 	dim3 numBlocks(blockX, blockY);
 	if (src->linesize[0])
-		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0], dst->channels * width);
+		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, src->linesize[0]);
 	else
-		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, width, dst->channels * width);
+		NV12ToRGB32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], RGB, width, height, width);
 	dst->opaque = RGB;
 	return err;
 }
@@ -231,17 +231,17 @@ int NV12ToBGR24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t
 	*/
 	int width = src->width;
 	int height = src->height;
-	unsigned char* BGR = nullptr;
-	cudaError err = cudaMalloc(&BGR, dst->channels * width * height * sizeof(unsigned char));
+	float* BGR = nullptr;
+	cudaError err = cudaMalloc(&BGR, width * dst->channels * height * sizeof(float));
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
-	int blockX = std::ceil(dst->channels * width / (float)threadsPerBlock.x);
-	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
+	int blockX = std::ceil(width / (float)threadsPerBlock.x);
+	int blockY = std::ceil(dst->channels * dst->height / (float)threadsPerBlock.y);
 	dim3 numBlocks(blockX, blockY);
 	if (src->linesize[0])
-		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, src->linesize[0], dst->channels * width);
+		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, src->linesize[0]);
 	else
-		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, width, dst->channels * width);
+		NV12ToBGR32Kernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], BGR, width, height, width);
 	dst->opaque = BGR;
 	return err;
 }
