@@ -105,9 +105,6 @@ extern std::mutex logsMutex;
 				if (std::abs(logsLevel) >= MEDIUM) { \
 					int timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count(); \
 					std::string time = std::to_string(timeMs); \
-					if (timeMs > (realTimeDelay + realTimeDelay / 4)) { \
-						finalMessage = messageOut + std::string(" -\nWARNING: Function time: ") + time + std::string("ms\n\n"); \
-					} \
 					finalMessage = messageOut + std::string(" -\nFunction time: ") + time + std::string("ms\n\n"); \
 				} else { \
 					finalMessage = messageOut + std::string(" -\n\n"); \
