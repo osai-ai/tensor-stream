@@ -124,10 +124,10 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<std::shared_ptr<uint8_t>, int> TensorStream::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
-	std::tuple<std::shared_ptr<uint8_t>, int> outputTuple;
+	std::tuple<uint8_t*, int> outputTuple;
 	FourCC format = static_cast<FourCC>(pixelFormat);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
@@ -154,7 +154,7 @@ std::tuple<std::shared_ptr<uint8_t>, int> TensorStream::getFrame(std::string con
 	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	std::shared_ptr<uint8_t> cudaFrame((uint8_t*) processedFrame->opaque, cudaFree);
+	uint8_t* cudaFrame((uint8_t*) processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;

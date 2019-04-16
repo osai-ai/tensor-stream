@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include "Common.h"
 #include "Parser.h"
@@ -41,7 +42,7 @@ public:
  @param[in] dstHeight Specify the height of decoded frame
  @return Decoded frame in CUDA memory and index of decoded frame
 */
-	std::tuple<std::shared_ptr<uint8_t>, int> getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth = 0, int dstHeight = 0);
+	std::tuple<uint8_t*, int> getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth = 0, int dstHeight = 0);
 /** Close TensorStream session
  @param[in] mode Value from @ref ::CloseLevel
 */
