@@ -29,16 +29,32 @@ enum FourCC {
 /*
 Structure contains description of desired conversions.
 */
-struct VPPParameters {
-	unsigned int width;
-	unsigned int height;
+
+enum Planes {
+	PLANAR = 0,
+	MERGED = 1
+};
+
+struct ColorParameters {
+	bool normalization;
+	Planes planesPos;
 	FourCC dstFourCC;
 };
 
-int NV12ToRGB24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream);
-int NV12ToBGR24(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream);
-int resizeNV12Nearest(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t * stream);
-int resizeNV12Bilinear(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t * stream);
+struct VPPParameters {
+	unsigned int width;
+	unsigned int height;
+	ColorParameters color;
+};
+
+enum ResizeType {
+	NEAREST = 0,
+	BILINEAR = 1
+};
+
+int colorConversion(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream);
+
+int resize(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
 
 class VideoProcessor {
 public:
