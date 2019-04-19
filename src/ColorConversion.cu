@@ -22,14 +22,14 @@ in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	int indexNV12 = j + i * pitchNV12; /*indexNV12 and indexRGB with/without pitch*/
 	unsigned char YVal = Y[indexNV12];
 	*R = 1.164f*(YVal - 16) + 1.596f*(V - 128);
-	*R = max(*R, 255);
-	*R = min(*R, 0);
+	*R = min(*R, 255);
+	*R = max(*R, 0);
 	*B = 1.164f*(YVal - 16) + 2.018f*(U - 128);
-	*B = max(*B, 255);
-	*B = min(*B, 0);
+	*B = min(*B, 255);
+	*B = max(*B, 0);
 	*G = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
-	*G = max(*G, 255);
-	*G = min(*G, 0);
+	*G = min(*G, 255);
+	*G = max(*G, 0);
 }
 
 __global__ void NV12ToRGB32KernelPlanar(unsigned char* Y, unsigned char* UV, float* RGB, int width, int height, int pitchNV12, bool normalization, bool swapRB) {
@@ -74,16 +74,23 @@ __global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, flo
 	}
 }
 
-int colorConversion(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream) {
+__global__ void NV12ToY800N(unsigned char* Y, float* dst, int width, int height) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+	
+	if (i < height && j < width) {
+		*dst = (float)(Y[j + i*width]) / 255;
+	}
+}
+
+int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
 	int width = src->width;
 	int height = src->height;
 	float* destination = nullptr;
-	FourCC dstFourCC = color.dstFourCC;
-
-	cudaError err = cudaMalloc(&destination, dst->channels * width * height * sizeof(float));
+	cudaError err = cudaSuccess;
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 
@@ -100,24 +107,44 @@ int colorConversion(AVFrame* src, AVFrame* dst, ColorParameters color, int maxTh
 	dim3 numBlocks(blockX, blockY);
 	//depends on fact of resize
 	int pitchWidth = src->linesize[0] ? src->linesize[0] : width;
-
-	switch (dstFourCC) {
+	bool swapRB = false;
+	switch (color.dstFourCC) {
 		case BGR24:
+			dst->format = AV_PIX_FMT_BGR24;
+			dst->channels = 3;
+			swapRB = true;
+			err = cudaMalloc(&destination, dst->channels * width * height * sizeof(float));
 			if (color.planesPos == Planes::PLANAR) {
-				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, true);
+				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, swapRB);
 			}
 			else {
-				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, true);
+				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, swapRB);
 			}
 		break;
 		case RGB24:
+			dst->format = AV_PIX_FMT_RGB24;
+			dst->channels = 3;
+			err = cudaMalloc(&destination, dst->channels * width * height * sizeof(float));
 			if (color.planesPos == Planes::PLANAR) {
-				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, false);
+				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, swapRB);
 			}
 			else {
-				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, false);
+				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchWidth, color.normalization, swapRB);
 			}
 		break;
+		case Y800:
+			dst->format = AV_PIX_FMT_GRAY8;
+			dst->channels = 1;
+			err = cudaMalloc(&destination, dst->width * dst->height * sizeof(float));
+			if (color.normalization) {
+				NV12ToY800N << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, pitchWidth, height);
+			}
+			else {
+				err = cudaMemcpy2D(destination, dst->width, dst->data[0], pitchWidth, dst->width, dst->height, cudaMemcpyDeviceToDevice);
+			}
+		break;
+		default:
+			err = cudaErrorMissingConfiguration;
 	}
 
 	//without resize

@@ -124,11 +124,10 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int index, VPPParameters videoOptions) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<uint8_t*, int> outputTuple;
-	FourCC format = static_cast<FourCC>(pixelFormat);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -150,8 +149,7 @@ std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int i
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = VREADER_OK;
-	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
-	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
+	sts = vpp->Convert(decoded, processedFrame, videoOptions, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	uint8_t* cudaFrame((uint8_t*) processedFrame->opaque);
@@ -196,13 +194,13 @@ void TensorStream::enableLogs(int level) {
 	}
 }
 
-int TensorStream::dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile) {
+int TensorStream::dumpFrame(std::shared_ptr<uint8_t> frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
 	AVFrame* output = av_frame_alloc();
 	output->opaque = frame.get();
-	output->width = output->linesize[0] = width;
-	output->height = output->linesize[1] = height;
-	output->channels = (format == RGB24 || format == BGR24) ? 3 : 1;
-	switch (format) {
+	output->width = output->linesize[0] = videoOptions.width;
+	output->height = output->linesize[1] = videoOptions.height;
+	output->channels = (videoOptions.color.dstFourCC == RGB24 || videoOptions.color.dstFourCC == BGR24) ? 3 : 1;
+	switch (videoOptions.color.dstFourCC) {
 		case RGB24:
 			output->format = AV_PIX_FMT_RGB24;
 		break;

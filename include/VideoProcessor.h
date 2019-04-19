@@ -52,9 +52,9 @@ enum ResizeType {
 	BILINEAR = 1
 };
 
-int colorConversion(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream);
+int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream);
 
-int resize(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
 
 class VideoProcessor {
 public:

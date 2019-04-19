@@ -66,55 +66,16 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 	bool resize = false;
 	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
 		resize = true;
-		resizeNV12Nearest(input, output, prop.maxThreadsPerBlock, &stream);
+		resizeKernel(input, output, ResizeType::NEAREST, prop.maxThreadsPerBlock, &stream);
 	}
 	else if (output->width == 0 || output->height == 0) {
 		output->width = input->width;
 		output->height = input->height;
 	}
 
-	switch (format.dstFourCC) {
-	case (RGB24):
-		{
-			output->format = AV_PIX_FMT_RGB24;
-			//this field is used only for audio so let's write number of planes there
-			output->channels = 3;
-			if (resize)
-				sts = NV12ToRGB24(output, output, prop.maxThreadsPerBlock, &stream);
-			else
-				sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
-			CHECK_STATUS(sts);
-			break;
-		}
-	case (BGR24):
-		{
-			output->format = AV_PIX_FMT_BGR24;
-			//this field is used only for audio so let's write number of planes there
-			output->channels = 3;
-			if (resize)
-				sts = NV12ToBGR24(output, output, prop.maxThreadsPerBlock, &stream);
-			else
-				sts = NV12ToBGR24(input, output, prop.maxThreadsPerBlock, &stream);
-			CHECK_STATUS(sts);
-			break;
-		}
-	case (Y800):
-		{
-			output->format = AV_PIX_FMT_GRAY8;
-			output->channels = 1;
-			//NV12 has one plane with Y only component, so need just copy first plane
-			cudaError err = cudaMalloc(&output->opaque, output->width * output->height * sizeof(unsigned char));
-			CHECK_STATUS(err);
-			if (resize)
-				err = cudaMemcpy(output->opaque, output->data[0], output->width * output->height, cudaMemcpyDeviceToDevice);
-			else
-				err = cudaMemcpy2D(output->opaque, output->width, input->data[0], input->linesize[0], output->width, output->height, cudaMemcpyDeviceToDevice);
-			CHECK_STATUS(err);
-			break;
-		}
-	default:
-		return VREADER_UNSUPPORTED;
-	}
+
+	sts = colorConversionKernel(resize ? output : input, output, format.color, prop.maxThreadsPerBlock, &stream);
+	
 	if (resize) {
 		//need to free allocated in resize memory for Y and UV
 		cudaError err = cudaFree(output->data[0]);
