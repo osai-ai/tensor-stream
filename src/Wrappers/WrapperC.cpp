@@ -194,28 +194,15 @@ void TensorStream::enableLogs(int level) {
 	}
 }
 
-int TensorStream::dumpFrame(std::shared_ptr<uint8_t> frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
-	AVFrame* output = av_frame_alloc();
-	output->opaque = frame.get();
-	output->width = output->linesize[0] = videoOptions.width;
-	output->height = output->linesize[1] = videoOptions.height;
-	output->channels = (videoOptions.color.dstFourCC == RGB24 || videoOptions.color.dstFourCC == BGR24) ? 3 : 1;
-	switch (videoOptions.color.dstFourCC) {
-		case RGB24:
-			output->format = AV_PIX_FMT_RGB24;
-		break;
-		case BGR24:
-			output->format = AV_PIX_FMT_BGR24;
-		break;
-		case Y800:
-			output->format = AV_PIX_FMT_GRAY8;
-		break;
-		default:
-			return VREADER_UNSUPPORTED;
-		break;
-	}
-	int status = vpp->DumpFrame(output, dumpFile);
-	av_frame_free(&output);
+int TensorStream::dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
+	int status = VREADER_OK;
+	status = vpp->DumpFrame(frame, videoOptions, dumpFile);
+	return status;
+}
+
+int TensorStream::dumpFrame(uint8_t* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
+	int status = VREADER_OK;
+	status = vpp->DumpFrame(frame, videoOptions, dumpFile);
 	return status;
 }
 

@@ -1,38 +1,37 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
-void saveFrame(AVFrame *avFrame, FILE* dump) {
-	
-	uint8_t *frame = avFrame->data[0];
-	for (uint32_t i = 0; i < avFrame->height; i++) {
-		int sts = fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
-		if (avFrame->linesize[0])
-			frame += avFrame->channels * avFrame->linesize[0];
-		else
-			frame += avFrame->channels * avFrame->width;
+template<class T>
+void saveFrame(T *frame, VPPParameters options, FILE* dump) {
+	int channels = 3;
+	if (options.color.dstFourCC == Y800)
+		channels = 1;
+	//allow dump Y, RGB, BGR
+	for (uint32_t i = 0; i < options.height; i++) {
+		int sts = fwrite(frame, options.width * channels, sizeof(T), dump);
+		frame += channels * options.width;
 	}
 	
-	if (avFrame->format == AV_PIX_FMT_NV12) {
-		uint8_t *frame = avFrame->data[1];
-		for (uint32_t i = 0; i < avFrame->height / 2; i++) {
-			fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
-			if (avFrame->linesize[1])
-				frame += avFrame->channels * avFrame->linesize[1];
-			else
-				frame += avFrame->channels * avFrame->width;
+	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
+		for (uint32_t i = 0; i < options.height / 2; i++) {
+			fwrite(frame, options.width * channels, 1, dump);
+			frame += channels * options.width;
 		}
 	}
 	
 	fflush(dump);
 }
 
-int VideoProcessor::DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
+template <class T>
+int VideoProcessor::DumpFrame(T* output, VPPParameters options, std::shared_ptr<FILE> dumpFile) {
+	int channels = 3;
+	if (options.color.dstFourCC == Y800)
+		channels = 1;
 	//allocate buffers
-	std::shared_ptr<uint8_t> rawData(new uint8_t[output->channels * output->width * output->height], std::default_delete<uint8_t[]>());
-	output->data[0] = rawData.get();
-	cudaError err = cudaMemcpy(output->data[0], output->opaque, output->channels * output->width * output->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	std::shared_ptr<T> rawData(new T[channels * options.width * options.height], std::default_delete<T[]>());
+	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.width * options.height * sizeof(T), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
-	saveFrame(output, dumpFile.get());
+	saveFrame(output, options, dumpFile.get());
 	return VREADER_OK;
 }
 
@@ -73,6 +72,20 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		output->height = input->height;
 	}
 
+	switch (format.color.dstFourCC) {
+	case BGR24:
+		output->format = AV_PIX_FMT_BGR24;
+		output->channels = 3;
+		break;
+	case RGB24:
+		output->format = AV_PIX_FMT_RGB24;
+		output->channels = 3;
+		break;
+	case Y800:
+		output->format = AV_PIX_FMT_GRAY8;
+		output->channels = 1;
+		break;
+	}
 
 	sts = colorConversionKernel(resize ? output : input, output, format.color, prop.maxThreadsPerBlock, &stream);
 	
@@ -89,7 +102,11 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		{
 			//avoid situations when several threads write to IO (some possible collisions can be observed)
 			std::unique_lock<std::mutex> locker(dumpSync);
-			DumpFrame(output, dumpFile);
+			//Set linesize to width?
+			if (format.color.normalization)
+				DumpFrame(static_cast<float*>(output->opaque), format, dumpFile);
+			else
+				DumpFrame(static_cast<uint8_t*>(output->opaque), format, dumpFile);
 		}
 	}
 	av_frame_unref(input);

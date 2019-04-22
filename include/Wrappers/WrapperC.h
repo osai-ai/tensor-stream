@@ -58,7 +58,8 @@ public:
  @param[in] format FourCC of frame, see @ref ::FourCC for supported values
  @param[in] dumpFile File handler
  */
-	int dumpFrame(std::shared_ptr<uint8_t> frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
+	int dumpFrame(uint8_t* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
+	int dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
 	int getDelay();
 private:
 	int processingLoop();
