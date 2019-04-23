@@ -32,50 +32,55 @@ in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	*G = max(*G, 0);
 }
 
-__global__ void NV12ToRGB32KernelPlanar(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB, bool swapRB) {
+__global__ void NV12ToRGB32KernelPlanar(unsigned char* Y, unsigned char* UV, float* RGB, int width, int height, int pitchNV12, int pitchRGB, bool swapRB, bool normalization) {
 	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
 	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (i < height && j < width) {
 		int R, G, B;
 		NV12toRGB32Kernel(Y, UV, &R, &G, &B, i, j, pitchNV12);
-		(RGB[j + i * pitchRGB + 0 * (pitchRGB * height) /*R*/]) = (unsigned char) R;
+		(RGB[j + i * pitchRGB + 0 * (pitchRGB * height) /*R*/]) = (float) R;
 		if (swapRB)
-			(RGB[j + i * pitchRGB + 0 * (pitchRGB * height)]) = (unsigned char) B;
+			(RGB[j + i * pitchRGB + 0 * (pitchRGB * height)]) = (float) B;
+		if (normalization)
+			RGB[j + i * pitchRGB + 0 * (pitchRGB * height)] /= 255;
 
-		(RGB[j + i * pitchRGB + 1 * (pitchRGB * height) /*G*/]) = (unsigned char) G;
-		
-		(RGB[j + i * pitchRGB + 2 * (pitchRGB * height) /*B*/]) = (unsigned char) B;
+		(RGB[j + i * pitchRGB + 1 * (pitchRGB * height) /*G*/]) = (float) G;
+		if (normalization)
+			RGB[j + i * pitchRGB + 1 * (pitchRGB * height)] /= 255;
+
+		(RGB[j + i * pitchRGB + 2 * (pitchRGB * height) /*B*/]) = (float) B;
 		if (swapRB)
-			(RGB[j + i * pitchRGB + 2 * (pitchRGB * height)]) = (unsigned char) R;
+			(RGB[j + i * pitchRGB + 2 * (pitchRGB * height)]) = (float) R;
+		if (normalization)
+			RGB[j + i * pitchRGB + 2 * (pitchRGB * height)] /= 255;
+
 	}
 }
 
-__global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, unsigned char* RGB, int width, int height, int pitchNV12, int pitchRGB, bool swapRB) {
+__global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, float* RGB, int width, int height, int pitchNV12, int pitchRGB, bool swapRB, bool normalization) {
 	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
 	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (i < height && j < width) {
 		int R, G, B;
 		NV12toRGB32Kernel(Y, UV, &R, &G, &B, i, j, pitchNV12);
-		RGB[j * 3 + i * pitchRGB + 0/*R*/] = (unsigned char) R;
+		RGB[j * 3 + i * pitchRGB + 0/*R*/] = (float) R;
 		if (swapRB)
-			RGB[j * 3 + i * pitchRGB + 0] = (unsigned char) B;
+			RGB[j * 3 + i * pitchRGB + 0] = (float) B;
+		if (normalization)
+			RGB[j * 3 + i * pitchRGB + 0] /= 255;
 
-		RGB[j * 3 + i * pitchRGB + 1/*G*/] = (unsigned char) G;
+		RGB[j * 3 + i * pitchRGB + 1/*G*/] = (float) G;
+		if (normalization)
+			RGB[j * 3 + i * pitchRGB + 1] /= 255;
 
-		RGB[j * 3 + i * pitchRGB + 2/*B*/] = (unsigned char) B;
+		RGB[j * 3 + i * pitchRGB + 2/*B*/] = (float) B;
 		if (swapRB)
-			RGB[j * 3 + i * pitchRGB + 2] = (unsigned char) R;
-	}
-}
+			RGB[j * 3 + i * pitchRGB + 2] = (float) R;
+		if (normalization)
+			RGB[j * 3 + i * pitchRGB + 2] /= 255;
 
-__global__ void normalization(unsigned char* src, float* dst, int width, int height) {
-	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
-	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (i < height && j < width) {
-		dst[j + i * width] = (float)(src[j + i * width]) / 255;
 	}
 }
 
@@ -85,8 +90,11 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int
 	*/
 	int width = src->width;
 	int height = src->height;
-	uint8_t* destination = nullptr;
+
+	float* destination = nullptr;
 	cudaError err = cudaSuccess;
+	err = cudaMalloc(&destination, dst->channels * width * height * sizeof(float));
+
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 
@@ -107,25 +115,23 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int
 	switch (color.dstFourCC) {
 		case BGR24:
 			swapRB = true;
-			err = cudaMalloc(&destination, dst->channels * width * height * sizeof(uint8_t));
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB);
+				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
 				int pitchRGB = dst->channels * width;
-				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB);
+				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 		break;
 		case RGB24:
-			err = cudaMalloc(&destination, dst->channels * width * height * sizeof(uint8_t));
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB);
+				NV12ToRGB32KernelPlanar << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
 				int pitchRGB = dst->channels * width;
-				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB);
+				NV12ToRGB32KernelMerged << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 		break;
 		case Y800:
@@ -135,7 +141,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int
 			err = cudaErrorMissingConfiguration;
 	}
 
-	//without resize
 	dst->opaque = destination;
+
 	return err;
 }

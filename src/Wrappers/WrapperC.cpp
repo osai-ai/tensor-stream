@@ -124,10 +124,10 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int index, VPPParameters videoOptions) {
+std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int index, VPPParameters videoOptions) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
-	std::tuple<uint8_t*, int> outputTuple;
+	std::tuple<float*, int> outputTuple;
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -152,7 +152,7 @@ std::tuple<uint8_t*, int> TensorStream::getFrame(std::string consumerName, int i
 	sts = vpp->Convert(decoded, processedFrame, videoOptions, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	uint8_t* cudaFrame((uint8_t*) processedFrame->opaque);
+	float* cudaFrame((float*)processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
@@ -195,12 +195,6 @@ void TensorStream::enableLogs(int level) {
 }
 
 int TensorStream::dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
-	int status = VREADER_OK;
-	status = vpp->DumpFrame(frame, videoOptions, dumpFile);
-	return status;
-}
-
-int TensorStream::dumpFrame(uint8_t* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
 	status = vpp->DumpFrame(frame, videoOptions, dumpFile);
 	return status;

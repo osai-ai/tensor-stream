@@ -42,7 +42,7 @@ public:
  @param[in] dstHeight Specify the height of decoded frame
  @return Decoded frame in CUDA memory and index of decoded frame
 */
-	std::tuple<uint8_t*, int> getFrame(std::string consumerName, int index, VPPParameters videoOptions);
+	std::tuple<float*, int> getFrame(std::string consumerName, int index, VPPParameters videoOptions);
 /** Close TensorStream session
  @param[in] mode Value from @ref ::CloseLevel
 */
@@ -58,7 +58,6 @@ public:
  @param[in] format FourCC of frame, see @ref ::FourCC for supported values
  @param[in] dumpFile File handler
  */
-	int dumpFrame(uint8_t* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
 	int dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
 	int getDelay();
 private:

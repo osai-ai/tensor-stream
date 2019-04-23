@@ -1,37 +1,51 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
-template<class T>
-void saveFrame(T *frame, VPPParameters options, FILE* dump) {
+void saveFrame(float *frame, VPPParameters options, FILE* dump) {
 	int channels = 3;
-	if (options.color.dstFourCC == Y800)
+	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
 		channels = 1;
 	//allow dump Y, RGB, BGR
 	for (uint32_t i = 0; i < options.height; i++) {
-		int sts = fwrite(frame, options.width * channels, sizeof(T), dump);
-		frame += channels * options.width;
+		for (uint32_t j = 0; j < options.width * channels; j++) {
+			if (!options.color.normalization) {
+				uint8_t value = frame[j + i * options.width * channels];
+				fwrite(&value, 1, sizeof(unsigned char), dump);
+			}
+			else {
+				float value = frame[j + i * options.width];
+				fwrite(&value, 1, sizeof(float), dump);
+			}
+		}
 	}
 	
 	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
 		for (uint32_t i = 0; i < options.height / 2; i++) {
-			fwrite(frame, options.width * channels, 1, dump);
-			frame += channels * options.width;
+			for (uint32_t j = 0; j < options.width * channels; j++) {
+				if (!options.color.normalization) {
+					uint8_t value = frame[j + i * options.width * channels];
+					fwrite(&value, 1, sizeof(unsigned char), dump);
+				}
+				else {
+					float value = frame[j + i * options.width * channels];
+					fwrite(&value, 1, sizeof(unsigned char), dump);
+				}
+			}
 		}
 	}
 	
 	fflush(dump);
 }
 
-template <class T>
-int VideoProcessor::DumpFrame(T* output, VPPParameters options, std::shared_ptr<FILE> dumpFile) {
+int VideoProcessor::DumpFrame(float* output, VPPParameters options, std::shared_ptr<FILE> dumpFile) {
 	int channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	//allocate buffers
-	std::shared_ptr<T> rawData(new T[channels * options.width * options.height], std::default_delete<T[]>());
-	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.width * options.height * sizeof(T), cudaMemcpyDeviceToHost);
+	std::shared_ptr<float> rawData(new float[channels * options.width * options.height], std::default_delete<float[]>());
+	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.width * options.height * sizeof(float), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
-	saveFrame(output, options, dumpFile.get());
+	saveFrame(rawData.get(), options, dumpFile.get());
 	return VREADER_OK;
 }
 
@@ -103,10 +117,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			//avoid situations when several threads write to IO (some possible collisions can be observed)
 			std::unique_lock<std::mutex> locker(dumpSync);
 			//Set linesize to width?
-			if (format.color.normalization)
-				DumpFrame(static_cast<float*>(output->opaque), format, dumpFile);
-			else
-				DumpFrame(static_cast<uint8_t*>(output->opaque), format, dumpFile);
+			DumpFrame(static_cast<float*>(output->opaque), format, dumpFile);
 		}
 	}
 	av_frame_unref(input);
