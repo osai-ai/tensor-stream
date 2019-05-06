@@ -13,10 +13,10 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 		int frames = std::atoi(parameters["frames"].c_str());
 
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(parameters["dumpName"].c_str(), "ab"), std::fclose));
+		FrameParameters frameArgs = { {width, height}, {format} };
 		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), format,
-				width, height);
-			int status = reader.dumpFrame(std::get<0>(result), width, height, format, dumpFile);
+			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+			int status = reader.dumpFrame(std::get<0>(result), frameArgs, dumpFile);
 			if (status < 0)
 				return;
 
@@ -95,11 +95,11 @@ void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& rea
 		int height = std::atoi(parameters["height"].c_str());
 		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
 		int frames = std::atoi(parameters["frames"].c_str());
-
+		
+		FrameParameters frameArgs = { {width, height}, {format} };
 		for (int i = 0; i < frames; i++) {
 			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), format,
-				width, height);
+			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
 			int sleepTime = std::chrono::duration_cast<std::chrono::milliseconds>(
 				std::chrono::high_resolution_clock::now() - startTime).count();
 			//skip first several frames due to some possible additional time needed for decoded/parser to start processing

@@ -12,9 +12,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 		std::shared_ptr<FILE> dumpFile;
 		std::string fileName = executionParameters["dumpName"];
 		if (!fileName.empty()) {
-			
-			if (std::experimental::filesystem::exists(fileName))
-				std::experimental::filesystem::remove_all(fileName);
+			remove(fileName.c_str());
 
 			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 		}
