@@ -1,17 +1,30 @@
 #include "WrapperC.h"
+#include <experimental/filesystem> //C++17 
 
 TensorStream reader;
 
-void get_cycle(VPPParameters videoOptions, std::map<std::string, std::string> parameters) {
+void get_cycle(FrameParameters frameParameters, std::map<std::string, std::string> executionParameters) {
 	try {
-		int frames = std::atoi(parameters["frames"].c_str());
-		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(parameters["dumpName"].c_str(), "ab"), std::fclose));
-		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), videoOptions);
-			int status = reader.dumpFrame((float*) std::get<0>(result), videoOptions, dumpFile);
+		int frames = std::atoi(executionParameters["frames"].c_str());
+		if (!frames)
+			return;
+
+		std::shared_ptr<FILE> dumpFile;
+		std::string fileName = executionParameters["dumpName"];
+		if (!fileName.empty()) {
 			
-			if (status < 0)
-				return;
+			if (std::experimental::filesystem::exists(fileName))
+				std::experimental::filesystem::remove_all(fileName);
+
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+		}
+		for (int i = 0; i < frames; i++) {
+			auto result = reader.getFrame(executionParameters["name"], std::atoi(executionParameters["delay"].c_str()), frameParameters);
+			if (!fileName.empty()) {
+				int status = reader.dumpFrame((float*)std::get<0>(result), frameParameters, dumpFile);
+				if (status < 0)
+					return;
+			}
 
 		}
 	}
@@ -23,18 +36,28 @@ void get_cycle(VPPParameters videoOptions, std::map<std::string, std::string> pa
 
 int main()
 {
-	reader.enableLogs(-MEDIUM);
-	//int sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
-	int sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+	reader.enableLogs(-LOW);
+	int sts = VREADER_OK;
+	int initNumber = 10;
+
+	while (initNumber--) {
+		//sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+		sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+		if (sts != VREADER_OK)
+			reader.endProcessing(SOFT);
+		else
+			break;
+	}
 	CHECK_STATUS(sts);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	int dstWidth = 720;
 	int dstHeight = 480;
-	ColorParameters colorOption = { false, Planes::MERGED, BGR24 };
-	VPPParameters videoOptions = {dstWidth, dstHeight, colorOption};
+	ColorOptions colorOptions = { false, Planes::MERGED, BGR24 };
+	ResizeOptions resizeOptions = { dstWidth, dstHeight, ResizeType::NEAREST };
+	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
-	std::thread get(get_cycle, videoOptions, parameters);
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
+	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing(HARD);
 	pipeline.join();

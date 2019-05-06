@@ -37,12 +37,10 @@ public:
 /** Get decoded and post-processed frame
  @param[in] consumerName Consumer unique ID
  @param[in] index Specify which frame should be read from decoded buffer. Can take values in range [-@ref decoderBuffer, 0]
- @param[in] pixelFormat Output FourCC of frame stored in tensor, see @ref ::FourCC for supported values
- @param[in] dstWidth Specify the width of decoded frame
- @param[in] dstHeight Specify the height of decoded frame
+ @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
  @return Decoded frame in CUDA memory and index of decoded frame
 */
-	std::tuple<float*, int> getFrame(std::string consumerName, int index, VPPParameters videoOptions);
+	std::tuple<float*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 /** Close TensorStream session
  @param[in] mode Value from @ref ::CloseLevel
 */
@@ -53,12 +51,10 @@ public:
 	void enableLogs(int level);
 /** Dump the frame in CUDA memory to hard driver
  @param[in] frame CUDA memory should be dumped
- @param[in] width Width of frame
- @param[in] height Height of frame
- @param[in] format FourCC of frame, see @ref ::FourCC for supported values
+ @param[in] frameParameters Parameters specific for passed frame, used in @ref TensorStream::getFrame() call
  @param[in] dumpFile File handler
  */
-	int dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile);
+	int dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 	int getDelay();
 private:
 	int processingLoop();

@@ -124,7 +124,7 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int index, VPPParameters videoOptions) {
+std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<float*, int> outputTuple;
@@ -149,7 +149,7 @@ std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int ind
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = VREADER_OK;
-	sts = vpp->Convert(decoded, processedFrame, videoOptions, consumerName);
+	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	float* cudaFrame((float*)processedFrame->opaque);
@@ -194,9 +194,9 @@ void TensorStream::enableLogs(int level) {
 	}
 }
 
-int TensorStream::dumpFrame(float* frame, VPPParameters videoOptions, std::shared_ptr<FILE> dumpFile) {
+int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
-	status = vpp->DumpFrame(frame, videoOptions, dumpFile);
+	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
 	return status;
 }
 

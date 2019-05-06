@@ -13,46 +13,58 @@ extern "C" {
 @{
 */
 
-/** Class with supported frame output color formats
+/** Supported frame output color formats
  @details Used in @ref TensorStream::getFrame() function
 */
 enum FourCC {
-	Y800, /**< Monochrome format, 8 bit for pixel */
+	Y800 = 0, /**< Monochrome format, 8 bit for pixel */
 	RGB24, /**< RGB format, 24 bit for pixel, color plane order: R, G, B */
 	BGR24 /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
+};
+
+/** Possible planes order in RGB format
+*/
+enum Planes {
+	PLANAR = 0, /**< Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB*/
+	MERGED /**< Color components R, G, B are stored in memory one by one like RGBRGBRGB */
+};
+
+/** Parameters specific for color conversion
+*/
+struct ColorOptions {
+	bool normalization = false; /**< Should final colors be normalized or not */
+	Planes planesPos = Planes::MERGED /**< Memory layout of pixels. See @ref ::Planes for more information */;
+	FourCC dstFourCC = FourCC::RGB24 /**< Desired destination FourCC. See @ref ::FourCC for more information */;
+};
+
+/** Algorithm used to do resize
+*/
+enum ResizeType {
+	NEAREST = 0, /**< Simple algorithm without any interpolation */
+	BILINEAR /** Algorithm that does simple linear interpolation */
+};
+
+/** Parameters specific for resize
+*/
+struct ResizeOptions {
+	unsigned int width = 0; /**< Width of destination image */
+	unsigned int height = 0; /**< Height of destination image */
+	ResizeType type = ResizeType::NEAREST; /**< Resize algorithm. See @ref ::ResizeType for more information */
+};
+
+/** Parameters used to configure VPP
+ @details These parameters can be passed via @ref TensorStream::getFrame() function
+*/
+struct FrameParameters {
+	ResizeOptions resize; /**< Resize options, see @ref ::ResizeOptions for more information */
+	ColorOptions color; /**< Color conversion options, see @ref ::ColorParameters for more information*/
 };
 
 /**
 @}
 */
 
-/*
-Structure contains description of desired conversions.
-*/
-
-enum Planes {
-	PLANAR = 0,
-	MERGED = 1
-};
-
-struct ColorParameters {
-	bool normalization;
-	Planes planesPos;
-	FourCC dstFourCC;
-};
-
-struct VPPParameters {
-	unsigned int width;
-	unsigned int height;
-	ColorParameters color;
-};
-
-enum ResizeType {
-	NEAREST = 0,
-	BILINEAR = 1
-};
-
-int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream);
+int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
 
@@ -64,8 +76,8 @@ public:
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
-	int Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName);
-	int DumpFrame(float* output, VPPParameters options, std::shared_ptr<FILE> dumpFile);
+	int Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName);
+	int DumpFrame(float* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
 	void Close();
 private:
 	bool enableDumps;

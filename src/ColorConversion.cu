@@ -84,7 +84,7 @@ __global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, flo
 	}
 }
 
-int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorParameters color, int maxThreadsPerBlock, cudaStream_t* stream) {
+int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/

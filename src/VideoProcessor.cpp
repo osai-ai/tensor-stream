@@ -1,33 +1,33 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
-void saveFrame(float *frame, VPPParameters options, FILE* dump) {
+void saveFrame(float *frame, FrameParameters options, FILE* dump) {
 	int channels = 3;
 	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
 		channels = 1;
 	//allow dump Y, RGB, BGR
-	for (uint32_t i = 0; i < options.height; i++) {
-		for (uint32_t j = 0; j < options.width * channels; j++) {
+	for (uint32_t i = 0; i < options.resize.height; i++) {
+		for (uint32_t j = 0; j < options.resize.width * channels; j++) {
 			if (!options.color.normalization) {
-				uint8_t value = frame[j + i * options.width * channels];
+				uint8_t value = frame[j + i * options.resize.width * channels];
 				fwrite(&value, 1, sizeof(unsigned char), dump);
 			}
 			else {
-				float value = frame[j + i * options.width];
+				float value = frame[j + i * options.resize.width];
 				fwrite(&value, 1, sizeof(float), dump);
 			}
 		}
 	}
 	
 	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
-		for (uint32_t i = 0; i < options.height / 2; i++) {
-			for (uint32_t j = 0; j < options.width * channels; j++) {
+		for (uint32_t i = 0; i < options.resize.height / 2; i++) {
+			for (uint32_t j = 0; j < options.resize.width * channels; j++) {
 				if (!options.color.normalization) {
-					uint8_t value = frame[j + i * options.width * channels];
+					uint8_t value = frame[j + i * options.resize.width * channels];
 					fwrite(&value, 1, sizeof(unsigned char), dump);
 				}
 				else {
-					float value = frame[j + i * options.width * channels];
+					float value = frame[j + i * options.resize.width * channels];
 					fwrite(&value, 1, sizeof(unsigned char), dump);
 				}
 			}
@@ -37,13 +37,13 @@ void saveFrame(float *frame, VPPParameters options, FILE* dump) {
 	fflush(dump);
 }
 
-int VideoProcessor::DumpFrame(float* output, VPPParameters options, std::shared_ptr<FILE> dumpFile) {
+int VideoProcessor::DumpFrame(float* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	int channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	//allocate buffers
-	std::shared_ptr<float> rawData(new float[channels * options.width * options.height], std::default_delete<float[]>());
-	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.width * options.height * sizeof(float), cudaMemcpyDeviceToHost);
+	std::shared_ptr<float> rawData(new float[channels * options.resize.width * options.resize.height], std::default_delete<float[]>());
+	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(float), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(rawData.get(), options, dumpFile.get());
 	return VREADER_OK;
@@ -63,7 +63,7 @@ int VideoProcessor::Init(bool _enableDumps) {
 	return VREADER_OK;
 }
 
-int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
+int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName) {
 	/*
 	Should decide which method call
 	*/
@@ -74,19 +74,19 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
 	}
 
-	output->width = format.width;
-	output->height = format.height;
+	output->width = options.resize.width;
+	output->height = options.resize.height;
 	bool resize = false;
 	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
 		resize = true;
-		resizeKernel(input, output, ResizeType::NEAREST, prop.maxThreadsPerBlock, &stream);
+		resizeKernel(input, output, options.resize.type, prop.maxThreadsPerBlock, &stream);
 	}
 	else if (output->width == 0 || output->height == 0) {
 		output->width = input->width;
 		output->height = input->height;
 	}
 
-	switch (format.color.dstFourCC) {
+	switch (options.color.dstFourCC) {
 	case BGR24:
 		output->format = AV_PIX_FMT_BGR24;
 		output->channels = 3;
@@ -101,7 +101,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		break;
 	}
 
-	sts = colorConversionKernel(resize ? output : input, output, format.color, prop.maxThreadsPerBlock, &stream);
+	sts = colorConversionKernel(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
 	
 	if (resize) {
 		//need to free allocated in resize memory for Y and UV
@@ -117,7 +117,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 			//avoid situations when several threads write to IO (some possible collisions can be observed)
 			std::unique_lock<std::mutex> locker(dumpSync);
 			//Set linesize to width?
-			DumpFrame(static_cast<float*>(output->opaque), format, dumpFile);
+			DumpFrame(static_cast<float*>(output->opaque), options, dumpFile);
 		}
 	}
 	av_frame_unref(input);
