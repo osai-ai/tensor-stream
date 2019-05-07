@@ -53,8 +53,15 @@ TEST_F(VPP_Convert, NV12ToRGB) {
 
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<float> outputRGBProcessingFloat(frameArgs.resize.width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	std::vector<uint8_t> outputRGBProcessing(frameArgs.resize.width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(unsigned char), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+	for (int j = 0; j < frameArgs.resize.height; j++) {
+		for (int i = 0; i < frameArgs.resize.width * converted->channels; i++) {
+			outputRGBProcessing[i + j * frameArgs.resize.width] = (uint8_t) outputRGBProcessingFloat[i + j * frameArgs.resize.width];
+		}
+	}
+
 	//CRC for RGB24 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 2816643056
 	std::string dumpFileName = "DumpFrameRGB.yuv";
