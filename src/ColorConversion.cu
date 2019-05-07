@@ -84,6 +84,15 @@ __global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, flo
 	}
 }
 
+__global__ void NV12ToY800(unsigned char* Y, float* Yf, int width, int height, int pitchNV12) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		Yf[j + i * width] = Y[j + i * pitchNV12];
+	}
+}
+
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
@@ -135,7 +144,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 			}
 		break;
 		case Y800:
-			err = cudaMemcpy2D(destination, dst->width, dst->data[0], pitchNV12, dst->width, dst->height, cudaMemcpyDeviceToDevice);
+			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12);
 		break;
 		default:
 			err = cudaErrorMissingConfiguration;

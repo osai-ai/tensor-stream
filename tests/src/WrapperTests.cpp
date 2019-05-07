@@ -13,7 +13,12 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 		int frames = std::atoi(parameters["frames"].c_str());
 
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(parameters["dumpName"].c_str(), "ab"), std::fclose));
-		FrameParameters frameArgs = { {width, height}, {format} };
+		ResizeOptions resizeOptions;
+		resizeOptions.width = width;
+		resizeOptions.height = height;
+		ColorOptions colorOptions;
+		colorOptions.dstFourCC = format;
+		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		for (int i = 0; i < frames; i++) {
 			auto result = reader.getFrame(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
 			int status = reader.dumpFrame(std::get<0>(result), frameArgs, dumpFile);
