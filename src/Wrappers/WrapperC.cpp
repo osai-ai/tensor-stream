@@ -196,7 +196,9 @@ void TensorStream::enableLogs(int level) {
 
 int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
+	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
+	END_LOG_FUNCTION(std::string("dumpFrame()"));
 	return status;
 }
 

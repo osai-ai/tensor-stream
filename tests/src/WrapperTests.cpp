@@ -123,7 +123,7 @@ void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& rea
 //delay
 TEST(Wrapper_Init, CheckPerformance) {
 	TensorStream reader;
-	reader.enableLogs(HIGH);
+	reader.enableLogs(MEDIUM);
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},

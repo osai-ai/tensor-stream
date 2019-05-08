@@ -6,31 +6,25 @@ void saveFrame(float *frame, FrameParameters options, FILE* dump) {
 	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
 		channels = 1;
 	//allow dump Y, RGB, BGR
-	for (uint32_t i = 0; i < options.resize.height; i++) {
-		for (uint32_t j = 0; j < options.resize.width * channels; j++) {
-			if (!options.color.normalization) {
-				uint8_t value = frame[j + i * options.resize.width * channels];
-				fwrite(&value, 1, sizeof(unsigned char), dump);
-			}
-			else {
-				float value = frame[j + i * options.resize.width];
-				fwrite(&value, 1, sizeof(float), dump);
-			}
-		}
+	if (!options.color.normalization) {
+		//std::vector<uint8_t> value(frame, frame + options.resize.width * options.resize.height * channels);
+		std::shared_ptr<uint8_t> value(new uint8_t[options.resize.width * options.resize.height * channels], std::default_delete<uint8_t[]>());
+		std::copy(frame, frame + options.resize.width * options.resize.height * channels, value.get());
+		fwrite(value.get(), options.resize.width * options.resize.height * channels, sizeof(unsigned char), dump);
+	}
+	else {
+		fwrite(&frame, options.resize.width * options.resize.height * channels, sizeof(float), dump);
 	}
 	
+	//UV planes should be stored after Y without any strides
 	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
-		for (uint32_t i = 0; i < options.resize.height / 2; i++) {
-			for (uint32_t j = 0; j < options.resize.width * channels; j++) {
-				if (!options.color.normalization) {
-					uint8_t value = frame[j + i * options.resize.width * channels];
-					fwrite(&value, 1, sizeof(unsigned char), dump);
-				}
-				else {
-					float value = frame[j + i * options.resize.width * channels];
-					fwrite(&value, 1, sizeof(unsigned char), dump);
-				}
-			}
+		if (!options.color.normalization) {
+			std::shared_ptr<uint8_t> value(new uint8_t[options.resize.width * options.resize.height / 2 * channels], std::default_delete<uint8_t[]>());
+			std::copy(frame, frame + options.resize.width * options.resize.height / 2 * channels, value.get());
+			fwrite(value.get(), options.resize.width * options.resize.height / 2 * channels, sizeof(unsigned char), dump);
+		}
+		else {
+			fwrite(&frame, options.resize.width * options.resize.height / 2 * channels, sizeof(float), dump);
 		}
 	}
 	
@@ -42,7 +36,8 @@ int VideoProcessor::DumpFrame(float* output, FrameParameters options, std::share
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	//allocate buffers
-	std::shared_ptr<float> rawData(new float[channels * options.resize.width * options.resize.height], std::default_delete<float[]>());
+	std::shared_ptr<float> rawData;
+	rawData = std::shared_ptr<float>(new float[channels * options.resize.width * options.resize.height], std::default_delete<float[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(float), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(rawData.get(), options, dumpFile.get());
