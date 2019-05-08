@@ -29,10 +29,10 @@ public:
 	int initPipeline(std::string inputFile);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing();
-	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth = 0, int dstHeight = 0);
+	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 	void endProcessing(int mode = HARD);
 	void enableLogs(int _logsLevel);
-	int dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile);
+	int dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 private:
 	int processingLoop();
 	std::mutex syncDecoded;

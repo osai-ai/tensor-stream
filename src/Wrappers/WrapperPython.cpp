@@ -143,12 +143,11 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth, int dstHeight) {
+std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
-	FourCC format = static_cast<FourCC>(pixelFormat);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -170,8 +169,7 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = VREADER_OK;
-	VPPParameters VPPArgs = { dstWidth, dstHeight, format };
-	sts = vpp->Convert(decoded, processedFrame, VPPArgs, consumerName);
+	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName); 
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -226,8 +224,12 @@ void TensorStream::enableLogs(int _logsLevel) {
 	}
 }
 
-int TensorStream::dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
-	return vpp->DumpFrame(output, dumpFile);
+int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+	int status = VREADER_OK;
+	START_LOG_FUNCTION(std::string("dumpFrame()"));
+	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
+	END_LOG_FUNCTION(std::string("dumpFrame()"));
+	return status;
 }
 
 static TensorStream reader;
@@ -245,22 +247,42 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		return reader.startProcessing();
 	});
 
-	m.def("get", [](std::string name, int delay, int pixelFormat, int dstWidth, int dstHeight) {
+	m.def("get", [](std::string name, int delay, int dstWidth, int dstHeight, int resizeType, bool normalization, int planesPos, int pixelFormat) {
 		py::gil_scoped_release release;
-		return reader.getFrame(name, delay, pixelFormat, dstWidth, dstHeight);
+		
+		ResizeOptions resizeOptions;
+		resizeOptions.width = dstWidth;
+		resizeOptions.height = dstHeight;
+		resizeOptions.type = (ResizeType) resizeType;
+		
+		ColorOptions colorOptions;
+		colorOptions.normalization = normalization;
+		colorOptions.planesPos = (Planes) planesPos;
+		colorOptions.dstFourCC = (FourCC) pixelFormat;
+
+		FrameParameters frameParameters = {resizeOptions, colorOptions};
+
+		return reader.getFrame(name, delay, frameParameters);
 	});
 
-	m.def("dump", [](at::Tensor stream, std::string consumerName) {
+	m.def("dump", [](at::Tensor stream, std::string consumerName, int dstWidth, int dstHeight, int resizeType, bool normalization, int planesPos, int pixelFormat) {
 		py::gil_scoped_release release;
-		AVFrame output;
-		output.opaque = stream.data_ptr();
-		output.width = output.linesize[0] = stream.size(1);
-		output.height = output.linesize[1] = stream.size(0);
-		output.channels = stream.size(2);
+
+		ResizeOptions resizeOptions;
+		resizeOptions.width = dstWidth;
+		resizeOptions.height = dstHeight;
+		resizeOptions.type = (ResizeType)resizeType;
+
+		ColorOptions colorOptions;
+		colorOptions.normalization = normalization;
+		colorOptions.planesPos = (Planes)planesPos;
+		colorOptions.dstFourCC = (FourCC)pixelFormat;
+
+		FrameParameters frameParameters = {resizeOptions, colorOptions};
 		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
 		std::string dumpName = consumerName + std::string("");
 		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
-		return reader.dumpFrame(&output, dumpFrame);
+		return reader.dumpFrame((float*) stream.data_ptr(), frameParameters, dumpFrame);
 	});
 
 	m.def("enableLogs", [](int logsLevel) {

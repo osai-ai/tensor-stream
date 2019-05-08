@@ -62,6 +62,19 @@ class FourCC(Enum):
     ## RGB format, 24 bit for pixel, color plane order: B, G, R
     BGR24 = 2
 
+## Algorithm used to do resize
+class ResizeType(Enum):
+    ## Simple algorithm without any interpolation
+    NEAREST = 0
+    ## Algorithm that does simple linear interpolation
+    BILINEAR = 1
+
+## Possible planes order in RGB format
+class Planes(Enum):
+    ## Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB
+    PLANAR = 0
+    ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
+    MERGED = 1 
 
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
@@ -121,11 +134,15 @@ class TensorStreamConverter:
     def read(self,
              name="default",
              delay=0,
+             width=0,
+             height=0,
+             resizeType=ResizeType.NEAREST,
+             normalization=False,
+             planesPos=Planes.MERGED,
              pixel_format=FourCC.RGB24,
              return_index=False,
-             width=0,
-             height=0):
-        tensor, index = TensorStream.get(name, delay, pixel_format.value, width, height)
+             ):
+        tensor, index = TensorStream.get(name, delay, width, height, resizeType.value, normalization, planesPos.value, pixel_format.value)
         if return_index:
             return tensor, index
         else:
