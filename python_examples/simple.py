@@ -47,6 +47,7 @@ if __name__ == '__main__':
     tensor = None
     try:
         while True:
+            #print(f"width {args.width} height {args.height} pixel_format {FourCC[args.fourcc]} return_index True")
             tensor, index = reader.read(pixel_format=FourCC[args.fourcc],
                                         return_index=True,
                                         width=args.width,

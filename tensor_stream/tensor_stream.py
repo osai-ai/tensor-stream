@@ -76,6 +76,7 @@ class Planes(Enum):
     ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
     MERGED = 1 
 
+
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
     ## Constructor of TensorStreamConverter class
@@ -142,7 +143,33 @@ class TensorStreamConverter:
              pixel_format=FourCC.RGB24,
              return_index=False,
              ):
-        tensor, index = TensorStream.get(name, delay, width, height, resizeType.value, normalization, planesPos.value, pixel_format.value)
+        print("INSIDE READ")
+        frameParameters = TensorStream.FrameParameters()
+        print(TensorStream.NEAREST)
+        colorOptions = TensorStream.ColorOptions()
+        colorOptions.normalization = normalization
+        colorOptions.planesPos = TensorStream.Planes(planesPos.value)
+        colorOptions.dstFourCC = TensorStream.FourCC(pixel_format.value)
+        print("PRINT PRINT")
+        print(f"OBJECT {colorOptions}")
+        print("PRINT PRINT")
+        
+        resizeOptions = TensorStream.ResizeOptions()
+        resizeOptions.width = width
+        resizeOptions.height = height
+        resizeOptions.resizeType = TensorStream.ResizeType(resizeType.value)
+        print("PRINT PRINT")
+        print(f"OBJECT {resizeOptions}")
+        print("PRINT PRINT")
+        
+        frameParameters.color = colorOptions
+        frameParameters.resize = resizeOptions
+        print("PRINT PRINT")
+        print(f"OBJECT {frameParameters}")
+        print("PRINT PRINT")
+
+        #print(f"Name {name} delay {delay} width {width} height {height} resizeType {resizeType} normalization {normalization} planesPos {planesPos} pixel_format {pixel_format} return_index {return_index}")
+        tensor, index = TensorStream.get(name, delay, frameParameters)
         if return_index:
             return tensor, index
         else:

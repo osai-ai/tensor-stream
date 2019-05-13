@@ -234,6 +234,40 @@ int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::
 
 static TensorStream reader;
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+	py::class_<FrameParameters>(m, "FrameParameters")
+		.def(py::init<>())
+		.def_readwrite("resize", &FrameParameters::resize)
+		.def_readwrite("color", &FrameParameters::color);
+
+	py::class_<ResizeOptions>(m, "ResizeOptions")
+		.def(py::init<>())
+		.def_readwrite("width", &ResizeOptions::width)
+		.def_readwrite("height", &ResizeOptions::height)
+		.def_readwrite("resizeType", &ResizeOptions::type);
+
+	py::class_<ColorOptions>(m, "ColorOptions")
+		.def(py::init<>())
+		.def_readwrite("normalization", &ColorOptions::normalization)
+		.def_readwrite("planesPos", &ColorOptions::planesPos)
+		.def_readwrite("dstFourCC", &ColorOptions::dstFourCC);
+
+	py::enum_<ResizeType>(m, "ResizeType")
+		.value("NEAREST", ResizeType::NEAREST)
+		.value("BILINEAR", ResizeType::BILINEAR)
+		.export_values();
+
+	py::enum_<Planes>(m, "Planes")
+		.value("PLANAR", Planes::PLANAR)
+		.value("MERGED", Planes::MERGED)
+		.export_values();
+
+	py::enum_<FourCC>(m, "FourCC")
+		.value("Y800", FourCC::Y800)
+		.value("RGB24", FourCC::RGB24)
+		.value("BGR24", FourCC::BGR24)
+		.export_values();
+
+
 	m.def("init", [](std::string rtmp) -> int {
 		return reader.initPipeline(rtmp);
 	});
@@ -246,21 +280,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 		return reader.startProcessing();
 	});
-
-	m.def("get", [](std::string name, int delay, int dstWidth, int dstHeight, int resizeType, bool normalization, int planesPos, int pixelFormat) {
+	
+	m.def("get", [](std::string name, int delay, FrameParameters frameParameters) {
 		py::gil_scoped_release release;
-		
-		ResizeOptions resizeOptions;
-		resizeOptions.width = dstWidth;
-		resizeOptions.height = dstHeight;
-		resizeOptions.type = (ResizeType) resizeType;
-		
-		ColorOptions colorOptions;
-		colorOptions.normalization = normalization;
-		colorOptions.planesPos = (Planes) planesPos;
-		colorOptions.dstFourCC = (FourCC) pixelFormat;
-
-		FrameParameters frameParameters = {resizeOptions, colorOptions};
 
 		return reader.getFrame(name, delay, frameParameters);
 	});
