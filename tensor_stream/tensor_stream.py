@@ -143,30 +143,19 @@ class TensorStreamConverter:
              pixel_format=FourCC.RGB24,
              return_index=False,
              ):
-        print("INSIDE READ")
         frameParameters = TensorStream.FrameParameters()
-        print(TensorStream.NEAREST)
         colorOptions = TensorStream.ColorOptions()
         colorOptions.normalization = normalization
         colorOptions.planesPos = TensorStream.Planes(planesPos.value)
         colorOptions.dstFourCC = TensorStream.FourCC(pixel_format.value)
-        print("PRINT PRINT")
-        print(f"OBJECT {colorOptions}")
-        print("PRINT PRINT")
         
         resizeOptions = TensorStream.ResizeOptions()
         resizeOptions.width = width
         resizeOptions.height = height
         resizeOptions.resizeType = TensorStream.ResizeType(resizeType.value)
-        print("PRINT PRINT")
-        print(f"OBJECT {resizeOptions}")
-        print("PRINT PRINT")
         
         frameParameters.color = colorOptions
         frameParameters.resize = resizeOptions
-        print("PRINT PRINT")
-        print(f"OBJECT {frameParameters}")
-        print("PRINT PRINT")
 
         #print(f"Name {name} delay {delay} width {width} height {height} resizeType {resizeType} normalization {normalization} planesPos {planesPos} pixel_format {pixel_format} return_index {return_index}")
         tensor, index = TensorStream.get(name, delay, frameParameters)
@@ -178,8 +167,30 @@ class TensorStreamConverter:
     ## Dump the tensor to hard driver
     # @param[in] tensor Tensor which should be dumped
     # @param[in] name The name of file with dumps
-    def dump(self, tensor, name):
-        TensorStream.dump(tensor, name)
+    def dump(self,
+             tensor,
+             name="default",
+             width=0,
+             height=0,
+             resizeType=ResizeType.NEAREST,
+             normalization=False,
+             planesPos=Planes.MERGED,
+             pixel_format=FourCC.RGB24,):
+        frameParameters = TensorStream.FrameParameters()
+        colorOptions = TensorStream.ColorOptions()
+        colorOptions.normalization = normalization
+        colorOptions.planesPos = TensorStream.Planes(planesPos.value)
+        colorOptions.dstFourCC = TensorStream.FourCC(pixel_format.value)
+        
+        resizeOptions = TensorStream.ResizeOptions()
+        resizeOptions.width = width
+        resizeOptions.height = height
+        resizeOptions.resizeType = TensorStream.ResizeType(resizeType.value)
+        
+        frameParameters.color = colorOptions
+        frameParameters.resize = resizeOptions
+
+        TensorStream.dump(tensor, name, frameParameters)
 
     def _start(self):
         TensorStream.start()

@@ -47,18 +47,18 @@ if __name__ == '__main__':
     tensor = None
     try:
         while True:
-            #print(f"width {args.width} height {args.height} pixel_format {FourCC[args.fourcc]} return_index True")
-            tensor, index = reader.read(pixel_format=FourCC[args.fourcc],
-                                        return_index=True,
-                                        width=args.width,
-                                        height=args.height)
+            parameters = {'pixel_format' : FourCC[args.fourcc],
+                          'width' : args.width,
+                          'height' : args.height}
+
+            tensor, index = reader.read(**parameters, return_index=True)
 
             if args.number:
                 if index > args.number:
                     break
 
             if args.output:
-                reader.dump(tensor, args.output)
+                reader.dump(tensor, args.output, **parameters)
     except RuntimeError as e:
         print(f"Bad things happened: {e}")
     finally:

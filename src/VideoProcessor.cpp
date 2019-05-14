@@ -77,8 +77,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		resizeKernel(input, output, options.resize.type, prop.maxThreadsPerBlock, &stream);
 	}
 	else if (output->width == 0 || output->height == 0) {
-		output->width = input->width;
-		output->height = input->height;
+		output->width = options.resize.width = input->width;
+		output->height = options.resize.height = input->height;
 	}
 
 	switch (options.color.dstFourCC) {

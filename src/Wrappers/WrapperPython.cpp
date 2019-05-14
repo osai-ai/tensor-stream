@@ -287,20 +287,16 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		return reader.getFrame(name, delay, frameParameters);
 	});
 
-	m.def("dump", [](at::Tensor stream, std::string consumerName, int dstWidth, int dstHeight, int resizeType, bool normalization, int planesPos, int pixelFormat) {
+	m.def("dump", [](at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {
 		py::gil_scoped_release release;
 
-		ResizeOptions resizeOptions;
-		resizeOptions.width = dstWidth;
-		resizeOptions.height = dstHeight;
-		resizeOptions.type = (ResizeType)resizeType;
-
-		ColorOptions colorOptions;
-		colorOptions.normalization = normalization;
-		colorOptions.planesPos = (Planes)planesPos;
-		colorOptions.dstFourCC = (FourCC)pixelFormat;
-
-		FrameParameters frameParameters = {resizeOptions, colorOptions};
+		if (!frameParameters.resize.width) {
+			frameParameters.resize.width = stream.size(1);
+		}
+		
+		if (!frameParameters.resize.height) {
+			frameParameters.resize.height = stream.size(0);
+		}
 		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
 		std::string dumpName = consumerName + std::string("");
 		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
