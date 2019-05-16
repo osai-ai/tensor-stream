@@ -124,10 +124,11 @@ int TensorStream::startProcessing() {
 	return sts;
 }
 
-std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters) {
+template <class T>
+std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters) {
 	AVFrame* decoded;
 	AVFrame* processedFrame;
-	std::tuple<float*, int> outputTuple;
+	std::tuple<T*, int> outputTuple;
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -152,11 +153,17 @@ std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int ind
 	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	float* cudaFrame((float*)processedFrame->opaque);
+	T* cudaFrame((T*)processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
 }
+
+template
+std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters);
+
+template
+std::tuple<unsigned char*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
@@ -194,7 +201,14 @@ void TensorStream::enableLogs(int level) {
 	}
 }
 
-int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+template
+int TensorStream::dumpFrame<unsigned char>(unsigned char* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template
+int TensorStream::dumpFrame<float>(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template <class T>
+int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	status = vpp->DumpFrame(frame, frameParameters, dumpFile);

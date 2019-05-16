@@ -40,7 +40,8 @@ public:
  @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
  @return Decoded frame in CUDA memory and index of decoded frame
 */
-	std::tuple<float*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
+	template <class T>
+	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 /** Close TensorStream session
  @param[in] mode Value from @ref ::CloseLevel
 */
@@ -54,7 +55,8 @@ public:
  @param[in] frameParameters Parameters specific for passed frame, used in @ref TensorStream::getFrame() call
  @param[in] dumpFile File handler
  */
-	int dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+	template <class T>
+	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 	int getDelay();
 private:
 	int processingLoop();

@@ -53,9 +53,8 @@ TEST_F(VPP_Convert, NV12ToRGB) {
 
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<float> outputRGBProcessingFloat(frameArgs.resize.width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputRGBProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-	std::vector<uint8_t> outputRGBProcessing(outputRGBProcessingFloat.begin(), outputRGBProcessingFloat.end());
+	std::vector<uint8_t> outputRGBProcessing(frameArgs.resize.width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 
 	//CRC for RGB24 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 2816643056
@@ -63,7 +62,7 @@ TEST_F(VPP_Convert, NV12ToRGB) {
 	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputRGBProcessing[0], width * height * converted->channels), 2816643056);
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
 	}
 	{
 		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
@@ -92,16 +91,15 @@ TEST_F(VPP_Convert, NV12ToBGR) {
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<float> outputBGRProcessingFloat(width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputBGRProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-	std::vector<uint8_t> outputBGRProcessing(outputBGRProcessingFloat.begin(), outputBGRProcessingFloat.end());
+	std::vector<uint8_t> outputBGRProcessing(width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputBGRProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	//CRC for BGR24 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 3797413135
 	std::string dumpFileName = "DumpFrameBGR.yuv";
 	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputBGRProcessing[0], width * height * converted->channels), 3797413135);
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
 	}
 	{
 		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
@@ -130,16 +128,15 @@ TEST_F(VPP_Convert, NV12ToY800) {
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<float> outputY800ProcessingFloat(width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputY800ProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-	std::vector<uint8_t> outputY800Processing(outputY800ProcessingFloat.begin(), outputY800ProcessingFloat.end());
+	std::vector<uint8_t> outputY800Processing(width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputY800Processing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	//CRC for Y800 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 3265466497
 	std::string dumpFileName = "DumpFrameY800.yuv";
 	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputY800Processing[0], width * height * converted->channels), 3265466497);
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
 	}
 	{
 		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
@@ -160,16 +157,15 @@ TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 	FrameParameters frameArgs = { width, height };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<float> outputRGBProcessingFloat(width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputRGBProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-	std::vector<uint8_t> outputRGBProcessing(outputRGBProcessingFloat.begin(), outputRGBProcessingFloat.end());
+	std::vector<uint8_t> outputRGBProcessing(width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	//CRC for resized RGB24 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 863907011
 	std::string dumpFileName = "DumpFrameRGBDownscaled.yuv";
 	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputRGBProcessing[0], width * height * converted->channels), 863907011);
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
 	}
 	{
 		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
@@ -190,16 +186,15 @@ TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	FrameParameters frameArgs = { width, height };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<float> outputRGBProcessingFloat(width * height * converted->channels);
-	EXPECT_EQ(cudaMemcpy(&outputRGBProcessingFloat[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-	std::vector<uint8_t> outputRGBProcessing(outputRGBProcessingFloat.begin(), outputRGBProcessingFloat.end());
+	std::vector<uint8_t> outputRGBProcessing(width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	//CRC for resized RGB24 zero frame of bbb_1080x608_420_10.h264
 	//CRC32 - 915070179
 	std::string dumpFileName = "DumpFrameRGBUpscaled.yuv";
 	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputRGBProcessing[0], width * height * converted->channels), 915070179);
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
 	}
 	{
 		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);

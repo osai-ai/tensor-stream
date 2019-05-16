@@ -63,7 +63,7 @@ struct FrameParameters {
 /**
 @}
 */
-
+template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
@@ -77,7 +77,8 @@ public:
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
 	int Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName);
-	int DumpFrame(float* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
+	template <class T>
+	int DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
 	void Close();
 private:
 	bool enableDumps;

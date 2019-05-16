@@ -17,12 +17,23 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 		}
 		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame(executionParameters["name"], std::atoi(executionParameters["delay"].c_str()), frameParameters);
-			if (!fileName.empty()) {
-				int status = reader.dumpFrame((float*)std::get<0>(result), frameParameters, dumpFile);
-				if (status < 0)
-					return;
+			if (frameParameters.color.normalization) {
+				auto result = reader.getFrame<float>(executionParameters["name"], std::atoi(executionParameters["delay"].c_str()), frameParameters);
+				if (!fileName.empty()) {
+					int status = reader.dumpFrame<float>((float*)std::get<0>(result), frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
 			}
+			else {
+				auto result = reader.getFrame<unsigned char>(executionParameters["name"], std::atoi(executionParameters["delay"].c_str()), frameParameters);
+				if (!fileName.empty()) {
+					int status = reader.dumpFrame<unsigned char>((unsigned char*)std::get<0>(result), frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+			}
+			
 
 		}
 	}
