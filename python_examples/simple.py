@@ -1,4 +1,4 @@
-from tensor_stream import TensorStreamConverter, LogsLevel, LogsType, FourCC
+from tensor_stream import TensorStreamConverter, LogsLevel, LogsType, FourCC, Planes, ResizeType
 
 import argparse
 import os
@@ -28,6 +28,16 @@ def parse_arguments():
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: unlimited)",
                         type=int, default=0)
+    parser.add_argument("--normalize",
+                        help="Set if output pixel values should be normalized",
+                        action='store_true')
+    parser.add_argument("--planes", default="MERGED",
+                        choices=["PLANAR", "MERGED"],
+                        help="Possible planes order in RGB format")
+    parser.add_argument("--resize_type", default="NEAREST",
+                        choices=["NEAREST", "BILINEAR"],
+                        help="Algorithm used to do resize")
+
     return parser.parse_args()
 
 
@@ -49,7 +59,10 @@ if __name__ == '__main__':
         while True:
             parameters = {'pixel_format' : FourCC[args.fourcc],
                           'width' : args.width,
-                          'height' : args.height}
+                          'height' : args.height,
+                          'normalization' : args.normalize,
+                          'planes_pos' : Planes[args.planes],
+                          'resize_type' : ResizeType[args.resize_type]}
 
             tensor, index = reader.read(**parameters, return_index=True)
 

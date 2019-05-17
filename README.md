@@ -21,7 +21,7 @@ while need_predictions:
                          width=256,
                          height=256)
                          
-    # tensor dtype is torch.uint8, device is cuda, shape is (256, 256, 3)
+    # tensor dtype is torch.uint8, device is cuda, shape is (1, 3, 256, 256)
     prediction = model(tensor)
     ...
 ```

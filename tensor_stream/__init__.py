@@ -4,6 +4,7 @@ from tensor_stream.tensor_stream import TensorStreamConverter,\
     LogsType,\
     CloseLevel,\
     FourCC,\
-    Planes
+    Planes,\
+    ResizeType
 
 __version__ = '0.1.8'

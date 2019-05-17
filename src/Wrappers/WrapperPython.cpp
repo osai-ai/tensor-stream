@@ -303,11 +303,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		py::gil_scoped_release release;
 
 		if (!frameParameters.resize.width) {
-			frameParameters.resize.width = stream.size(1);
+			frameParameters.resize.width = stream.size(3);
 		}
 		
 		if (!frameParameters.resize.height) {
-			frameParameters.resize.height = stream.size(0);
+			frameParameters.resize.height = stream.size(2);
 		}
 
 		std::cout << stream.sizes() << std::endl;

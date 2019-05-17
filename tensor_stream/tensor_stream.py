@@ -127,38 +127,42 @@ class TensorStreamConverter:
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
     # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-10, 0]
-    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
-    # @param[in] return_index Specify whether need return index of decoded frame or not
     # @param[in] width Specify the width of decoded frame
     # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] normalization Should final colors be normalized or not
+    # @param[in] planes_pos Possible planes order in RGB format, see @Planes for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
+    # @param[in] return_index Specify whether need return index of decoded frame or not
+    
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
              name="default",
              delay=0,
              width=0,
              height=0,
-             resizeType=ResizeType.NEAREST,
+             resize_type=ResizeType.NEAREST,
              normalization=False,
-             planesPos=Planes.MERGED,
+             planes_pos=Planes.MERGED,
              pixel_format=FourCC.RGB24,
              return_index=False,
              ):
-        frameParameters = TensorStream.FrameParameters()
-        colorOptions = TensorStream.ColorOptions()
-        colorOptions.normalization = normalization
-        colorOptions.planesPos = TensorStream.Planes(planesPos.value)
-        colorOptions.dstFourCC = TensorStream.FourCC(pixel_format.value)
+        frame_parameters = TensorStream.FrameParameters()
+        color_options = TensorStream.ColorOptions()
+        color_options.normalization = normalization
+        color_options.planesPos = TensorStream.Planes(planes_pos.value)
+        color_options.dstFourCC = TensorStream.FourCC(pixel_format.value)
         
-        resizeOptions = TensorStream.ResizeOptions()
-        resizeOptions.width = width
-        resizeOptions.height = height
-        resizeOptions.resizeType = TensorStream.ResizeType(resizeType.value)
+        resize_options = TensorStream.ResizeOptions()
+        resize_options.width = width
+        resize_options.height = height
+        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
         
-        frameParameters.color = colorOptions
-        frameParameters.resize = resizeOptions
+        frame_parameters.color = color_options
+        frame_parameters.resize = resize_options
 
         #print(f"Name {name} delay {delay} width {width} height {height} resizeType {resizeType} normalization {normalization} planesPos {planesPos} pixel_format {pixel_format} return_index {return_index}")
-        tensor, index = TensorStream.get(name, delay, frameParameters)
+        tensor, index = TensorStream.get(name, delay, frame_parameters)
         if return_index:
             return tensor, index
         else:
@@ -167,30 +171,36 @@ class TensorStreamConverter:
     ## Dump the tensor to hard driver
     # @param[in] tensor Tensor which should be dumped
     # @param[in] name The name of file with dumps
+    # @param[in] width Specify the width of decoded frame
+    # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] normalization Should final colors be normalized or not
+    # @param[in] planes_pos Possible planes order in RGB format, see @Planes for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     def dump(self,
              tensor,
              name="default",
              width=0,
              height=0,
-             resizeType=ResizeType.NEAREST,
+             resize_type=ResizeType.NEAREST,
              normalization=False,
-             planesPos=Planes.MERGED,
+             planes_pos=Planes.MERGED,
              pixel_format=FourCC.RGB24,):
-        frameParameters = TensorStream.FrameParameters()
-        colorOptions = TensorStream.ColorOptions()
-        colorOptions.normalization = normalization
-        colorOptions.planesPos = TensorStream.Planes(planesPos.value)
-        colorOptions.dstFourCC = TensorStream.FourCC(pixel_format.value)
+        frame_parameters = TensorStream.FrameParameters()
+        color_options = TensorStream.ColorOptions()
+        color_options.normalization = normalization
+        color_options.planesPos = TensorStream.Planes(planes_pos.value)
+        color_options.dstFourCC = TensorStream.FourCC(pixel_format.value)
         
-        resizeOptions = TensorStream.ResizeOptions()
-        resizeOptions.width = width
-        resizeOptions.height = height
-        resizeOptions.resizeType = TensorStream.ResizeType(resizeType.value)
+        resize_options = TensorStream.ResizeOptions()
+        resize_options.width = width
+        resize_options.height = height
+        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
         
-        frameParameters.color = colorOptions
-        frameParameters.resize = resizeOptions
+        frame_parameters.color = color_options
+        frame_parameters.resize = resize_options
 
-        TensorStream.dump(tensor, name, frameParameters)
+        TensorStream.dump(tensor, name, frame_parameters)
 
     def _start(self):
         TensorStream.start()
