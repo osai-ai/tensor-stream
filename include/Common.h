@@ -46,7 +46,7 @@ enum CloseLevel {
 #define CHECK_STATUS(status) \
 	if (status != 0) { \
 		std::cout << "TID: " << std::this_thread::get_id() << " "; \
-		std::cout << "Error status != 0\n" << std::flush; \
+		std::cout << "Error status != 0, status: " << (status) << "\n" << std::flush; \
 		std::cout << "TID: " << std::this_thread::get_id() << " "; \
 		std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "\n" << std::flush; \
 		return status; \
@@ -55,7 +55,7 @@ enum CloseLevel {
 #define CHECK_STATUS_THROW(status) \
 	if (status != 0) { \
 		std::cout << "TID: " << std::this_thread::get_id() << " "; \
-		std::cout << "Error status != 0\n" << std::flush; \
+		std::cout << "Error status != 0, status: " << (status) << "\n" << std::flush; \
 		std::cout << "TID: " << std::this_thread::get_id() << " "; \
 		std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "\n" << std::flush; \
 		throw std::runtime_error(std::to_string(status)); \

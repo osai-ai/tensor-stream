@@ -31,7 +31,7 @@ public:
 	int startProcessing();
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 	void endProcessing(int mode = HARD);
-	void enableLogs(int _logsLevel);
+	void enableLogs(int logsLevel);
 	template <class T>
 	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 private:

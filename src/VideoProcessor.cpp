@@ -7,7 +7,6 @@ void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
 		channels = 1;
 	//allow dump Y, RGB, BGR
-	printf("SIZE %d %d %d", options.resize.width, options.resize.height, channels);
 	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
 	
 	//UV planes should be stored after Y without any strides

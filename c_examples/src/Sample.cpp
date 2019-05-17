@@ -33,8 +33,6 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 						return;
 				}
 			}
-			
-
 		}
 	}
 	catch (std::runtime_error e) {
@@ -50,7 +48,6 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		//sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
 		sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 		if (sts != VREADER_OK)
 			reader.endProcessing(SOFT);

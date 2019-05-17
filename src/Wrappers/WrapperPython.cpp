@@ -310,9 +310,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 			frameParameters.resize.height = stream.size(2);
 		}
 
-		std::cout << stream.sizes() << std::endl;
 		stream = stream.reshape({ stream.size(2), stream.size(3), stream.size(1) });
-		std::cout << stream.sizes() << std::endl;
 		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
 		std::string dumpName = consumerName + std::string("");
 		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
