@@ -173,7 +173,11 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, torch::CUDA(at::kByte));
+	if (frameParameters.color.normalization)
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, torch::CUDA(at::kFloat));
+	else
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, torch::CUDA(at::kByte));
+
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
@@ -224,13 +228,21 @@ void TensorStream::enableLogs(int _logsLevel) {
 	}
 }
 
-int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+template <class T>
+int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
-	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
+	status = vpp->DumpFrame<T>(frame, frameParameters, dumpFile);
 	END_LOG_FUNCTION(std::string("dumpFrame()"));
 	return status;
 }
+
+template
+int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template
+int TensorStream::dumpFrame(uint8_t* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
 
 static TensorStream reader;
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -297,10 +309,19 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		if (!frameParameters.resize.height) {
 			frameParameters.resize.height = stream.size(0);
 		}
+
+		std::cout << stream.sizes() << std::endl;
+		stream = stream.reshape({ stream.size(2), stream.size(3), stream.size(1) });
+		std::cout << stream.sizes() << std::endl;
 		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
 		std::string dumpName = consumerName + std::string("");
 		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
-		return reader.dumpFrame((float*) stream.data_ptr(), frameParameters, dumpFrame);
+		int sts;
+		if (frameParameters.color.normalization)
+			sts = reader.dumpFrame((float*)stream.data_ptr(), frameParameters, dumpFrame);
+		else
+			sts = reader.dumpFrame((uint8_t*)stream.data_ptr(), frameParameters, dumpFrame);
+		return sts;
 	});
 
 	m.def("enableLogs", [](int logsLevel) {

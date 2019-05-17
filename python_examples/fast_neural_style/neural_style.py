@@ -6,7 +6,7 @@ import numpy as np
 from transfromer_net import TransformerNet
 from ffmpeg_video_writer import FFmpegVideoWriter
 
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, Planes, FourCC
 
 
 def parse_arguments():
@@ -92,11 +92,14 @@ if __name__ == "__main__":
             tensor, index = reader.read(pixel_format=FourCC.RGB24,
                                         return_index=True,
                                         width=width,
-                                        height=height)
+                                        height=height,
+                                        planesPos=Planes.PLANAR,
+                                        normalization=True)
 
-            tensor = tensor.permute(2, 0, 1)
-            tensor = tensor.unsqueeze(0)
-            tensor = tensor.to(torch.float32)
+            #tensor = tensor.reshape(1, tensor.shape[2], tensor.shape[0], tensor.shape[1])
+            #tensor = tensor.permute(2, 0, 1)
+            #tensor = tensor.unsqueeze(0)
+            #tensor = tensor.to(torch.float32)
 
             with torch.no_grad():
                 output = style_model(tensor)
