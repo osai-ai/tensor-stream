@@ -131,7 +131,7 @@ class TensorStreamConverter:
     # @param[in] height Specify the height of decoded frame
     # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
     # @param[in] normalization Should final colors be normalized or not
-    # @param[in] planes_pos Possible planes order in RGB format, see @Planes for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     # @param[in] return_index Specify whether need return index of decoded frame or not
     
@@ -175,7 +175,7 @@ class TensorStreamConverter:
     # @param[in] height Specify the height of decoded frame
     # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
     # @param[in] normalization Should final colors be normalized or not
-    # @param[in] planes_pos Possible planes order in RGB format, see @Planes for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     def dump(self,
              tensor,

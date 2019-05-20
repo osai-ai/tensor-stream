@@ -26,7 +26,6 @@ while need_predictions:
     # tensor dtype is either torch.uint8 or torch.float32 depending on normalization parameter, 
     # device is cuda, shape is (256, 256, 3)
     prediction = model(tensor)
-    ...
 ```
 
 * Initialize tensor stream with a video (e.g., a local file or a network video stream) and start reading it in a separate process.
@@ -98,7 +97,8 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 
 ### Binaries (Linux only)
 Extension for Python can be installed via pip:
- - **CUDA 9:**
+
+- **CUDA 9:**
 ```
 pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
 ```
@@ -172,7 +172,6 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
 ```
 2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
-
 ```
 python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
 ```
