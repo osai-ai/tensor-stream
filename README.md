@@ -1,3 +1,5 @@
+
+
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -119,7 +121,7 @@ On Linux
 cd c_examples  # tests
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_PREFIX_PATH=$PWD/../../cmake ..
 ```
 On Windows
 ```
@@ -127,7 +129,7 @@ set FFMPEG_PATH="Path to FFmpeg install folder"
 cd c_examples or tests
 mkdir build
 cd build
-cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
+cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 
 ## Docker image
@@ -163,7 +165,7 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 * Output pixels format can be either torch.float32 or torch.uint8 depending on normalization flag is set or not:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --normalization
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --normalize
 ```
 * Color planes in case of RGB can be either planar or merged and can be set via --planes option:
 ```
