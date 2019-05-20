@@ -32,7 +32,7 @@ enum Planes {
 /** Parameters specific for color conversion
 */
 struct ColorOptions {
-	bool normalization = false; /**< Should final colors be normalized or not */
+	bool normalization = false; /**<  @anchor normalization Should final colors be normalized or not */
 	Planes planesPos = Planes::MERGED /**< Memory layout of pixels. See @ref ::Planes for more information */;
 	FourCC dstFourCC = FourCC::RGB24 /**< Desired destination FourCC. See @ref ::FourCC for more information */;
 };

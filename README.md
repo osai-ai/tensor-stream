@@ -1,4 +1,3 @@
-
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -19,9 +18,11 @@ while need_predictions:
     # read latest available frame from the stream 
     tensor = reader.read(pixel_format=FourCC.BGR24,
                          width=256,
-                         height=256)
+                         height=256,
+                         normalization=False)
                          
-    # tensor dtype is torch.uint8, device is cuda, shape is (1, 3, 256, 256)
+    # tensor dtype is either torch.uint8 or torch.float32 depending on normalization parameter, 
+    # device is cuda, shape is (256, 256, 3)
     prediction = model(tensor)
     ...
 ```
@@ -152,15 +153,22 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 > **Warning:** Dumps significantly affect performance
 
-* The same scenario with downscaling:
+* The same scenario with downscaling with nearest resize algorithm:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump.yuv
 ```
 * Number of frames to process can be limited by -n option:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
 ```
-
+* Output pixels format can be either torch.float32 or torch.uint8 depending on normalization flag is set or not:
+```
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --normalization
+```
+* Color planes in case of RGB can be either planar or merged and can be set via --planes option:
+```
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
+```
 2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
 
 ```

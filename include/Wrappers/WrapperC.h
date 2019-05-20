@@ -34,7 +34,7 @@ public:
 */
 	int startProcessing();
 
-/** Get decoded and post-processed frame
+/** Get decoded and post-processed frame. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] consumerName Consumer unique ID
  @param[in] index Specify which frame should be read from decoded buffer. Can take values in range [-@ref decoderBuffer, 0]
  @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
@@ -50,7 +50,7 @@ public:
  @param[in] level Specify output level of logs, see @ref ::LogsLevel for supported values
 */
 	void enableLogs(int level);
-/** Dump the frame in CUDA memory to hard driver
+/** Dump the frame in CUDA memory to hard driver. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] frame CUDA memory should be dumped
  @param[in] frameParameters Parameters specific for passed frame, used in @ref TensorStream::getFrame() call
  @param[in] dumpFile File handler
