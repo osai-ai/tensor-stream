@@ -86,6 +86,7 @@ class TensorStreamConverter:
     def __init__(self, stream_url, repeat_number=1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
+        self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
         self.fps = None 
@@ -102,7 +103,7 @@ class TensorStreamConverter:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = TensorStream.init(self.stream_url)
+            status = self.tensor_stream.init(self.stream_url)
             if status != StatusLevel.OK.value:
                 # Mode 1 - full close, mode 2 - soft close (for reset)
                 self.stop(CloseLevel.SOFT)
@@ -111,7 +112,7 @@ class TensorStreamConverter:
         if repeat == 0:
             raise RuntimeError("Can't initialize TensorStream")
         else:
-            params = TensorStream.getPars()
+            params = self.tensor_stream.getPars()
             self.fps = params['framerate_num'] / params['framerate_den']
             self.frame_size = (params['width'], params['height'])
 
@@ -120,9 +121,9 @@ class TensorStreamConverter:
     # @param[in] log_type Specify where the logs should be printed, see @ref LogsType for supported values
     def enable_logs(self, level, log_type):
         if log_type == LogsType.FILE:
-            TensorStream.enableLogs(level.value)
+            self.tensor_stream.enableLogs(level.value)
         else:
-            TensorStream.enableLogs(-level.value)
+            self.tensor_stream.enableLogs(-level.value)
 
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
@@ -162,7 +163,7 @@ class TensorStreamConverter:
         frame_parameters.resize = resize_options
 
         #print(f"Name {name} delay {delay} width {width} height {height} resizeType {resizeType} normalization {normalization} planesPos {planesPos} pixel_format {pixel_format} return_index {return_index}")
-        tensor, index = TensorStream.get(name, delay, frame_parameters)
+        tensor, index = self.tensor_stream.get(name, delay, frame_parameters)
         if return_index:
             return tensor, index
         else:
@@ -200,10 +201,10 @@ class TensorStreamConverter:
         frame_parameters.color = color_options
         frame_parameters.resize = resize_options
 
-        TensorStream.dump(tensor, name, frame_parameters)
+        self.tensor_stream.dump(tensor, name, frame_parameters)
 
     def _start(self):
-        TensorStream.start()
+        self.tensor_stream.start()
 
     ## Start processing with parameters set via @ref initialize() function
     # This functions is being executed in separate thread
@@ -215,7 +216,7 @@ class TensorStreamConverter:
     # @param[in] level Value from @ref CloseLevel
     def stop(self, level=CloseLevel.HARD):
         self.log.info("Stop TensorStream")
-        TensorStream.close(level.value)
+        self.tensor_stream.close(level.value)
         if self.thread is not None:
             self.thread.join()
 
