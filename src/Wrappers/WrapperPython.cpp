@@ -228,23 +228,29 @@ void TensorStream::enableLogs(int _logsLevel) {
 	}
 }
 
-template <class T>
-int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {
 	int status = VREADER_OK;
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
-	status = vpp->DumpFrame<T>(frame, frameParameters, dumpFile);
+	if (!frameParameters.resize.width) {
+		frameParameters.resize.width = stream.size(3);
+	}
+
+	if (!frameParameters.resize.height) {
+		frameParameters.resize.height = stream.size(2);
+	}
+
+	stream = stream.reshape({ stream.size(2), stream.size(3), stream.size(1) });
+	//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
+	std::string dumpName = consumerName + std::string("");
+	std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
+	if (frameParameters.color.normalization)
+		status = vpp->DumpFrame<float>((float*)stream.data_ptr(), frameParameters, dumpFrame);
+	else
+		status = vpp->DumpFrame<uint8_t>((uint8_t*)stream.data_ptr(), frameParameters, dumpFrame);
 	END_LOG_FUNCTION(std::string("dumpFrame()"));
 	return status;
 }
 
-template
-int TensorStream::dumpFrame(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
-
-template
-int TensorStream::dumpFrame(uint8_t* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
-
-
-static TensorStream reader;
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::class_<FrameParameters>(m, "FrameParameters")
 		.def(py::init<>())
@@ -279,54 +285,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.value("BGR24", FourCC::BGR24)
 		.export_values();
 
-
-	m.def("init", [](std::string rtmp) -> int {
-		return reader.initPipeline(rtmp);
-	});
-
-	m.def("getPars", []() -> std::map<std::string, int> {
-		return reader.getInitializedParams();
-	});
-
-	m.def("start", [](void) {
-		py::gil_scoped_release release;
-		return reader.startProcessing();
-	});
-	
-	m.def("get", [](std::string name, int delay, FrameParameters frameParameters) {
-		py::gil_scoped_release release;
-
-		return reader.getFrame(name, delay, frameParameters);
-	});
-
-	m.def("dump", [](at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {
-		py::gil_scoped_release release;
-
-		if (!frameParameters.resize.width) {
-			frameParameters.resize.width = stream.size(3);
-		}
-		
-		if (!frameParameters.resize.height) {
-			frameParameters.resize.height = stream.size(2);
-		}
-
-		stream = stream.reshape({ stream.size(2), stream.size(3), stream.size(1) });
-		//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
-		std::string dumpName = consumerName + std::string("");
-		std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
-		int sts;
-		if (frameParameters.color.normalization)
-			sts = reader.dumpFrame((float*)stream.data_ptr(), frameParameters, dumpFrame);
-		else
-			sts = reader.dumpFrame((uint8_t*)stream.data_ptr(), frameParameters, dumpFrame);
-		return sts;
-	});
-
-	m.def("enableLogs", [](int logsLevel) {
-		reader.enableLogs(logsLevel);
-	});
-
-	m.def("close", [](int mode) {
-		reader.endProcessing(mode);
-	});
+	py::class_<TensorStream>(m, "TensorStream")
+		.def(py::init<>())
+		.def("init", &TensorStream::initPipeline)
+		.def("getPars", &TensorStream::getInitializedParams)		
+		.def("start", &TensorStream::startProcessing, py::call_guard<py::gil_scoped_release>())
+		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
+		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
+		.def("enableLogs", &TensorStream::enableLogs)
+		.def("close", &TensorStream::endProcessing);
 }
