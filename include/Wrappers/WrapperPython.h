@@ -32,7 +32,8 @@ public:
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 	void endProcessing(int mode = HARD);
 	void enableLogs(int logsLevel);
-	int dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters);
+	template <class T>
+	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
