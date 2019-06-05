@@ -43,9 +43,8 @@ public:
 	template <class T>
 	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 /** Close TensorStream session
- @param[in] mode Value from @ref ::CloseLevel
 */
-	void endProcessing(int mode = HARD);
+	void endProcessing();
 /** Enable logs from TensorStream
  @param[in] level Specify output level of logs, see @ref ::LogsLevel for supported values
 */
@@ -58,6 +57,7 @@ public:
 	template <class T>
 	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
 	int getDelay();
+	std::shared_ptr<Logger> getLogger();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
@@ -73,6 +73,7 @@ private:
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::mutex freeSync;
 	std::mutex closeSync;
+	std::shared_ptr<Logger> logger;
 };
 
 /** 

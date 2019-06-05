@@ -30,9 +30,9 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 	return VREADER_OK;
 }
 
-int VideoProcessor::Init(bool _enableDumps) {
+int VideoProcessor::Init(std::shared_ptr<Logger> logger, bool _enableDumps) {
 	enableDumps = _enableDumps;
-
+	this->logger = logger;
 	cudaGetDeviceProperties(&prop, 0);
 	for (int i = 0; i < maxConsumers; i++) {
 		cudaStream_t stream;

@@ -43,17 +43,19 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 int main()
 {
-	reader.enableLogs(-LOW);
+	reader.enableLogs(LOW);
 	int sts = VREADER_OK;
 	int initNumber = 10;
 
 	while (initNumber--) {
 		sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
 		if (sts != VREADER_OK)
-			reader.endProcessing(SOFT);
+			reader.endProcessing();
 		else
 			break;
 	}
+	auto logger = reader.getLogger();
+
 	CHECK_STATUS(sts);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	int dstWidth = 720;
@@ -65,7 +67,7 @@ int main()
 	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
-	reader.endProcessing(HARD);
+	reader.endProcessing();
 	pipeline.join();
 	return 0;
 }

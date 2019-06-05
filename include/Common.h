@@ -42,6 +42,15 @@ enum CloseLevel {
 /**
 @}
 */
+class Logger {
+public:
+	void initialize(LogsLevel logsLevel, std::string logName = "logs.txt");
+	std::string logFileName;
+	std::ofstream logsFile;
+	LogsLevel logsLevel = LogsLevel::NONE;
+	std::mutex logsMutex;
+	~Logger();
+};
 
 #define CHECK_STATUS(status) \
 	if (status != 0) { \
@@ -61,22 +70,16 @@ enum CloseLevel {
 		throw std::runtime_error(std::to_string(status)); \
 	} \
 
-const std::string logFileName = "logs.txt";
-
-extern std::ofstream logsFile;
-extern LogsLevel logsLevel;
-extern std::mutex logsMutex;
-
-#define LOG_VALUE(messageIn) \
+#define LOG_VALUE(messageIn, neededLevel) \
 	{ \
-		std::unique_lock<std::mutex> locker(logsMutex); \
-		if (logsLevel) \
+		std::unique_lock<std::mutex> locker(logger->logsMutex); \
+		if (logger->logsLevel && std::abs(logger->logsLevel) >= std::abs(neededLevel)) \
 		{ \
 			std::string finalMessage = messageIn + std::string("\n"); \
-			if (logsLevel < 0) \
+			if (logger->logsLevel < 0) \
 				std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-			else if (logsFile.is_open()) \
-				logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+			else if (logger->logsFile.is_open()) \
+				logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 		} \
 	} \
 
@@ -84,35 +87,35 @@ extern std::mutex logsMutex;
 	{ \
 		std::chrono::high_resolution_clock::time_point startFunc; \
 		{ \
-			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logsLevel) \
+			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			if (logger->logsLevel) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
-				if (logsLevel < 0) \
+				if (logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logsFile.is_open()) \
-					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				if (std::abs(logsLevel) >= MEDIUM) \
+				else if (logger->logsFile.is_open()) \
+					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				if (std::abs(logger->logsLevel) >= MEDIUM) \
 					startFunc = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
 
 #define END_LOG_FUNCTION(messageOut) \
 		{ \
-			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logsLevel) { \
+			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			if (logger->logsLevel) { \
 				std::string finalMessage; \
-				if (std::abs(logsLevel) >= MEDIUM) { \
+				if (std::abs(logger->logsLevel) >= MEDIUM) { \
 					int timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count(); \
 					std::string time = std::to_string(timeMs); \
 					finalMessage = messageOut + std::string(" -\nFunction time: ") + time + std::string("ms\n\n"); \
 				} else { \
 					finalMessage = messageOut + std::string(" -\n\n"); \
 				} \
-				if (logsLevel < 0) \
+				if (logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logsFile.is_open()) \
-					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (logger->logsFile.is_open()) \
+					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \
 	}
@@ -121,34 +124,33 @@ extern std::mutex logsMutex;
 	{ \
 		std::chrono::high_resolution_clock::time_point start; \
 		{ \
-			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logsLevel) >= HIGH) \
+			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			if (std::abs(logger->logsLevel) >= HIGH) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
-				if (logsLevel < 0) \
+				if (logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logsFile.is_open()) \
-					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (logger->logsFile.is_open()) \
+					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				start = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
 
 #define END_LOG_BLOCK(messageOut) \
 		{ \
-			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logsLevel) >= HIGH) { \
+			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			if (std::abs(logger->logsLevel) >= HIGH) { \
 				std::string finalMessage; \
 				std::string time = \
 				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count()); \
 				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string(" ms\n"); \
-				if (logsLevel < 0) \
+				if (logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logsFile.is_open()) \
-					logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (logger->logsFile.is_open()) \
+					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \
 	}
-	
 const int maxConsumers = 5;
 const int frameRateConstraints = 120;
 

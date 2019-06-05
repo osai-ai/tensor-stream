@@ -9,10 +9,10 @@ Decoder::Decoder() {
 
 }
 
-int Decoder::Init(DecoderParameters& input) {
+int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	state = input;
 	int sts;
-
+	this->logger = logger;
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
@@ -110,7 +110,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
 			if (index > 0) {
-				LOG_VALUE(std::string("WARNING: Frame number is greater than zero: ") + std::to_string(index));
+				LOG_VALUE(std::string("WARNING: Frame number is greater than zero: ") + std::to_string(index), LogsLevel::LOW);
 				index = 0;
 			}
 			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;

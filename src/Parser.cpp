@@ -212,7 +212,7 @@ int Parser::Analyze(AVPacket* package) {
 			gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
 			if (gaps_in_frame_num_value_allowed_flag) {
-				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
+				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"), LogsLevel::LOW);
 				errorBitstream = errorBitstream | AnalyzeErrors::GAPS_FRAME_NUM;
 			}
 			bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
@@ -257,13 +257,13 @@ int Parser::Analyze(AVPacket* package) {
 			if (frame_num == frameNumValue) {
 				if (pic_order_cnt_lsb <= POC) {
 					LOG_VALUE(std::string("[PARSING] B-slice incorrect POC. Current POC: ") + std::to_string(pic_order_cnt_lsb)
-						+ std::string(" previous POC: ") + std::to_string(POC));
+						+ std::string(" previous POC: ") + std::to_string(POC), LogsLevel::LOW);
 					errorBitstream = errorBitstream | AnalyzeErrors::B_POC;
 				}
 			}
 			else if (frame_num != frameNumValue + 1) {
 				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num)
-					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue));
+					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue), LogsLevel::LOW);
 				errorBitstream = errorBitstream | AnalyzeErrors::FRAME_NUM;
 			}
 			
@@ -275,9 +275,10 @@ int Parser::Analyze(AVPacket* package) {
 	return errorBitstream;
 }
 
-int Parser::Init(ParserParameters& input) {
+int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	state = input;
 	int sts = VREADER_OK;
+	this->logger = logger;
 	//packet_buffer - isn't empty
 	AVDictionary *opts = 0;
 	av_dict_set(&opts, "rtsp_transport", "tcp", 0);

@@ -66,7 +66,7 @@ public:
 	/*
 	Initialization of parser. Initialize work with rtmp, allocate recources.
 	*/
-	int Init(ParserParameters& input);
+	int Init(ParserParameters& input, std::shared_ptr<Logger> logger);
 
 	/*
 	The main function which read rtmp stream and write result to buffer. Should be executed in different thread.
@@ -153,4 +153,8 @@ private:
 	*/
 	AVBitStreamFilterContext* bitstreamFilter;
 	std::shared_ptr<AVPacket> NALu;
+	/*
+	Instance of Logger class
+	*/
+	std::shared_ptr<Logger> logger;
 };
