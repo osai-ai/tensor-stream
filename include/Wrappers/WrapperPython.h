@@ -30,7 +30,7 @@ public:
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing();
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
-	void endProcessing(int mode = HARD);
+	void endProcessing();
 	void enableLogs(int logsLevel);
 	int dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters);
 private:
@@ -50,4 +50,5 @@ private:
 	std::vector<std::shared_ptr<uint8_t> > processedFrames;
 	std::mutex freeSync;
 	std::mutex closeSync;
+	std::shared_ptr<Logger> logger;
 };

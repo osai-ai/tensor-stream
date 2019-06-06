@@ -42,16 +42,6 @@ class LogsType(Enum):
     ## Print all logs to console
     CONSOLE = 2
 
-
-## Class with possible C++ extension module close options
-# @details Used in @ref TensorStreamConverter.stop() function
-class CloseLevel(Enum):
-    ## Close all opened handlers, free resources
-    HARD = 1
-    ## Close all opened handlers except logs file handler, free resources
-    SOFT = 2
-
-
 ## Class with supported frame output color formats
 # @details Used in @ref TensorStreamConverter.read() function
 class FourCC(Enum):
@@ -105,8 +95,7 @@ class TensorStreamConverter:
         while status != StatusLevel.OK.value and repeat > 0:
             status = self.tensor_stream.init(self.stream_url)
             if status != StatusLevel.OK.value:
-                # Mode 1 - full close, mode 2 - soft close (for reset)
-                self.stop(CloseLevel.SOFT)
+                self.stop()
             repeat = repeat - 1
 
         if repeat == 0:
@@ -214,13 +203,10 @@ class TensorStreamConverter:
 
     ## Close TensorStream session
     # @param[in] level Value from @ref CloseLevel
-    def stop(self, level=CloseLevel.HARD):
+    def stop(self):
         self.log.info("Stop TensorStream")
-        self.tensor_stream.close(level.value)
+        self.tensor_stream.close()
         if self.thread is not None:
             self.thread.join()
-
-    def __del__(self):
-        self.stop()
-    
+   
 ## @}

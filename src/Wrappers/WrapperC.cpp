@@ -14,8 +14,10 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
-	if (logger == nullptr)
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
+	}
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	parser = std::make_shared<Parser>();
