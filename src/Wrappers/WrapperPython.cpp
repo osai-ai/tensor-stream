@@ -4,19 +4,13 @@
 void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 	if (level > AV_LOG_ERROR)
 		return;
-
-	if (logsLevel) {
-		std::vector<char> buffer(256);
-		vsnprintf(&buffer[0], buffer.size(), fmt, vargs);
-		std::string logMessage(&buffer[0]);
-		logMessage.erase(std::remove(logMessage.begin(), logMessage.end(), '\n'), logMessage.end());
-		LOG_VALUE(std::string("[FFMPEG] ") + logMessage);
-	}
 }
 
 int TensorStream::initPipeline(std::string inputFile) {
 	int sts = VREADER_OK;
 	shouldWork = true;
+	if (logger == nullptr)
+		logger->initialize(LogsLevel::NONE);
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
@@ -28,16 +22,16 @@ int TensorStream::initPipeline(std::string inputFile) {
 	vpp = std::make_shared<VideoProcessor>();
 	ParserParameters parserArgs = { inputFile, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
-	sts = parser->Init(parserArgs);
+	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false };
 	START_LOG_BLOCK(std::string("decoder->Init"));
-	sts = decoder->Init(decoderArgs);
+	sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(false);
+	sts = vpp->Init(logger, false);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();
@@ -48,7 +42,7 @@ int TensorStream::initPipeline(std::string inputFile) {
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	frameRate = std::pair<int, int>(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
 	if (!frameRate.second) {
-		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"));
+		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"), LogsLevel::LOW);
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
 	}
 
@@ -56,7 +50,7 @@ int TensorStream::initPipeline(std::string inputFile) {
 	CHECK_STATUS((int)(frameRate.second / frameRate.first) > frameRateConstraints);
 	realTimeDelay = ((float)frameRate.first /
 		(float)frameRate.second) * 1000;
-	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int)(frameRate.second / frameRate.first)));
+	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int)(frameRate.second / frameRate.first)), LogsLevel::LOW);
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }
@@ -73,7 +67,6 @@ std::map<std::string, int> TensorStream::getInitializedParams() {
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
-	//change to end of file
 	while (shouldWork) {
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
 		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
@@ -88,7 +81,7 @@ int TensorStream::processingLoop() {
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
 		START_LOG_BLOCK(std::string("parser->Analyze"));
-		//Parse package to find some syntax issues
+		//Parse package to find some syntax issues, don't handle errors returned from this function
 		sts = parser->Analyze(parsed);
 		END_LOG_BLOCK(std::string("parser->Analyze"));
 		START_LOG_BLOCK(std::string("decoder->Decode"));
@@ -122,10 +115,11 @@ int TensorStream::processingLoop() {
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::high_resolution_clock::now() - waitTime).count();
+			                            std::chrono::high_resolution_clock::now() - waitTime).count();
 		if (sleepTime > 0) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 		}
+		LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
 		END_LOG_BLOCK(std::string("sleep"));
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
@@ -135,10 +129,10 @@ int TensorStream::processingLoop() {
 int TensorStream::startProcessing() {
 	int sts = VREADER_OK;
 	sts = processingLoop();
-	LOG_VALUE(std::string("Processing was interrupted or stream has ended"));
+	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
 	decoder->notifyConsumers();
-	LOG_VALUE(std::string("All consumers were notified about processing end"));
+	LOG_VALUE(std::string("All consumers were notified about processing end"), LogsLevel::LOW);
 	CHECK_STATUS(sts);
 	return sts;
 }
@@ -194,15 +188,12 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
-void TensorStream::endProcessing(int mode) {
+void TensorStream::endProcessing() {
 	shouldWork = false;
-	LOG_VALUE(std::string("End processing async part"));
+	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
-		LOG_VALUE(std::string("End processing sync part start"));
-		if (mode == HARD && logsFile.is_open()) {
-			logsFile.close();
-		}
+		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
 		parser->Close();
 		decoder->Close();
 		vpp->Close();
@@ -215,17 +206,16 @@ void TensorStream::endProcessing(int mode) {
 		tensors.clear();
 		delete parsed;
 		parsed = nullptr;
-		LOG_VALUE(std::string("End processing sync part end"));
+		LOG_VALUE(std::string("End processing sync part end"), LogsLevel::LOW);
 	}
 }
 
-void TensorStream::enableLogs(int _logsLevel) {
-	if (_logsLevel) {
-		logsLevel = static_cast<LogsLevel>(_logsLevel);
-		if (!logsFile.is_open() && _logsLevel > 0) {
-			logsFile.open(logFileName);
-		}
+void TensorStream::enableLogs(int level) {
+	auto logsLevel = static_cast<LogsLevel>(level);
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
 	}
+	logger->initialize(logsLevel);
 }
 
 int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {

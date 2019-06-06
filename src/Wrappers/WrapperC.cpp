@@ -57,10 +57,9 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 }
 
 std::map<std::string, int> TensorStream::getInitializedParams() {
-	auto codecTmp = parser->getFormatContext()->streams[parser->getVideoIndex()]->codec;
 	std::map<std::string, int> params;
-	params.insert(std::map<std::string, int>::value_type("framerate_num", codecTmp->framerate.num));
-	params.insert(std::map<std::string, int>::value_type("framerate_den", codecTmp->framerate.den));
+	params.insert(std::map<std::string, int>::value_type("framerate_num", frameRate.second));
+	params.insert(std::map<std::string, int>::value_type("framerate_den", frameRate.first));
 	params.insert(std::map<std::string, int>::value_type("width", decoder->getDecoderContext()->width));
 	params.insert(std::map<std::string, int>::value_type("height", decoder->getDecoderContext()->height));
 	return params;
@@ -70,7 +69,6 @@ int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
 	while (shouldWork) {
-		auto startTime = std::chrono::high_resolution_clock::now();
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
 		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
 		START_LOG_BLOCK(std::string("parser->Read"));
@@ -98,7 +96,7 @@ int TensorStream::processingLoop() {
 		START_LOG_BLOCK(std::string("sleep"));
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-											std::chrono::high_resolution_clock::now() - waitTime).count();
+										std::chrono::high_resolution_clock::now() - waitTime).count();
 		if (sleepTime > 0) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 		}

@@ -63,7 +63,7 @@ if (platform.system() == 'Windows'):
 
 app_src_path = []
 app_src_path += ["src/Decoder.cpp"]
-app_src_path += ["src/General.cpp"]
+app_src_path += ["src/Common.cpp"]
 app_src_path += ["src/ColorConversion.cu"]
 app_src_path += ["src/Resize.cu"]
 app_src_path += ["src/Parser.cpp"]
