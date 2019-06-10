@@ -12,6 +12,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 }
 
 int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
+	PUSH_RANGE("TensorStream::initPipeline", 1);
 	int sts = VREADER_OK;
 	shouldWork = true;
 	if (logger == nullptr) {
@@ -71,6 +72,7 @@ int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
 	while (shouldWork) {
+		PUSH_RANGE("TensorStream::processingLoop", 1);
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
 		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
 		START_LOG_BLOCK(std::string("parser->Read"));
@@ -125,6 +127,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<T*, int> outputTuple;
+	PUSH_RANGE("TensorStream::getFrame", 1);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -169,6 +172,7 @@ void TensorStream::endProcessing() {
 	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
+		PUSH_RANGE("TensorStream::endProcessing", 1);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
 		parser->Close();
 		decoder->Close();
@@ -202,6 +206,7 @@ int TensorStream::dumpFrame<float>(float* frame, FrameParameters frameParameters
 template <class T>
 int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
+	PUSH_RANGE("TensorStream::dumpFrame", 1);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
 	END_LOG_FUNCTION(std::string("dumpFrame()"));

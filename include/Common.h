@@ -8,6 +8,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include "nvToolsExt.h"
 
 /** @addtogroup cppAPI
 @{ 
@@ -29,7 +30,7 @@ enum LogsLevel {
 	NONE, /**< No logs are needed */
 	LOW, /**< Print the indexes of processed frames */
 	MEDIUM, /**< Print also frame processing duration */
-	HIGH, /**< Print also the detailed information about functions in callstack */
+	HIGH /**< Print also the detailed information about functions in callstack */
 };
 
 /** Class with possible C++ extension module close options
@@ -42,6 +43,7 @@ enum CloseLevel {
 /**
 @}
 */
+
 class Logger {
 public:
 	void initialize(LogsLevel logsLevel, std::string logName = "logs.txt");
@@ -49,8 +51,34 @@ public:
 	std::ofstream logsFile;
 	LogsLevel logsLevel = LogsLevel::NONE;
 	std::mutex logsMutex;
+	bool enableNVTX = true;
 	~Logger();
 };
+
+class NVTXTracer {
+public:
+	void trace(const char* name, int colorID) {
+		uint32_t colors[] = { 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff, 0xffff0000, 0xffffffff };
+		int resultColorID = colorID % (sizeof(colors) / sizeof(uint32_t)); \
+			nvtxEventAttributes_t eventAttrib = { 0 }; \
+			eventAttrib.version = NVTX_VERSION; \
+			eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
+			eventAttrib.colorType = NVTX_COLOR_ARGB; \
+			eventAttrib.color = colors[resultColorID]; \
+			eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII; \
+			eventAttrib.message.ascii = name; \
+			nvtxRangePushEx(&eventAttrib); \
+	}
+	~NVTXTracer() {
+		nvtxRangePop();
+	}
+};
+
+#define PUSH_RANGE(name, colorID) \
+	NVTXTracer tracer; \
+	if (logger->enableNVTX) \
+		tracer.trace(name, colorID); \
+
 
 #define CHECK_STATUS(status) \
 	if (status != 0) { \

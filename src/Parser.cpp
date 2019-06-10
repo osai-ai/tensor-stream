@@ -276,6 +276,7 @@ int Parser::Analyze(AVPacket* package) {
 }
 
 int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Parser::Init", 2);
 	state = input;
 	int sts = VREADER_OK;
 	this->logger = logger;
