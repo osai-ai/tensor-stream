@@ -144,6 +144,7 @@ bool BitReader::SkipGolomb() {
 }
 
 int Parser::Analyze(AVPacket* package) {
+	PUSH_RANGE("Parser::Analyze", NVTXColors::AQUA);
 	enum NALTypes {
 		UNKNOWN = 0,
 		SPS = 7,
@@ -276,7 +277,7 @@ int Parser::Analyze(AVPacket* package) {
 }
 
 int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
-	PUSH_RANGE("Parser::Init", 2);
+	PUSH_RANGE("Parser::Init", NVTXColors::AQUA);
 	state = input;
 	int sts = VREADER_OK;
 	this->logger = logger;
@@ -331,6 +332,7 @@ Parser::Parser() {
 
 //no need any sync due to executing in 1 thread only
 int Parser::Read() {
+	PUSH_RANGE("Parser::Read", NVTXColors::AQUA);
 	int sts = VREADER_OK;
 	bool videoFrame = false;
 	while (videoFrame == false) {
@@ -358,6 +360,7 @@ int Parser::Read() {
 
 //no need any sync due to executing in 1 thread only
 int Parser::Get(AVPacket* output) {
+	PUSH_RANGE("Parser::Get", NVTXColors::AQUA);
 	if (lastFrame.second == false && lastFrame.first->stream_index == videoIndex) {
 		//decoder is responsible for deallocating
 		av_packet_ref(output, lastFrame.first);
@@ -381,6 +384,7 @@ AVStream* Parser::getStreamHandle() {
 }
 
 void Parser::Close() {
+	PUSH_RANGE("Parser::Close", NVTXColors::AQUA);
 	if (isClosed)
 		return;
 	av_bitstream_filter_close(bitstreamFilter);

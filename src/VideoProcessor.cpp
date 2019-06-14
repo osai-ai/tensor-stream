@@ -19,6 +19,7 @@ void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 
 template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
+	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
 	int channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
@@ -31,6 +32,7 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 }
 
 int VideoProcessor::Init(std::shared_ptr<Logger> logger, bool _enableDumps) {
+	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
 	this->logger = logger;
 	cudaGetDeviceProperties(&prop, 0);
@@ -45,6 +47,7 @@ int VideoProcessor::Init(std::shared_ptr<Logger> logger, bool _enableDumps) {
 }
 
 int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName) {
+	PUSH_RANGE("VideoProcessor::Convert", NVTXColors::YELLOW);
 	/*
 	Should decide which method call
 	*/
@@ -111,6 +114,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 }
 
 void VideoProcessor::Close() {
+	PUSH_RANGE("VideoProcessor::Close", NVTXColors::YELLOW);
 	if (isClosed)
 		return;
 	isClosed = true;

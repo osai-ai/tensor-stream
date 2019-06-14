@@ -15,7 +15,7 @@ protected:
 		ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
 		//ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" };
 		parser = std::make_shared<Parser>();
-		parser->Init(parserArgs);
+		parser->Init(parserArgs, std::make_shared<Logger>());
 	}
 
 
@@ -36,7 +36,7 @@ void processing(std::shared_ptr<Parser>& parser, Decoder& decoder, AVPacket& par
 TEST_F(Decoder_Init, CorrectInit) {
 	Decoder decoder;
 	DecoderParameters decoderArgs = { parser, false };
-	EXPECT_EQ(decoder.Init(decoderArgs), VREADER_OK);
+	EXPECT_EQ(decoder.Init(decoderArgs, std::make_shared<Logger>()), VREADER_OK);
 }
 
 //if index is out of bounds the (index + buffer size) index returned
@@ -44,7 +44,7 @@ TEST_F(Decoder_Init, IndexOutOfBuffer) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 2 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	std::thread startProcessing(processing, std::ref(parser), std::ref(decoder), std::ref(parsed), 2);
 	auto output = av_frame_alloc();
 	std::thread get([&decoder, &output]() {
@@ -72,7 +72,7 @@ TEST_F(Decoder_Init, PositiveIndexBuffer) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 1 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
@@ -100,7 +100,7 @@ TEST_F(Decoder_Init, CheckHWPixelFormat) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 1 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
@@ -126,11 +126,11 @@ TEST(Decoder_Init_YUV444, HWUsupportedPixelFormat) {
 	AVPacket parsed;
 	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
 	parser = std::make_shared<Parser>();
-	parser->Init(parserArgs);
+	parser->Init(parserArgs, std::make_shared<Logger>());
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 1 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	sts = parser->Read();
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
@@ -155,7 +155,7 @@ TEST_F(Decoder_Init, DPBBiggerBuffer) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 4 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	auto parsed = new AVPacket();
 	for (int i = 0; i < 10; i++) {
 		auto output = av_frame_alloc();
@@ -188,7 +188,7 @@ TEST_F(Decoder_Init, DPBLessBuffer) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 12 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	int decoderSts = VREADER_OK;
 	auto parsed = new AVPacket();
 	for (int i = 0; i < 10; i++) {
@@ -227,7 +227,7 @@ TEST_F(Decoder_Init, SeveralThreads) {
 	Decoder decoder;
 	//the buffer size is 1 frame, so only the last frame is stored
 	DecoderParameters decoderArgs = { parser, false, 4 };
-	int sts = decoder.Init(decoderArgs);
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 	std::vector<std::shared_ptr<AVFrame> > visualizeFrames;
 	std::vector<std::shared_ptr<AVFrame> > processingFrames;
 	std::thread startProcessing;

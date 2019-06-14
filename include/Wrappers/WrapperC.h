@@ -56,6 +56,9 @@ public:
  */
 	template <class T>
 	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+/** Enable NVTX logs from TensorStream
+*/
+	void enableNVTX();
 	int getDelay();
 	std::shared_ptr<Logger> getLogger();
 private:

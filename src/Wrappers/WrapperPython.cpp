@@ -220,6 +220,14 @@ void TensorStream::enableLogs(int level) {
 	logger->initialize(logsLevel);
 }
 
+void TensorStream::enableNVTX() {
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	logger->enableNVTX = true;
+}
+
 int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {
 	int status = VREADER_OK;
 	START_LOG_FUNCTION(std::string("dumpFrame()"));

@@ -51,34 +51,47 @@ public:
 	std::ofstream logsFile;
 	LogsLevel logsLevel = LogsLevel::NONE;
 	std::mutex logsMutex;
-	bool enableNVTX = true;
+	bool enableNVTX = false;
 	~Logger();
 };
 
+enum NVTXColors {
+	GREEN = 0xff00ff00,
+	BLUE = 0xff0000ff,
+	YELLOW = 0xffffff00,
+	PURPLE = 0xffff00ff,
+	AQUA = 0xff00ffff,
+	RED = 0xffff0000,
+	WHITE = 0xffffffff
+};
+
+#define NVTX_CATEGORY_ID 1
+
 class NVTXTracer {
 public:
-	void trace(const char* name, int colorID) {
-		uint32_t colors[] = { 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff, 0xffff0000, 0xffffffff };
-		int resultColorID = colorID % (sizeof(colors) / sizeof(uint32_t)); \
-			nvtxEventAttributes_t eventAttrib = { 0 }; \
-			eventAttrib.version = NVTX_VERSION; \
-			eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
-			eventAttrib.colorType = NVTX_COLOR_ARGB; \
-			eventAttrib.color = colors[resultColorID]; \
-			eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII; \
-			eventAttrib.message.ascii = name; \
-			nvtxRangePushEx(&eventAttrib); \
+	void trace(const char* name, NVTXColors colorID) {
+		nvtxEventAttributes_t eventAttrib = { 0 };
+		eventAttrib.version = NVTX_VERSION;
+		eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+		eventAttrib.colorType = NVTX_COLOR_ARGB;
+		eventAttrib.color = colorID;
+		eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+		eventAttrib.message.ascii = name;
+		eventAttrib.category = NVTX_CATEGORY_ID;
+		nvtxRangePushEx(&eventAttrib);
 	}
 	~NVTXTracer() {
 		nvtxRangePop();
 	}
 };
 
+//NVTXTracer should be outside of "if" because it's RAII object
 #define PUSH_RANGE(name, colorID) \
 	NVTXTracer tracer; \
 	if (logger->enableNVTX) \
+	{ \
 		tracer.trace(name, colorID); \
-
+	} \
 
 #define CHECK_STATUS(status) \
 	if (status != 0) { \

@@ -33,13 +33,7 @@ enum Planes {
 /** Parameters specific for color conversion
 */
 struct ColorOptions {
-	ColorOptions() {
-		this->normalization = false;
-		this->planesPos = Planes::MERGED;
-		this->dstFourCC = FourCC::RGB24;
-	}
-
-	ColorOptions(bool normalization, Planes planesPos, FourCC dstFourCC) {
+	ColorOptions(bool normalization = false, Planes planesPos = Planes::MERGED, FourCC dstFourCC = FourCC::RGB24) {
 		this->normalization = normalization;
 		this->planesPos = planesPos;
 		this->dstFourCC = dstFourCC;
@@ -60,12 +54,7 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
-	ResizeOptions() {
-		this->width = 0;
-		this->height = 0;
-		this->type = ResizeType::NEAREST;
-	}
-	ResizeOptions(int width, int height, ResizeType type) {
+	ResizeOptions(int width = 0, int height = 0, ResizeType type = ResizeType::NEAREST) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
 		this->type = type;

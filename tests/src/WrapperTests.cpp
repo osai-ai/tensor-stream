@@ -62,7 +62,7 @@ TEST(Wrapper_Init, OneThread) {
 	remove(parameters["dumpName"].c_str());
 	std::thread get(getCycle, parameters, std::ref(reader));
 	get.join();
-	reader.endProcessing(HARD);
+	reader.endProcessing();
 	pipeline.join();
 	//let's compare output
 
@@ -85,7 +85,7 @@ TEST(Wrapper_Init, MultipleThreads) {
 	std::thread getSecond(getCycle, parametersSecond, std::ref(reader));
 	getFirst.join();
 	getSecond.join();
-	reader.endProcessing(HARD);
+	reader.endProcessing();
 	pipeline.join();
 	//let's compare output
 
@@ -101,7 +101,7 @@ void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& rea
 		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
 		int frames = std::atoi(parameters["frames"].c_str());
 		
-		FrameParameters frameArgs = { {width, height}, {format} };
+		FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(format) };
 		for (int i = 0; i < frames; i++) {
 			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
@@ -131,7 +131,7 @@ TEST(Wrapper_Init, CheckPerformance) {
 
 	std::thread getFirst(getCycleLD, parameters, std::ref(reader));
 	getFirst.join();
-	reader.endProcessing(HARD);
+	reader.endProcessing();
 	pipeline.join();
 }
 
@@ -151,9 +151,9 @@ TEST(Wrapper_Init, OneThreadHang) {
 		//wait for some processing happened
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		//Close Reader before joining any thread, expect no hangs at the end of program
-		reader.endProcessing(HARD);
+		reader.endProcessing();
 		get.join();
-		reader.endProcessing(HARD);
+		reader.endProcessing();
 		pipeline.join();
 		//let's compare output
 		ended = true;

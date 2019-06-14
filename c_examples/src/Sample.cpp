@@ -44,6 +44,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 int main()
 {
 	reader.enableLogs(LOW);
+	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
 
@@ -55,6 +56,7 @@ int main()
 			break;
 	}
 	auto logger = reader.getLogger();
+
 
 	CHECK_STATUS(sts);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);

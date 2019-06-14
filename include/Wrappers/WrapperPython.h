@@ -32,6 +32,7 @@ public:
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 	void endProcessing();
 	void enableLogs(int logsLevel);
+	void enableNVTX();
 	int dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters);
 private:
 	int processingLoop();

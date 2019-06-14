@@ -8,7 +8,7 @@ extern "C" {
 
 TEST(VPP_Init, WithoutDumps) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 }
 
 class VPP_Convert : public ::testing::Test {
@@ -22,10 +22,10 @@ protected:
 	{
 		ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
 		parser = std::make_shared<Parser>();
-		parser->Init(parserArgs);
+		parser->Init(parserArgs, std::make_shared<Logger>());
 		//the buffer size is 1 frame, so only the last frame is stored
 		DecoderParameters decoderArgs = { parser, false, 4 };
-		int sts = decoder.Init(decoderArgs);
+		int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 		auto parsed = new AVPacket();
 		output = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 		sts = parser->Read();
@@ -45,11 +45,11 @@ protected:
 
 TEST_F(VPP_Convert, NV12ToRGB) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
-	FrameParameters frameArgs = { {width, height } };
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions() };
 
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
@@ -76,7 +76,7 @@ TEST_F(VPP_Convert, NV12ToRGB) {
 
 TEST_F(VPP_Convert, NV12ToBGR) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -113,7 +113,7 @@ TEST_F(VPP_Convert, NV12ToBGR) {
 
 TEST_F(VPP_Convert, NV12ToY800) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -150,11 +150,11 @@ TEST_F(VPP_Convert, NV12ToY800) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width / 2;
 	int height = output->height / 2;
-	FrameParameters frameArgs = { width, height };
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions() };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
 	std::vector<uint8_t> outputRGBProcessing(width * height * converted->channels);
@@ -179,11 +179,11 @@ TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width * 2;
 	int height = output->height * 2;
-	FrameParameters frameArgs = { width, height };
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions() };
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
 	std::vector<uint8_t> outputRGBProcessing(width * height * converted->channels);

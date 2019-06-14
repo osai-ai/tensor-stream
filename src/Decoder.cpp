@@ -10,6 +10,7 @@ Decoder::Decoder() {
 }
 
 int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;
 	int sts;
 	this->logger = logger;
@@ -44,6 +45,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 }
 
 void Decoder::Close() {
+	PUSH_RANGE("Decoder::Close", NVTXColors::RED);
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
@@ -93,6 +95,7 @@ AVCodecContext* Decoder::getDecoderContext() {
 }
 
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
+	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
 	//element in map will be created after trying to call it
 	if (!consumerStatus[consumerName]) {
 		consumerStatus[consumerName] = false;
@@ -125,6 +128,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 }
 
 int Decoder::Decode(AVPacket* pkt) {
+	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
 	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
