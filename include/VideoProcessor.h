@@ -32,9 +32,21 @@ enum Planes {
 /** Parameters specific for color conversion
 */
 struct ColorOptions {
-	bool normalization = false; /**<  @anchor normalization Should final colors be normalized or not */
-	Planes planesPos = Planes::MERGED /**< Memory layout of pixels. See @ref ::Planes for more information */;
-	FourCC dstFourCC = FourCC::RGB24 /**< Desired destination FourCC. See @ref ::FourCC for more information */;
+	ColorOptions() {
+		this->normalization = false;
+		this->planesPos = Planes::MERGED;
+		this->dstFourCC = FourCC::RGB24;
+	}
+
+	ColorOptions(bool normalization, Planes planesPos, FourCC dstFourCC) {
+		this->normalization = normalization;
+		this->planesPos = planesPos;
+		this->dstFourCC = dstFourCC;
+	}
+
+	bool normalization; /**<  @anchor normalization Should final colors be normalized or not */
+	Planes planesPos; /**< Memory layout of pixels. See @ref ::Planes for more information */
+	FourCC dstFourCC; /**< Desired destination FourCC. See @ref ::FourCC for more information */
 };
 
 /** Algorithm used to do resize
@@ -47,15 +59,30 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
-	unsigned int width = 0; /**< Width of destination image */
-	unsigned int height = 0; /**< Height of destination image */
-	ResizeType type = ResizeType::NEAREST; /**< Resize algorithm. See @ref ::ResizeType for more information */
+	ResizeOptions() {
+		this->width = 0;
+		this->height = 0;
+		this->type = ResizeType::NEAREST;
+	}
+	ResizeOptions(int width, int height, ResizeType type) {
+		this->width = (unsigned int)width;
+		this->height = (unsigned int)height;
+		this->type = type;
+	}
+
+	unsigned int width; /**< Width of destination image */
+	unsigned int height; /**< Height of destination image */
+	ResizeType type; /**< Resize algorithm. See @ref ::ResizeType for more information */
 };
 
 /** Parameters used to configure VPP
  @details These parameters can be passed via @ref TensorStream::getFrame() function
 */
 struct FrameParameters {
+	FrameParameters(ResizeOptions resize, ColorOptions color) {
+		this->resize = resize;
+		this->color = color;
+	}
 	ResizeOptions resize; /**< Resize options, see @ref ::ResizeOptions for more information */
 	ColorOptions color; /**< Color conversion options, see @ref ::ColorParameters for more information*/
 };
