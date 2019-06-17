@@ -26,7 +26,7 @@
 
 class TensorStream {
 public:
-	int initPipeline(std::string inputFile);
+	int initPipeline(std::string inputFile, uint8_t decoderBuffer = 10);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing();
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);

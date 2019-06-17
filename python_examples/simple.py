@@ -31,6 +31,9 @@ def parse_arguments():
     parser.add_argument("--normalize",
                         help="Set if output pixel values should be normalized",
                         action='store_true')
+    parser.add_argument("--nvtx",
+                        help="Enable NVTX logs",
+                        action='store_true')
     parser.add_argument("--planes", default="MERGED",
                         choices=["PLANAR", "MERGED"],
                         help="Possible planes order in RGB format")
@@ -46,6 +49,9 @@ if __name__ == '__main__':
 
     reader = TensorStreamConverter(args.input, repeat_number=20)
     reader.enable_logs(LogsLevel[args.verbose], LogsType.CONSOLE)
+    if (args.nvtx):
+        reader.enable_nvtx()
+    
     reader.initialize()
 
     reader.start()

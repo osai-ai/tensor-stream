@@ -69,6 +69,10 @@ struct ResizeOptions {
  @details These parameters can be passed via @ref TensorStream::getFrame() function
 */
 struct FrameParameters {
+	FrameParameters() {
+
+	}
+
 	FrameParameters(ResizeOptions resize, ColorOptions color) {
 		this->resize = resize;
 		this->color = color;

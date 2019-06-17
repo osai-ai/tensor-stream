@@ -23,12 +23,12 @@ include_directories("include")
 include_directories("include/Wrappers")
 
 FILE(GLOB APP_SOURCE "src/*.c*")
-FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c*)
+FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c* src/Wrappers/WrapperCommon.c*)
 list(APPEND APP_SOURCE ${WRAPPER_SOURCE})
 source_group("src" FILES ${APP_SOURCE})
 
 FILE(GLOB APP_HEADERS "include/*.h*")
-FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h*)
+FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h* include/Wrappers/WrapperCommon.h*)
 list(APPEND APP_HEADERS ${WRAPPER_HEADER})
 source_group("include" FILES ${APP_HEADERS})
 

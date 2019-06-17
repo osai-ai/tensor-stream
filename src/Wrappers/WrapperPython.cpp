@@ -6,13 +6,14 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
 	}
+	PUSH_RANGE("TensorStream::initPipeline", NVTXColors::GREEN);
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	/*avoiding Tensor CUDA lazy initializing for further context attaching*/
@@ -27,7 +28,7 @@ int TensorStream::initPipeline(std::string inputFile) {
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
-	DecoderParameters decoderArgs = { parser, false };
+	DecoderParameters decoderArgs = { parser, false, decoderBuffer };
 	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
@@ -58,6 +59,7 @@ int TensorStream::initPipeline(std::string inputFile) {
 }
 
 std::map<std::string, int> TensorStream::getInitializedParams() {
+	PUSH_RANGE("TensorStream::getInitializedParams", NVTXColors::GREEN);
 	std::map<std::string, int> params;
 	params.insert(std::map<std::string, int>::value_type("framerate_num", frameRate.second));
 	params.insert(std::map<std::string, int>::value_type("framerate_den", frameRate.first));
@@ -70,6 +72,7 @@ int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
 	while (shouldWork) {
+		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
 		std::chrono::high_resolution_clock::time_point waitTime = std::chrono::high_resolution_clock::now();
 		START_LOG_BLOCK(std::string("parser->Read"));
@@ -115,6 +118,7 @@ int TensorStream::processingLoop() {
 		END_LOG_BLOCK(std::string("check tensor to free"));
 
 		START_LOG_BLOCK(std::string("sleep"));
+		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
 			                            std::chrono::high_resolution_clock::now() - waitTime).count();
@@ -144,6 +148,7 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
+	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
 	{
@@ -195,6 +200,7 @@ void TensorStream::endProcessing() {
 	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
+		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
 		parser->Close();
 		decoder->Close();
@@ -230,6 +236,7 @@ void TensorStream::enableNVTX() {
 
 int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters) {
 	int status = VREADER_OK;
+	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	if (!frameParameters.resize.width) {
 		frameParameters.resize.width = stream.size(3);
@@ -292,6 +299,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("start", &TensorStream::startProcessing, py::call_guard<py::gil_scoped_release>())
 		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
 		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
+		.def("enableNVTX", &TensorStream::enableNVTX)
 		.def("enableLogs", &TensorStream::enableLogs)
 		.def("close", &TensorStream::endProcessing);
 }

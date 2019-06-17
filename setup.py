@@ -28,6 +28,7 @@ include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["include/"]
 include_path += ["include/Wrappers/"]
 ffmpeg_path = ""
+nvtx_path = ""
 if (platform.system() == 'Windows'):
     if (not os.getenv('FFMPEG_PATH')):
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
@@ -35,12 +36,25 @@ if (platform.system() == 'Windows'):
     ffmpeg_path = os.getenv('FFMPEG_PATH')
     include_path += [ffmpeg_path + "/include"]
 
+    if (not os.getenv('NVTOOLSEXT_PATH')):
+        raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
+
+    nvtx_path = os.getenv('NVTOOLSEXT_PATH')
+    include_path += [nvtx_path + "/include"]
+
+
 library_path = torch.utils.cpp_extension.library_paths(cuda=True)
 if (platform.system() == 'Windows'):
     if (ffmpeg_path):
         library_path += [ffmpeg_path + "/bin"]
     else:
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
+
+    if (nvtx_path):
+        library_path += [nvtx_path + "/lib/x64"]
+    else:
+        raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
+
 
 library = ["cudart"]
 library += ["cuda"]
@@ -60,6 +74,11 @@ if (platform.system() == 'Windows'):
     library += ["caffe2_gpu"]
     library += ["c10"]
     library += ["_C"]
+
+if (platform.system() == 'Windows'):
+    library += ["nvToolsExt64_1"]
+else:
+    library += ["nvToolsExt"]
 
 app_src_path = []
 app_src_path += ["src/Decoder.cpp"]

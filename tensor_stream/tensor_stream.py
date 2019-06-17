@@ -73,7 +73,9 @@ class TensorStreamConverter:
     # @param[in] stream_url Path to stream should be decoded
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
-    def __init__(self, stream_url, repeat_number=1):
+    # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
+    # @warning Size of buffer should be less or equal to DPB
+    def __init__(self, stream_url, buffer_size=10, repeat_number=1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -83,6 +85,7 @@ class TensorStreamConverter:
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
         self.frame_size = None 
 
+        self.buffer_size = buffer_size
         self.stream_url = stream_url
         self.repeat_number = repeat_number
 
@@ -93,7 +96,7 @@ class TensorStreamConverter:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = self.tensor_stream.init(self.stream_url)
+            status = self.tensor_stream.init(self.stream_url, self.buffer_size)
             if status != StatusLevel.OK.value:
                 self.stop()
             repeat = repeat - 1
@@ -113,6 +116,10 @@ class TensorStreamConverter:
             self.tensor_stream.enableLogs(level.value)
         else:
             self.tensor_stream.enableLogs(-level.value)
+
+    ## Enable NVTX from TensorStream C++ extension
+    def enable_nvtx(self):
+        self.tensor_stream.enableNVTX()
 
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
