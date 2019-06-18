@@ -28,6 +28,9 @@ def parse_arguments():
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: unlimited)",
                         type=int, default=0)
+    parser.add_argument("-bs", "--buffer_size",
+                        help="Size of internal buffer stores processed frames (default: 10)",
+                        type=int, default=10)
     parser.add_argument("--normalize",
                         help="Set if output pixel values should be normalized",
                         action='store_true')
@@ -47,7 +50,7 @@ def parse_arguments():
 if __name__ == '__main__':
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, repeat_number=20)
+    reader = TensorStreamConverter(args.input, args.buffer_size, repeat_number=20)
     reader.enable_logs(LogsLevel[args.verbose], LogsType.CONSOLE)
     if (args.nvtx):
         reader.enable_nvtx()
