@@ -25,6 +25,9 @@ def parse_arguments():
     parser.add_argument("-v", "--verbose", default="LOW",
                         choices=["LOW", "MEDIUM", "HIGH"],
                         help="Set output level from library (default: LOW)")
+    parser.add_argument("-vd", "--verbose_destination", default="CONSOLE",
+                        choices=["CONSOLE", "FILE"],
+                        help="Set destination of logs (default: CONSOLE)")
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: unlimited)",
                         type=int, default=0)
@@ -51,7 +54,7 @@ if __name__ == '__main__':
     args = parse_arguments()
 
     reader = TensorStreamConverter(args.input, args.buffer_size, repeat_number=20)
-    reader.enable_logs(LogsLevel[args.verbose], LogsType.CONSOLE)
+    reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
     if (args.nvtx):
         reader.enable_nvtx()
     
