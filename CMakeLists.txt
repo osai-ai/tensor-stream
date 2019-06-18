@@ -148,7 +148,7 @@ if (WIN32)
         MESSAGE(SEND_ERROR "Can't find NVTX static libraries")
     endif()
 else()
-    find_library(NVTX_LIBS nvToolsExt)
+    find_library(NVTX_LIBS nvToolsExt PATHS ${CMAKE_CUDA_HOST_IMPLICIT_LINK_DIRECTORIES})
 endif()
 target_link_libraries(${PROJECT_NAME} ${NVTX_LIBS})
 ###############################
