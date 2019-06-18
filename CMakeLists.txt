@@ -143,12 +143,14 @@ endif()
 if (WIN32)
     if (NOT "${NVTOOLSEXT_PATH}/lib/x64" STREQUAL "/lib/x64")
         FILE(GLOB_RECURSE NVTX_LIBS ${NVTOOLSEXT_PATH}/lib/x64/*.lib)
-        target_link_libraries(${PROJECT_NAME} ${NVTX_LIBS})
         message(STATUS "NVTX static libraries found ${NVTX_LIBS}")
     else()
         MESSAGE(SEND_ERROR "Can't find NVTX static libraries")
     endif()
+else()
+    find_library(NVTX_LIBS nvToolsExt)
 endif()
+target_link_libraries(${PROJECT_NAME} ${NVTX_LIBS})
 ###############################
 
 #NVTX dynamic libraries
