@@ -169,9 +169,14 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
 ```
+* Buffer size of processed frames via -bs or --buffer_size option:
+```
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --buffer_size 5
+```
+> **Warning:** Buffer size should be less or equal to decoded picture buffer (DPB)
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
 ```
 2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
 ```
