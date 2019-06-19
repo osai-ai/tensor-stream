@@ -87,12 +87,14 @@ __global__ void NV12ToRGB32KernelMerged(unsigned char* Y, unsigned char* UV, T* 
 }
 
 template< class T >
-__global__ void NV12ToY800(unsigned char* Y, T* Yf, int width, int height, int pitchNV12) {
+__global__ void NV12ToY800(unsigned char* Y, T* Yf, int width, int height, int pitchNV12, bool normalization) {
 	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
 	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (i < height && j < width) {
 		Yf[j + i * width] = Y[j + i * pitchNV12];
+		if (normalization)
+			Yf[j + i * width] /= 255;
 	}
 }
 
@@ -149,7 +151,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 			}
 		break;
 		case Y800:
-			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12);
+			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12, color.normalization);
 		break;
 		default:
 			err = cudaErrorMissingConfiguration;

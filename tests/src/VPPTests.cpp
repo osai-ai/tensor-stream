@@ -23,7 +23,6 @@ protected:
 		ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
 		parser = std::make_shared<Parser>();
 		parser->Init(parserArgs, std::make_shared<Logger>());
-		//the buffer size is 1 frame, so only the last frame is stored
 		DecoderParameters decoderArgs = { parser, false, 4 };
 		int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
 		auto parsed = new AVPacket();
@@ -43,7 +42,7 @@ protected:
 	}
 };
 
-TEST_F(VPP_Convert, NV12ToRGB) {
+TEST_F(VPP_Convert, NV12ToRGB24) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
@@ -74,7 +73,7 @@ TEST_F(VPP_Convert, NV12ToRGB) {
 	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
 }
 
-TEST_F(VPP_Convert, NV12ToBGR) {
+TEST_F(VPP_Convert, NV12ToBGR24) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
@@ -201,6 +200,217 @@ TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 		std::vector<uint8_t> fileRGBProcessing(width * height * converted->channels);
 		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
 		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileRGBProcessing[0], width * height * converted->channels), 915070179);
+	}
+
+	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+}
+
+TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	int width = 320;
+	int height = 240;
+	bool normalization = true;
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(normalization, Planes::MERGED, FourCC::RGB24) };
+
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<float> outputRGBProcessing(frameArgs.resize.width * height * converted->channels);
+	//check correctness of device->host copy
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	std::string dumpFileName = "RGB24Normalization_320x240.yuv";
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		/* The easiest way to check correctness via Python:
+		from matplotlib import pyplot as plt
+		import numpy as np
+		fd = open('RGB24Normalization.yuv', 'rb')
+		rows = 240
+		cols = 320
+		f = np.fromfile(fd, dtype=np.float32,count=rows * cols * 3)
+		f = f * 255
+		f = f.astype('int32')
+		im = f.reshape((rows, cols, 3))
+		fd.close()
+
+		plt.imshow(im)
+		plt.show()
+		*/
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileRGBProcessing(width * height * converted->channels);
+		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
+		
+		std::string refFileName = std::string("../resources/") + dumpFileName;
+		std::shared_ptr<FILE> readFileRef(fopen(refFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileRGBProcessingRef(width * height * converted->channels);
+		fread(&fileRGBProcessingRef[0], fileRGBProcessingRef.size(), 1, readFileRef.get());
+
+		ASSERT_EQ(fileRGBProcessing.size(), fileRGBProcessingRef.size());
+		for (int i = 0; i < fileRGBProcessing.size(); i++) {
+			ASSERT_EQ(fileRGBProcessing[i], fileRGBProcessingRef[i]);
+		}
+	}
+
+	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+}
+
+TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	int width = 320;
+	int height = 240;
+	bool normalization = true;
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(normalization, Planes::MERGED, FourCC::BGR24) };
+
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<float> outputBGRProcessing(frameArgs.resize.width * height * converted->channels);
+	//check correctness of device->host copy
+	EXPECT_EQ(cudaMemcpy(&outputBGRProcessing[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	std::string dumpFileName = "BGR24Normalization_320x240.yuv";
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileBGRProcessing(width * height * converted->channels);
+		fread(&fileBGRProcessing[0], fileBGRProcessing.size(), 1, readFile.get());
+
+		std::string refFileName = std::string("../resources/") + dumpFileName;
+		std::shared_ptr<FILE> readFileRef(fopen(refFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileBGRProcessingRef(width * height * converted->channels);
+		fread(&fileBGRProcessingRef[0], fileBGRProcessingRef.size(), 1, readFileRef.get());
+
+		ASSERT_EQ(fileBGRProcessing.size(), fileBGRProcessingRef.size());
+		for (int i = 0; i < fileBGRProcessing.size(); i++) {
+			ASSERT_EQ(fileBGRProcessing[i], fileBGRProcessingRef[i]);
+		}
+	}
+
+	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+}
+
+TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	int width = 320;
+	int height = 240;
+	bool normalization = true;
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(normalization, Planes::MERGED, FourCC::Y800) };
+
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<float> outputY800Processing(frameArgs.resize.width * height * converted->channels);
+	//check correctness of device->host copy
+	EXPECT_EQ(cudaMemcpy(&outputY800Processing[0], converted->opaque, converted->channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	std::string dumpFileName = "Y800Normalization_320x240.yuv";
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<float*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+		/* The easiest way to check correctness via Python:
+		from matplotlib import pyplot as plt
+		import numpy as np
+		fd = open('Y800Normalization_320x240.yuv', 'rb')
+		rows = 240
+		cols = 320
+		f = np.fromfile(fd, dtype=np.float32,count=rows * cols)
+		f = f * 255
+		f = f.astype('int32')
+		im = f.reshape((rows, cols))
+		fd.close()
+
+		plt.imshow(im, cmap='gray')
+		plt.show()
+		*/
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileY800Processing(width * height * converted->channels);
+		fread(&fileY800Processing[0], fileY800Processing.size(), 1, readFile.get());
+
+		std::string refFileName = std::string("../resources/") + dumpFileName;
+		std::shared_ptr<FILE> readFileRef(fopen(refFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileY800ProcessingRef(width * height * converted->channels);
+		fread(&fileY800ProcessingRef[0], fileY800ProcessingRef.size(), 1, readFileRef.get());
+
+		ASSERT_EQ(fileY800Processing.size(), fileY800ProcessingRef.size());
+		for (int i = 0; i < fileY800Processing.size(); i++) {
+			ASSERT_EQ(fileY800Processing[i], fileY800ProcessingRef[i]);
+		}
+	}
+
+	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+}
+
+TEST_F(VPP_Convert, NV12ToRGB24Planar) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	int width = output->width;
+	int height = output->height;
+	bool normalization = false;
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(normalization, Planes::PLANAR) };
+
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<uint8_t> outputRGBProcessing(frameArgs.resize.width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	//CRC for RGB24 zero frame of bbb_1080x608_420_10.h264
+	//CRC32 - 1381178532
+	std::string dumpFileName = "DumpFrameRGB.yuv";
+	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputRGBProcessing[0], width * height * converted->channels), 1381178532);
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileRGBProcessing(width * height * converted->channels);
+		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
+		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileRGBProcessing[0], width * height * converted->channels), 1381178532);
+	}
+
+	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+}
+
+TEST_F(VPP_Convert, NV12ToBGR24Planar) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	int width = output->width;
+	int height = output->height;
+	bool normalization = false;
+	FrameParameters frameArgs = { ResizeOptions(width, height), ColorOptions(normalization, Planes::PLANAR, FourCC::BGR24) };
+
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+	std::vector<uint8_t> outputBGRProcessing(frameArgs.resize.width * height * converted->channels);
+	EXPECT_EQ(cudaMemcpy(&outputBGRProcessing[0], converted->opaque, converted->channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	//CRC for BGR24 zero frame of bbb_1080x608_420_10.h264
+	//CRC32 - 1193620459
+	std::string dumpFileName = "DumpFrameBGR.yuv";
+	ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &outputBGRProcessing[0], width * height * converted->channels), 1193620459);
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(converted->opaque), frameArgs, writeFile), VREADER_OK);
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileBGRProcessing(width * height * converted->channels);
+		fread(&fileBGRProcessing[0], fileBGRProcessing.size(), 1, readFile.get());
+		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileBGRProcessing[0], width * height * converted->channels), 1193620459);
 	}
 
 	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
