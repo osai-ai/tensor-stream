@@ -44,13 +44,14 @@ enum CloseLevel {
 @}
 */
 
+extern std::mutex logsMutex;
+
 class Logger {
 public:
 	void initialize(LogsLevel logsLevel, std::string logName = "logs.txt");
 	std::string logFileName;
 	std::ofstream logsFile;
 	LogsLevel logsLevel = LogsLevel::NONE;
-	std::mutex logsMutex;
 	bool enableNVTX = false;
 	~Logger();
 };
@@ -113,7 +114,7 @@ public:
 
 #define LOG_VALUE(messageIn, neededLevel) \
 	{ \
-		std::unique_lock<std::mutex> locker(logger->logsMutex); \
+		std::unique_lock<std::mutex> locker(logsMutex); \
 		if (logger->logsLevel && std::abs(logger->logsLevel) >= std::abs(neededLevel)) \
 		{ \
 			std::string finalMessage = messageIn + std::string("\n"); \
@@ -128,7 +129,7 @@ public:
 	{ \
 		std::chrono::high_resolution_clock::time_point startFunc; \
 		{ \
-			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (logger->logsLevel) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
@@ -143,7 +144,7 @@ public:
 
 #define END_LOG_FUNCTION(messageOut) \
 		{ \
-			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (logger->logsLevel) { \
 				std::string finalMessage; \
 				if (std::abs(logger->logsLevel) >= MEDIUM) { \
@@ -165,7 +166,7 @@ public:
 	{ \
 		std::chrono::high_resolution_clock::time_point start; \
 		{ \
-			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (std::abs(logger->logsLevel) >= HIGH) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
@@ -179,7 +180,7 @@ public:
 
 #define END_LOG_BLOCK(messageOut) \
 		{ \
-			std::unique_lock<std::mutex> locker(logger->logsMutex); \
+			std::unique_lock<std::mutex> locker(logsMutex); \
 			if (std::abs(logger->logsLevel) >= HIGH) { \
 				std::string finalMessage; \
 				std::string time = \

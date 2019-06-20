@@ -42,12 +42,16 @@ void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 		channels = 1;
 
 	int frames = std::atoi(parameters["frames"].c_str());
+	std::vector<uint8_t> fileRGBProcessing(width * height * channels * frames);
 	{
-		std::vector<uint8_t> fileRGBProcessing(width * height * channels * frames);
 		std::shared_ptr<FILE> readFile(fopen(parameters["dumpName"].c_str(), "rb"), fclose);
 		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
+	}
+	if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileRGBProcessing[0], width * height * channels * frames) != crc) {
+		ASSERT_EQ(remove(parameters["dumpName"].c_str()), 0);
 		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileRGBProcessing[0], width * height * channels * frames), crc);
 	}
+	
 	ASSERT_EQ(remove(parameters["dumpName"].c_str()), 0);
 }
 
@@ -161,4 +165,34 @@ TEST(Wrapper_Init, OneThreadHang) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 	ASSERT_EQ(ended, true);
 	mainThread.join();
+}
+
+TEST(Wrapper_Init, SeveralInstances) {
+	//need to check logs levels and correctness of frames
+	TensorStream readerBBB;
+	//readerBBB.enableLogs(-LOW);
+	ASSERT_EQ(readerBBB.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+	TensorStream readerBilliard;
+	//readerBilliard.enableLogs(-MEDIUM);
+	ASSERT_EQ(readerBilliard.initPipeline("../resources/billiard_1920x1080_420_100.h264", 5), VREADER_OK);
+	std::thread pipelineBBB(&TensorStream::startProcessing, &readerBBB);
+	std::thread pipelineBilliard(&TensorStream::startProcessing, &readerBilliard);
+	std::map<std::string, std::string> parametersBBB = { {"name", "BBB"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "1920"}, {"height", "1080"},
+													  {"frames", "10"}, {"dumpName", "BBB_dump.yuv"} };
+	std::map<std::string, std::string> parametersBilliard = { {"name", "Billiard"}, {"delay", "0"}, {"format", std::to_string(BGR24)}, {"width", "720"}, {"height", "480"},
+													  {"frames", "10"}, {"dumpName", "billiard_dump.yuv"} };
+	
+	std::thread getBBB(getCycle, parametersBBB, std::ref(readerBBB));
+	std::thread getBilliard(getCycle, parametersBilliard, std::ref(readerBilliard));
+	
+	getBBB.join();
+	getBilliard.join();
+	readerBBB.endProcessing();
+	readerBilliard.endProcessing();
+	pipelineBBB.join();
+	pipelineBilliard.join();
+	//let's compare output
+
+	checkCRC(parametersBBB, 3267473238);
+	checkCRC(parametersBilliard, 3378171067);
 }

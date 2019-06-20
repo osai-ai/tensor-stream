@@ -226,7 +226,3 @@ int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shar
 int TensorStream::getDelay() {
 	return realTimeDelay;
 }
-
-std::shared_ptr<Logger> TensorStream::getLogger() {
-	return logger;
-}

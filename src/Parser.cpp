@@ -196,6 +196,9 @@ int Parser::Analyze(AVPacket* package) {
 						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
 				}
 			}
+			else {
+				LOG_VALUE(std::string("[PARSING] Bitstreams doesn't conform to the Main profile ") + std::to_string(profile_idc), LogsLevel::LOW);
+			}
 			log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 			pic_order_cnt_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 			if (pic_order_cnt_type == 0) {

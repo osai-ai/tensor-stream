@@ -1,5 +1,7 @@
 #include "Common.h"
 
+std::mutex logsMutex;
+
 void Logger::initialize(LogsLevel logsLevel, std::string logName) {
 	this->logsLevel = logsLevel;
 	logFileName = logName;

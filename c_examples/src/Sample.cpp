@@ -55,8 +55,6 @@ int main()
 		else
 			break;
 	}
-	auto logger = reader.getLogger();
-
 
 	CHECK_STATUS(sts);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);

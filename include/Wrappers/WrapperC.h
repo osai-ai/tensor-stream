@@ -60,7 +60,6 @@ public:
 */
 	void enableNVTX();
 	int getDelay();
-	std::shared_ptr<Logger> getLogger();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
