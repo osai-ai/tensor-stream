@@ -12,7 +12,7 @@ def parse_arguments():
                         default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
                         help="Path to bitstream: RTMP, local file")
     parser.add_argument("-i2", "--input2",
-                        default="../tests/resources/billiard_1920x1080_420_100.h264",
+                        default="tests/resources/billiard_1920x1080_420_100.h264",
                         help="Path to bitstream: RTMP, local file")
     parser.add_argument("-o1", "--output1",
                         help="Name of output raw stream", default="output1.yuv")
