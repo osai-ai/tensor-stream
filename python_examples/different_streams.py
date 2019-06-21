@@ -19,12 +19,15 @@ def parse_arguments():
     parser.add_argument("-o2", "--output2",
                         help="Name of output raw stream", default="output2.yuv")
     parser.add_argument("-v1", "--verbose1", default="NONE",
-                        choices=["NONE", "LOW", "MEDIUM", "HIGH"],
-                        help="Set output level from library (default: LOW)")
+                        choices=["LOW", "MEDIUM", "HIGH"],
+                        help="Set output level from library (default: NONE)")
     parser.add_argument("-v2", "--verbose2", default="NONE",
-                        choices=["NONE", "LOW", "MEDIUM", "HIGH"],
-                        help="Set output level from library (default: LOW)")
-    parser.add_argument("-n", "--number",
+                        choices=["LOW", "MEDIUM", "HIGH"],
+                        help="Set output level from library (default: NONE)")
+    parser.add_argument("-n1", "--number1",
+                        help="Number of frame to parse (default: 50)",
+                        type=int, default=50)
+    parser.add_argument("-n2", "--number2",
                         help="Number of frame to parse (default: 50)",
                         type=int, default=50)
     return parser.parse_args()
@@ -40,7 +43,7 @@ def consumer1(reader, n_frames):
     print()
     print("consumer1 shape:", tensor.shape)
     print("consumer1 dtype:", tensor.dtype, end='\n\n')
-
+    reader.stop()
 
 def consumer2(reader, n_frames):
     for i in range(n_frames):
@@ -54,6 +57,7 @@ def consumer2(reader, n_frames):
         if index % int(reader.fps) == 0:
             print("consumer2 frame index", index)
 
+    reader.stop()
     time.sleep(1.0)  # prevent simultaneous print
     print("consumer2 shape:", tensor.shape)
     print("consumer2 dtype:", tensor.dtype)
@@ -74,14 +78,11 @@ if __name__ == "__main__":
     reader1.start()
     reader2.start()
 
-    thread1 = Thread(target=consumer1, args=(reader1, args.number))
-    thread2 = Thread(target=consumer2, args=(reader2, args.number))
+    thread1 = Thread(target=consumer1, args=(reader1, args.number1))
+    thread2 = Thread(target=consumer2, args=(reader2, args.number2))
 
     thread1.start()
     thread2.start()
 
     thread1.join()
     thread2.join()
-
-    reader1.stop()
-    reader2.stop()

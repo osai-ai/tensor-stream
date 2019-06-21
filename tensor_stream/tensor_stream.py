@@ -112,10 +112,11 @@ class TensorStreamConverter:
     # @param[in] level Specify output level of logs, see @ref LogsLevel for supported values
     # @param[in] log_type Specify where the logs should be printed, see @ref LogsType for supported values
     def enable_logs(self, level, log_type):
-        if log_type == LogsType.FILE:
-            self.tensor_stream.enableLogs(level.value)
-        else:
-            self.tensor_stream.enableLogs(-level.value)
+        if level != LogsLevel.NONE:
+            if log_type == LogsType.FILE:
+                self.tensor_stream.enableLogs(level.value)
+            else:
+                self.tensor_stream.enableLogs(-level.value)
 
     ## Enable NVTX from TensorStream C++ extension
     def enable_nvtx(self):
