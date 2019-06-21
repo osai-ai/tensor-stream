@@ -182,7 +182,11 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
 ```
-
+3. [Example](python_examples/different_streams.py) demonstrates how to use TensorStream if several streams should be handled simultaneously:
+```
+python different_streams.py -i1 <path-to-first-stream> -i2 <path-to-second-stream> -n1 100 -n2 50 -v1 LOW -v2 HIGH
+```
+> **Warning:** Default path to second stream is relative, so need to run different_streams.py from parent folder if no arguments are passing
 ### PyTorch example
 
 Real-time video style transfer example: [fast-neural-style](python_examples/fast_neural_style).
