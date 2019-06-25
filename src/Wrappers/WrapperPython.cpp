@@ -132,8 +132,16 @@ int TensorStream::processingLoop() {
 	return sts;
 }
 
-int TensorStream::startProcessing() {
+int TensorStream::startProcessing(int cudaDevice) {
 	int sts = VREADER_OK;
+	//
+	int cudaDevicesNumber;
+	sts = cudaGetDeviceCount(&cudaDevicesNumber);
+	CHECK_STATUS(sts);
+	if (cudaDevice >= 0 && cudaDevice < cudaDevicesNumber) {
+		sts = cudaSetDevice(cudaDevice);
+		CHECK_STATUS(sts);
+	}
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
@@ -174,10 +182,12 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	if (frameParameters.color.normalization)
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, torch::CUDA(at::kFloat));
-	else
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, torch::CUDA(at::kByte));
+	if (frameParameters.color.normalization) {
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, 0)));
+	}
+	else {
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, 0)));
+	}
 
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -296,7 +306,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def(py::init<>())
 		.def("init", &TensorStream::initPipeline)
 		.def("getPars", &TensorStream::getInitializedParams)		
-		.def("start", &TensorStream::startProcessing, py::call_guard<py::gil_scoped_release>())
+		.def("start", &TensorStream::startProcessing, py::arg("cudaDevice") = defaultCUDADevice, py::call_guard<py::gil_scoped_release>())
 		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
 		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
 		.def("enableNVTX", &TensorStream::enableNVTX)

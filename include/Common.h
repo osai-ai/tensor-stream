@@ -193,6 +193,9 @@ public:
 			} \
 		} \
 	}
+
+const int defaultCUDADevice = 0;
+
 const int maxConsumers = 5;
 const int frameRateConstraints = 120;
 

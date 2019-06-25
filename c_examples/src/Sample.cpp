@@ -57,7 +57,7 @@ int main()
 	}
 
 	CHECK_STATUS(sts);
-	std::thread pipeline(&TensorStream::startProcessing, &reader);
+	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 720;
 	int dstHeight = 480;
 	ColorOptions colorOptions = { false, Planes::MERGED, BGR24 };

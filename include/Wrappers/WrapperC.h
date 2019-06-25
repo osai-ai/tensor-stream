@@ -32,7 +32,7 @@ public:
 /** Start decoding of bitstream in separate thread
  @return Status of execution, one of @ref ::Internal values
 */
-	int startProcessing();
+	int startProcessing(int cudaDevice = 0);
 
 /** Get decoded and post-processed frame. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] consumerName Consumer unique ID

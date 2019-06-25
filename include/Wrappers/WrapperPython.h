@@ -28,7 +28,7 @@ class TensorStream {
 public:
 	int initPipeline(std::string inputFile, uint8_t decoderBuffer = 10);
 	std::map<std::string, int> getInitializedParams();
-	int startProcessing();
+	int startProcessing(int cudaDevice = 0);
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 	void endProcessing();
 	void enableLogs(int logsLevel);
