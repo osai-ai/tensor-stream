@@ -199,10 +199,10 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	if (frameParameters.color.normalization) {
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, 0)));
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
 	}
 	else {
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, 0)));
+		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 	}
 
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
