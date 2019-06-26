@@ -30,6 +30,12 @@ def parse_arguments():
     parser.add_argument("-n2", "--number2",
                         help="Number of frame to parse (default: 50)",
                         type=int, default=50)
+    parser.add_argument("--cuda_device1",
+                        help="Set GPU for processing (default: 0)",
+                        type=int, default=0)
+    parser.add_argument("--cuda_device2",
+                        help="Set GPU for processing (default: 0)",
+                        type=int, default=0)
     return parser.parse_args()
 
 
@@ -67,11 +73,11 @@ def consumer2(reader, n_frames):
 if __name__ == "__main__":
     args = parse_arguments()
 
-    reader1 = TensorStreamConverter(args.input1, repeat_number=20)
+    reader1 = TensorStreamConverter(args.input1, cuda_device = args.cuda_device1, repeat_number=20)
     reader1.enable_logs(LogsLevel[args.verbose1], LogsType.CONSOLE)
     reader1.initialize()
 
-    reader2 = TensorStreamConverter(args.input2, repeat_number=20)
+    reader2 = TensorStreamConverter(args.input2, cuda_device = args.cuda_device2, repeat_number=20)
     reader2.enable_logs(LogsLevel[args.verbose2], LogsType.CONSOLE)
     reader2.initialize()
 
