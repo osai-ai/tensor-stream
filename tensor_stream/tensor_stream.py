@@ -75,7 +75,7 @@ class TensorStreamConverter:
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
     # @warning Size of buffer should be less or equal to DPB
-    def __init__(self, stream_url, buffer_size=10, repeat_number=1):
+    def __init__(self, stream_url, cuda_device=torch.cuda.current_device(), buffer_size=10, repeat_number=1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -85,6 +85,7 @@ class TensorStreamConverter:
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
         self.frame_size = None 
 
+        self.cuda_device = cuda_device
         self.buffer_size = buffer_size
         self.stream_url = stream_url
         self.repeat_number = repeat_number
@@ -96,7 +97,7 @@ class TensorStreamConverter:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = self.tensor_stream.init(self.stream_url, self.buffer_size)
+            status = self.tensor_stream.init(self.stream_url, self.cuda_device, self.buffer_size)
             if status != StatusLevel.OK.value:
                 self.stop()
             repeat = repeat - 1

@@ -22,7 +22,7 @@ public:
  @warning decodedBuffer should be less than DPB
  @return Status of execution, one of @ref ::Internal values
 */
-	int initPipeline(std::string inputFile, uint8_t decoderBuffer = 10);
+	int initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_t decoderBuffer);
 
 /** Get parameters from bitstream
  @return Map with "framerate_num", "framerate_den", "width", "height" values
@@ -32,7 +32,7 @@ public:
 /** Start decoding of bitstream in separate thread
  @return Status of execution, one of @ref ::Internal values
 */
-	int startProcessing(int cudaDevice = 0);
+	int startProcessing();
 
 /** Get decoded and post-processed frame. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] consumerName Consumer unique ID
@@ -76,6 +76,7 @@ private:
 	std::mutex freeSync;
 	std::mutex closeSync;
 	std::shared_ptr<Logger> logger;
+	uint8_t currentCUDADevice;
 };
 
 /** 

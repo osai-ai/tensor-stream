@@ -11,23 +11,25 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t decoderBuffer) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
 	}
-	{
+	int cudaDevicesNumber;
+	sts = cudaGetDeviceCount(&cudaDevicesNumber);
+	CHECK_STATUS(sts);
+	if (cudaDevice >= 0 && cudaDevice < cudaDevicesNumber) {
+		currentCUDADevice = cudaDevice;
+	} else {
 		int device;
 		auto sts = cudaGetDevice(&device);
-		std::cout << "Current device is: " << device << "; Errors: " << sts << std::endl;
+		currentCUDADevice = device;
 	}
 
-	{
-		int device = 0;
-		auto sts = cudaSetDevice(device);
-	}
+	SET_CUDA_DEVICE();
 
 	PUSH_RANGE("TensorStream::initPipeline", NVTXColors::GREEN);
 	av_log_set_callback(logCallback);
@@ -83,6 +85,7 @@ std::map<std::string, int> TensorStream::getInitializedParams() {
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
+	SET_CUDA_DEVICE();
 	while (shouldWork) {
 		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
 		START_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex() + 1) + std::string(" frame"));
@@ -124,22 +127,8 @@ int TensorStream::processingLoop() {
 	return sts;
 }
 
-int TensorStream::startProcessing(int cudaDevice) {
+int TensorStream::startProcessing() {
 	int sts = VREADER_OK;
-	//
-	{
-		int device;
-		auto sts = cudaGetDevice(&device);
-		std::cout << "Current device is: " << device << "; Errors: " << sts << std::endl;
-	}
-
-	int cudaDevicesNumber;
-	sts = cudaGetDeviceCount(&cudaDevicesNumber);
-	CHECK_STATUS(sts);
-	if (cudaDevice >= 0 && cudaDevice < cudaDevicesNumber) {
-		sts = cudaSetDevice(cudaDevice);
-		CHECK_STATUS(sts);
-	}
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
@@ -151,6 +140,7 @@ int TensorStream::startProcessing(int cudaDevice) {
 
 template <class T>
 std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters) {
+	SET_CUDA_DEVICE_THROW();
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<T*, int> outputTuple;
@@ -199,6 +189,7 @@ void TensorStream::endProcessing() {
 	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
+		SET_CUDA_DEVICE_THROW();
 		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
 		parser->Close();

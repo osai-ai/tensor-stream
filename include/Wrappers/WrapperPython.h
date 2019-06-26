@@ -26,7 +26,7 @@
 
 class TensorStream {
 public:
-	int initPipeline(std::string inputFile, uint8_t decoderBuffer = 10);
+	int initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_t decoderBuffer);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing(int cudaDevice = 0);
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
@@ -52,4 +52,5 @@ private:
 	std::mutex freeSync;
 	std::mutex closeSync;
 	std::shared_ptr<Logger> logger;
+	uint8_t currentCUDADevice;
 };

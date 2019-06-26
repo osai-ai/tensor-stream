@@ -194,6 +194,49 @@ public:
 		} \
 	}
 
+#define SET_CUDA_DEVICE() \
+		{ \
+			std::unique_lock<std::mutex> locker(logsMutex); \
+			{ \
+				int device; \
+				auto sts = cudaGetDevice(&device); \
+				CHECK_STATUS(sts); \
+				std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "; Current device is: " << device << "; Errors: " << sts << std::endl; \
+			} \
+			auto startFunc = std::chrono::high_resolution_clock::now(); \
+			auto sts = cudaSetDevice(currentCUDADevice); \
+			std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count()); \
+			CHECK_STATUS(sts); \
+			{ \
+				int device; \
+				auto sts = cudaGetDevice(&device); \
+				CHECK_STATUS(sts); \
+				std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "; Current device is: " << device << "; Errors: " << sts << std::endl; \
+			} \
+		} \
+
+#define SET_CUDA_DEVICE_THROW() \
+		{ \
+			std::unique_lock<std::mutex> locker(logsMutex); \
+			{ \
+				int device; \
+				auto sts = cudaGetDevice(&device); \
+				CHECK_STATUS_THROW(sts); \
+				std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "; Current device is: " << device << "; Errors: " << sts << std::endl; \
+			} \
+			auto startFunc = std::chrono::high_resolution_clock::now(); \
+			auto sts = cudaSetDevice(currentCUDADevice); \
+			auto time = std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count()); \
+			std::cout << "Consumed time " << time << std::endl; \
+			CHECK_STATUS_THROW(sts); \
+			{ \
+				int device; \
+				auto sts = cudaGetDevice(&device); \
+				CHECK_STATUS_THROW(sts); \
+				std::cout << __FILE__ << " " << __FUNCTION__ << " " << __LINE__ << "; Current device is: " << device << "; Errors: " << sts << std::endl; \
+			} \
+		} \
+
 const int defaultCUDADevice = 0;
 
 const int maxConsumers = 5;
