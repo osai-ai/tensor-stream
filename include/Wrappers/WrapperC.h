@@ -17,12 +17,14 @@ class TensorStream {
 public:
 /** Initialization of TensorStream pipeline
  @param[in] inputFile Path to stream should be decoded
+ @param[in] maxConsumers Allowed number of simultaneously working consumers
+ @param[in] cudaDevice GPU used for execution
  @anchor decoderBuffer
  @param[in] decoderBuffer How many decoded frames should be stored in internal buffer
  @warning decodedBuffer should be less than DPB
  @return Status of execution, one of @ref ::Internal values
 */
-	int initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_t decoderBuffer);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10);
 
 /** Get parameters from bitstream
  @return Map with "framerate_num", "framerate_den", "width", "height" values

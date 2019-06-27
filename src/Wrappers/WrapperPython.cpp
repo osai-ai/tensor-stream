@@ -6,7 +6,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_t decoderBuffer) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	if (logger == nullptr) {
@@ -48,7 +48,8 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t cudaDevice, uint8_
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
-	sts = vpp->Init(logger, false);
+	LOG_VALUE(std::string("Max consumers allowed: ") + std::to_string(maxConsumers), LogsLevel::LOW);
+	sts = vpp->Init(logger, maxConsumers, false);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
 	parsed = new AVPacket();

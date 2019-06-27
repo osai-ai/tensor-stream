@@ -31,7 +31,7 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 	return VREADER_OK;
 }
 
-int VideoProcessor::Init(std::shared_ptr<Logger> logger, bool _enableDumps) {
+int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, bool _enableDumps) {
 	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
 	this->logger = logger;

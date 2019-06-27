@@ -91,7 +91,7 @@ int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPe
 
 class VideoProcessor {
 public:
-	int Init(std::shared_ptr<Logger> logger, bool _enableDumps = false);
+	int Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers = 5, bool _enableDumps = false);
 	/*
 	Check if VPP conversion for input package is needed and perform conversion.
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution

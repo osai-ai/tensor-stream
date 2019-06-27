@@ -66,8 +66,6 @@ enum NVTXColors {
 	WHITE = 0xffffffff
 };
 
-#define NVTX_CATEGORY_ID 1
-
 class NVTXTracer {
 public:
 	void trace(const char* name, NVTXColors colorID) {
@@ -78,7 +76,6 @@ public:
 		eventAttrib.color = colorID;
 		eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
 		eventAttrib.message.ascii = name;
-		eventAttrib.category = NVTX_CATEGORY_ID;
 		nvtxRangePushEx(&eventAttrib);
 	}
 	~NVTXTracer() {
@@ -238,9 +235,7 @@ public:
 		} \
 
 const int defaultCUDADevice = 0;
-
-const int maxConsumers = 5;
-const int frameRateConstraints = 120;
+const int frameRateConstraints = 240;
 
 template <class T>
 T findFree(std::string consumerName, std::vector<std::pair<std::string, T> >& entities) {

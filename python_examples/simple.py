@@ -56,7 +56,7 @@ def parse_arguments():
 if __name__ == '__main__':
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, cuda_device = args.cuda_device, buffer_size = args.buffer_size, repeat_number=20)
+    reader = TensorStreamConverter(args.input, max_consumers = 5, cuda_device = args.cuda_device, buffer_size = args.buffer_size, repeat_number=20)
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
     if (args.nvtx):
         reader.enable_nvtx()
