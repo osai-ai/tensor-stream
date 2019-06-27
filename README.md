@@ -1,3 +1,4 @@
+
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -174,6 +175,10 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --buffer_size 5
 ```
 > **Warning:** Buffer size should be less or equal to decoded picture buffer (DPB)
+* GPU used for execution can be set via --cuda_device option:
+```
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --cuda_device 0
+```
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
@@ -184,7 +189,7 @@ python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 
 ```
 3. [Example](python_examples/different_streams.py) demonstrates how to use TensorStream if several streams should be handled simultaneously:
 ```
-python different_streams.py -i1 <path-to-first-stream> -i2 <path-to-second-stream> -n1 100 -n2 50 -v1 LOW -v2 HIGH
+python different_streams.py -i1 <path-to-first-stream> -i2 <path-to-second-stream> -n1 100 -n2 50 -v1 LOW -v2 HIGH --cuda_device1 0 --cuda_device2 1
 ```
 > **Warning:** Default path to second stream is relative, so need to run different_streams.py from parent folder if no arguments are passing
 ### PyTorch example
