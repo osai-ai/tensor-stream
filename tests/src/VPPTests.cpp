@@ -8,7 +8,7 @@ extern "C" {
 
 TEST(VPP_Init, WithoutDumps) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 }
 
 class VPP_Convert : public ::testing::Test {
@@ -44,7 +44,7 @@ protected:
 
 TEST_F(VPP_Convert, NV12ToRGB24) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -75,7 +75,7 @@ TEST_F(VPP_Convert, NV12ToRGB24) {
 
 TEST_F(VPP_Convert, NV12ToBGR24) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -112,7 +112,7 @@ TEST_F(VPP_Convert, NV12ToBGR24) {
 
 TEST_F(VPP_Convert, NV12ToY800) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -149,7 +149,7 @@ TEST_F(VPP_Convert, NV12ToY800) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width / 2;
 	int height = output->height / 2;
@@ -178,7 +178,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width * 2;
 	int height = output->height * 2;
@@ -207,7 +207,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = 320;
 	int height = 240;
@@ -261,7 +261,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
 
 TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = 320;
 	int height = 240;
@@ -300,7 +300,7 @@ TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
 
 TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = 320;
 	int height = 240;
@@ -354,7 +354,7 @@ TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
 
 TEST_F(VPP_Convert, NV12ToRGB24Planar) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
@@ -386,7 +386,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Planar) {
 
 TEST_F(VPP_Convert, NV12ToBGR24Planar) {
 	VideoProcessor VPP;
-	EXPECT_EQ(VPP.Init(std::make_shared<Logger>(), false), 0);
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	int width = output->width;
 	int height = output->height;
