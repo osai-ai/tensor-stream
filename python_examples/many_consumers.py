@@ -18,32 +18,42 @@ def parse_arguments():
 
 
 def consumer1(reader, n_frames):
-    for i in range(n_frames):
-        tensor = reader.read(name="consumer1",
-                             pixel_format=FourCC.RGB24,
-                             width=540,
-                             height=304)
+    try:
+        print("Enter try consumer1")
+        for i in range(n_frames):
+            print("Enter for consumer1")
+            tensor = reader.read(name="consumer1",
+                                pixel_format=FourCC.RGB24,
+                                width=540,
+                                height=304)
 
-    print()
-    print("consumer1 shape:", tensor.shape)
-    print("consumer1 dtype:", tensor.dtype, end='\n\n')
+        print()
+        print("consumer1 shape:", tensor.shape)
+        print("consumer1 dtype:", tensor.dtype, end='\n\n')
 
+    except RuntimeError as e:
+        print(f"Bad things happened: {e}")
 
 def consumer2(reader, n_frames):
-    for i in range(n_frames):
-        tensor, index = reader.read(name="consumer2",
-                                    pixel_format=FourCC.BGR24,
-                                    return_index=True)
+    try:
+        print("Enter try consumer2")
+        for i in range(n_frames):
+            print("Enter for consumer2")
+            tensor, index = reader.read(name="consumer2",
+                                        pixel_format=FourCC.BGR24,
+                                        return_index=True)
 
-        if index % int(reader.fps) == 0:
-            print("consumer2 frame index", index)
+            if index % int(reader.fps) == 0:
+                print("consumer2 frame index", index)
+  
+        time.sleep(1.0)  # prevent simultaneous print
+        print("consumer2 shape:", tensor.shape)
+        print("consumer2 dtype:", tensor.dtype)
+        print("consumer2 last frame index:", index)
 
-    time.sleep(1.0)  # prevent simultaneous print
-    print("consumer2 shape:", tensor.shape)
-    print("consumer2 dtype:", tensor.dtype)
-    print("consumer2 last frame index:", index)
-
-
+    except RuntimeError as e:
+        print(f"Bad things happened: {e}")
+ 
 if __name__ == "__main__":
     args = parse_arguments()
 
