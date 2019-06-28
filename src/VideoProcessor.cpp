@@ -56,6 +56,9 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	{
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
+		if (stream == nullptr) {
+			CHECK_STATUS(VREADER_ERROR);
+		}
 	}
 
 	output->width = options.resize.width;

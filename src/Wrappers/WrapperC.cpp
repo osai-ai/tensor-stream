@@ -151,12 +151,18 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	{
 		std::unique_lock<std::mutex> locker(syncDecoded);
 		decoded = findFree<AVFrame*>(consumerName, decodedArr);
+		if (decoded == nullptr) {
+			throw std::runtime_error(std::to_string(VREADER_ERROR));
+		}
 	}
 	END_LOG_BLOCK(std::string("findFree decoded frame"));
 	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{
 		std::unique_lock<std::mutex> locker(syncRGB);
 		processedFrame = findFree<AVFrame*>(consumerName, processedArr);
+		if (processedFrame == nullptr) {
+			throw std::runtime_error(std::to_string(VREADER_ERROR));
+		}
 	}
 	END_LOG_BLOCK(std::string("findFree converted frame"));
 	int indexFrame = VREADER_REPEAT;
