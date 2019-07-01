@@ -58,7 +58,7 @@ void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 TEST(Wrapper_Init, OneThread) {
 	TensorStream reader;
 	reader.enableLogs(MEDIUM);
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"}, 
 													  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
@@ -76,7 +76,7 @@ TEST(Wrapper_Init, OneThread) {
 //several threads
 TEST(Wrapper_Init, MultipleThreads) {
 	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parametersFirst = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "10"}, {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -128,7 +128,7 @@ void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& rea
 TEST(Wrapper_Init, CheckPerformance) {
 	TensorStream reader;
 	reader.enableLogs(MEDIUM);
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "10"} };
@@ -145,7 +145,7 @@ TEST(Wrapper_Init, OneThreadHang) {
 	std::thread mainThread([&ended]() {
 		TensorStream reader;
 		reader.enableLogs(MEDIUM);
-		ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+		ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 		std::thread pipeline(&TensorStream::startProcessing, &reader);
 		std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 														  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
@@ -171,10 +171,10 @@ TEST(Wrapper_Init, SeveralInstances) {
 	//need to check logs levels and correctness of frames
 	TensorStream readerBBB;
 	//readerBBB.enableLogs(-LOW);
-	ASSERT_EQ(readerBBB.initPipeline("../resources/bbb_1080x608_420_10.h264", 5), VREADER_OK);
+	ASSERT_EQ(readerBBB.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 	TensorStream readerBilliard;
 	//readerBilliard.enableLogs(-MEDIUM);
-	ASSERT_EQ(readerBilliard.initPipeline("../resources/billiard_1920x1080_420_100.h264", 5), VREADER_OK);
+	ASSERT_EQ(readerBilliard.initPipeline("../resources/billiard_1920x1080_420_100.h264", 5, 0, 5), VREADER_OK);
 	std::thread pipelineBBB(&TensorStream::startProcessing, &readerBBB);
 	std::thread pipelineBilliard(&TensorStream::startProcessing, &readerBilliard);
 	std::map<std::string, std::string> parametersBBB = { {"name", "BBB"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "1920"}, {"height", "1080"},
