@@ -32,9 +32,9 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	SET_CUDA_DEVICE();
 
 	PUSH_RANGE("TensorStream::initPipeline", NVTXColors::GREEN);
-	LOG_VALUE(std::string("Chosen GPU: ") + std::to_string(currentCUDADevice), LogsLevel::LOW);
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
+	LOG_VALUE(std::string("Chosen GPU: ") + std::to_string(currentCUDADevice), LogsLevel::LOW);
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
