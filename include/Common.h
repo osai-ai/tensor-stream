@@ -194,37 +194,15 @@ public:
 #define SET_CUDA_DEVICE() \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			{ \
-				int device; \
-				auto sts = cudaGetDevice(&device); \
-				CHECK_STATUS(sts); \
-			} \
-			auto startFunc = std::chrono::high_resolution_clock::now(); \
 			auto sts = cudaSetDevice(currentCUDADevice); \
 			CHECK_STATUS(sts); \
-			{ \
-				int device; \
-				auto sts = cudaGetDevice(&device); \
-				CHECK_STATUS(sts); \
-			} \
 		} \
 
 #define SET_CUDA_DEVICE_THROW() \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			{ \
-				int device; \
-				auto sts = cudaGetDevice(&device); \
-				CHECK_STATUS_THROW(sts); \
-			} \
-			auto startFunc = std::chrono::high_resolution_clock::now(); \
 			auto sts = cudaSetDevice(currentCUDADevice); \
 			CHECK_STATUS_THROW(sts); \
-			{ \
-				int device; \
-				auto sts = cudaGetDevice(&device); \
-				CHECK_STATUS_THROW(sts); \
-			} \
 		} \
 
 const int defaultCUDADevice = 0;

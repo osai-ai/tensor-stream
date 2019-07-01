@@ -196,3 +196,16 @@ TEST(Wrapper_Init, SeveralInstances) {
 	checkCRC(parametersBBB, 3267473238);
 	checkCRC(parametersBilliard, 3378171067);
 }
+
+//Different CUDA devices
+TEST(Wrapper_Init, DifferentGPUs) {
+	TensorStream reader;
+	int cudaDevicesNumber;
+	auto sts = cudaGetDeviceCount(&cudaDevicesNumber);
+	ASSERT_EQ(sts, VREADER_OK);
+	reader.enableLogs(-LOW);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, cudaDevicesNumber, 5), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, -cudaDevicesNumber, 5), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, (int) (cudaDevicesNumber / 2), 5), VREADER_OK);
+	
+}
