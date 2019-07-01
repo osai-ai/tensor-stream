@@ -71,11 +71,11 @@ class Planes(Enum):
 class TensorStreamConverter:
     ## Constructor of TensorStreamConverter class
     # @param[in] stream_url Path to stream should be decoded
-    # @anchor repeat_number
-    # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
-    # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
     # @param[in] max_consumers Allowed number of simultaneously working consumers
     # @param[in] cuda_device GPU used for execution
+    # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
+    # @anchor repeat_number
+    # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @warning Size of buffer should be less or equal to DPB
     def __init__(self, stream_url, max_consumers = 5, cuda_device=torch.cuda.current_device(), buffer_size=10, repeat_number=1):
         self.log = logging.getLogger(__name__)
