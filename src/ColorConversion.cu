@@ -98,6 +98,40 @@ __global__ void NV12ToY800(unsigned char* Y, T* Yf, int width, int height, int p
 	}
 }
 
+//semi-planar 420 to merged 422
+//u0 y0 v0 y1 | u1 y2 v1 y3 | u2 y4 v2 y5 | u3 y6 v3 y7
+template< class T >
+__global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* YDest, T* UVDest, int width, int height, int pitchNV12, bool normalization) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		YDest[j + i * width] = Y[j + i * pitchNV12];
+		if (normalization)
+			YDest[j + i * width] /= 255;
+		
+		//max UV for NV12 - j/2 i/2
+		//       for UYVY - j/2 i
+		int UVRow = i / 2;
+		int UVCol = j;
+		int value = UV[UVCol + UVRow * width];
+		if (i % 2 != 0) {
+			int point1 = i;
+			int point2 = i + 1;
+			point2 = min(point2, height / 2 - 1);
+			int point3 = i - 1;
+			point3 = max(point3, 0);
+			int point4 = i + 2;
+			point4 = min(point4, height / 2 - 1);
+			value = ((9 * (UV[point1] + UV[point2]) - (UV[point3] + UV[point4]) + 8) >> 4);
+			value = min(value, 255);
+			value = max(value, 0);
+		}
+		UVDest[UVCol + (UVRow * 2) * width] = value;
+	}
+}
+
+
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	/*
@@ -152,6 +186,9 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 		break;
 		case Y800:
 			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12, color.normalization);
+		break;
+		case UVYV:
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
 		break;
 		default:
 			err = cudaErrorMissingConfiguration;
