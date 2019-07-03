@@ -6,6 +6,8 @@ void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	int channels = 3;
 	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
 		channels = 1;
+	if (options.color.dstFourCC == UYVY)
+		channels = 2;
 	//allow dump Y, RGB, BGR
 	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
 	
@@ -23,6 +25,8 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 	int channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
+	if (options.color.dstFourCC == UYVY)
+		channels = 2;
 	//allocate buffers
 	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[channels * options.resize.width * options.resize.height], std::default_delete<T[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
@@ -85,6 +89,10 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	case Y800:
 		output->format = AV_PIX_FMT_GRAY8;
 		output->channels = 1;
+		break;
+	case UYVY:
+		output->format = AV_PIX_FMT_UYVY422;
+		output->channels = 2;
 		break;
 	}
 

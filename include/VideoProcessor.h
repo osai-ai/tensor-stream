@@ -20,7 +20,8 @@ extern "C" {
 enum FourCC {
 	Y800 = 0, /**< Monochrome format, 8 bit for pixel */
 	RGB24, /**< RGB format, 24 bit for pixel, color plane order: R, G, B */
-	BGR24 /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
+	BGR24, /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
+	UYVY /**< YUV merged format, 16 bit for pixel */
 };
 
 /** Possible planes order in RGB format
