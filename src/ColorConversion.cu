@@ -98,8 +98,7 @@ __global__ void NV12ToY800(unsigned char* Y, T* Yf, int width, int height, int p
 	}
 }
 
-template <class T>
-__device__ unsigned char calculateUYVYChroma(unsigned char* UV, T* dest, int i, int j, int width, int height) {
+__device__ unsigned char calculateUYVYChromaVertical(unsigned char* UV, int i, int j, int width, int height) {
 	int UVRow = i / 2;
 	int UVCol = j;
 	int index = UVCol + UVRow * width;
@@ -121,6 +120,43 @@ __device__ unsigned char calculateUYVYChroma(unsigned char* UV, T* dest, int i, 
 	return value;
 }
 
+template <class T>
+__device__ T calculateYUV444ChromaHorizontal(T* src, int index, int shift, int width, int height) {
+	int point1 = index - 3 + shift;
+	int point2 = index + 1 + shift;
+	int point3 = index - 7 + shift;
+	if (point3 < 0)
+		point3 = point1;
+	int point4 = index + 5 + shift;
+	if (point4 > width * height * 2 - 1)
+		point4 = point2;
+	T value = ((9 * (src[point1] + src[point2]) - (src[point3] + src[point4]) + 8) / 16);
+	value = min(value, (T) 255);
+	value = max(value, (T) 0);
+	return value;
+}
+
+template< class T >
+__global__ void UYVYToYUV444(T* src, T* dst, int width, int height, bool normalization) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j + i * width;
+		int srcIndex = index * 2 + 1;
+		int dstIndex = index * 3;
+		if (srcIndex % 2 == 0) {
+			dst[dstIndex] = src[srcIndex + 1];
+			dst[dstIndex + 1] = src[srcIndex];
+			dst[dstIndex + 2] = src[srcIndex + 2];
+		}
+		else {
+			dst[dstIndex] = src[srcIndex + 1];
+			dst[dstIndex + 1] = calculateYUV444ChromaHorizontal(src, srcIndex, 0, width, height);
+			dst[dstIndex + 2] = calculateYUV444ChromaHorizontal(src, srcIndex, 1, width, height);
+		}
+	}
+}
 
 //semi-planar 420 to merged 422
 //u0 y0 v0 y1 | u1 y2 v1 y3 | u2 y4 v2 y5 | u3 y6 v3 y7
@@ -136,14 +172,14 @@ __global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* dest, int wid
 			//max UV for NV12 - j/2 i/2
 			//       for UYVY - j/2 i
 
-			unsigned char UValue = calculateUYVYChroma(UV, dest, i, j, pitchNV12, height);
+			unsigned char UValue = calculateUYVYChromaVertical(UV, i, j, pitchNV12, height);
 			dest[indexDest] = UValue;
 			if (normalization)
 				dest[indexDest] /= 255;
 			dest[indexDest + 1] = Y[index];
 			if (normalization)
 				dest[indexDest + 1] /= 255;
-			unsigned char VValue = calculateUYVYChroma(UV, dest, i, j + 1, pitchNV12, height);
+			unsigned char VValue = calculateUYVYChromaVertical(UV, i, j + 1, pitchNV12, height);
 			dest[indexDest + 2] = VValue;
 			if (normalization)
 				dest[indexDest + 2] /= 255;
@@ -215,6 +251,20 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 		break;
 		case UYVY:
 			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
+		break;
+		case YUV444: 
+		{
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
+			T* destinationYUV444 = nullptr;
+			err = cudaMalloc(&destinationYUV444, dst->channels * width * height * sizeof(T));
+			//It's more convinient to work with width*height than with any other sizes
+			blockX = std::ceil(width / (float)threadsPerBlock.x);
+			blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
+			numBlocks = dim3(blockX, blockY);
+			UYVYToYUV444 << <numBlocks, threadsPerBlock, 0, *stream >> > (destination, destinationYUV444, width, height, color.normalization);
+			cudaFree(destination);
+			destination = destinationYUV444;
+		}
 		break;
 		default:
 			err = cudaErrorMissingConfiguration;
