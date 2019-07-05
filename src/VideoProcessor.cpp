@@ -4,7 +4,7 @@
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	int channels = 3;
-	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
+	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	if (options.color.dstFourCC == UYVY)
 		channels = 2;
@@ -94,6 +94,9 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		output->format = AV_PIX_FMT_UYVY422;
 		output->channels = 2;
 		break;
+	case YUV444:
+		output->format = AV_PIX_FMT_YUV444P;
+		output->channels = 3;
 	}
 
 	if (options.color.normalization)

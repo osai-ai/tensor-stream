@@ -43,7 +43,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 int main()
 {
-	reader.enableLogs(LOW);
+	reader.enableLogs(-LOW);
 	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
@@ -60,11 +60,11 @@ int main()
 	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 720;
 	int dstHeight = 480;
-	ColorOptions colorOptions = { false, Planes::MERGED, UYVY };
+	ColorOptions colorOptions = { false, Planes::MERGED, YUV444 };
 	ResizeOptions resizeOptions = { dstWidth, dstHeight, ResizeType::NEAREST };
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "300"}, {"dumpName", "sample_output.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

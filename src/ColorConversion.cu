@@ -144,16 +144,14 @@ __global__ void UYVYToYUV444(T* src, T* dst, int width, int height, bool normali
 	if (i < height && j < width) {
 		int index = j + i * width;
 		int srcIndex = index * 2 + 1;
-		int dstIndex = index * 3;
-		if (srcIndex % 2 == 0) {
-			dst[dstIndex] = src[srcIndex + 1];
-			dst[dstIndex + 1] = src[srcIndex];
-			dst[dstIndex + 2] = src[srcIndex + 2];
+		dst[index] = src[srcIndex];
+		if (index % 2 == 0) {
+			dst[width * height + index] = src[srcIndex - 1];
+			dst[2 * width * height + index] = src[srcIndex + 1];
 		}
 		else {
-			dst[dstIndex] = src[srcIndex + 1];
-			dst[dstIndex + 1] = calculateYUV444ChromaHorizontal(src, srcIndex, 0, width, height);
-			dst[dstIndex + 2] = calculateYUV444ChromaHorizontal(src, srcIndex, 1, width, height);
+			dst[width * height + index] = calculateYUV444ChromaHorizontal(src, srcIndex, 0, width, height);
+			dst[2 * width * height + index] = calculateYUV444ChromaHorizontal(src, srcIndex, 2, width, height);
 		}
 	}
 }
@@ -219,7 +217,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 
 	T* destination = nullptr;
 	cudaError err = cudaSuccess;
-	err = cudaMalloc(&destination, dst->channels * width * height * sizeof(T));
+	err = cudaMalloc(&destination, /*dst->channels*/2 * width * height * sizeof(T));
 
 	//depends on fact of resize
 	int pitchNV12 = src->linesize[0] ? src->linesize[0] : width;
@@ -258,12 +256,10 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 			T* destinationYUV444 = nullptr;
 			err = cudaMalloc(&destinationYUV444, dst->channels * width * height * sizeof(T));
 			//It's more convinient to work with width*height than with any other sizes
-			blockX = std::ceil(width / (float)threadsPerBlock.x);
-			blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
-			numBlocks = dim3(blockX, blockY);
 			UYVYToYUV444 << <numBlocks, threadsPerBlock, 0, *stream >> > (destination, destinationYUV444, width, height, color.normalization);
 			cudaFree(destination);
 			destination = destinationYUV444;
+
 		}
 		break;
 		default:
