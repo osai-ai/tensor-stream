@@ -3,30 +3,30 @@
 
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
-	int channels = 3;
+	float channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	if (options.color.dstFourCC == UYVY)
 		channels = 2;
+	if (options.color.dstFourCC == NV12)
+		channels = 1.5;
+
 	//allow dump Y, RGB, BGR
 	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
-	
-	//UV planes should be stored after Y without any strides
-	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
-		fwrite(&frame, options.resize.width * options.resize.height / 2 * channels, sizeof(T), dump);
-	}
-	
+
 	fflush(dump);
 }
 
 template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
-	int channels = 3;
+	float channels = 3;
 	if (options.color.dstFourCC == Y800)
 		channels = 1;
 	if (options.color.dstFourCC == UYVY)
 		channels = 2;
+	if (options.color.dstFourCC == NV12)
+		channels = 1.5;
 	//allocate buffers
 	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[channels * options.resize.width * options.resize.height], std::default_delete<T[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
@@ -75,28 +75,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	else if (output->width == 0 || output->height == 0) {
 		output->width = options.resize.width = input->width;
 		output->height = options.resize.height = input->height;
-	}
-
-	switch (options.color.dstFourCC) {
-	case BGR24:
-		output->format = AV_PIX_FMT_BGR24;
-		output->channels = 3;
-		break;
-	case RGB24:
-		output->format = AV_PIX_FMT_RGB24;
-		output->channels = 3;
-		break;
-	case Y800:
-		output->format = AV_PIX_FMT_GRAY8;
-		output->channels = 1;
-		break;
-	case UYVY:
-		output->format = AV_PIX_FMT_UYVY422;
-		output->channels = 2;
-		break;
-	case YUV444:
-		output->format = AV_PIX_FMT_YUV444P;
-		output->channels = 3;
 	}
 
 	if (options.color.normalization)
