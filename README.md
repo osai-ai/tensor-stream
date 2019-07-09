@@ -24,7 +24,7 @@ while need_predictions:
                          planes_pos=Planes.PLANAR)
                          
     # tensor dtype is torch.float32, device is 'cuda:0', shape is (3, 256, 256)
-    prediction = model(tensor)
+    prediction = model(tensor.unsqueeze(0))
 ```
 
 * Initialize tensor stream with a video (e.g., a local file or a network video stream) and start reading it in a separate process.

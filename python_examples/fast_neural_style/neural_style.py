@@ -20,7 +20,7 @@ def parse_arguments():
                         default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
                         help="Input stream (RTMP) or local video file")
     parser.add_argument("-o", "--output",
-                         default="video.mp4",
+                        default="video.mp4",
                         help="Output stream or video file")
     parser.add_argument("--concat_orig", action='store_true',
                         help="Concatenate original frames to output video")
@@ -95,7 +95,7 @@ if __name__ == "__main__":
                                         height=height,
                                         planes_pos=Planes.PLANAR,
                                         normalization=True)
-
+            tensor = tensor.unsqueeze(0)
             with torch.no_grad():
                 output = style_model(tensor)
                 output = torch.clamp(output, 0, 255)

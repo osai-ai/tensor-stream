@@ -138,7 +138,7 @@ int TensorStream::processingLoop() {
 		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
 		//wait here
 		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-			                            std::chrono::high_resolution_clock::now() - waitTime).count();
+										std::chrono::high_resolution_clock::now() - waitTime).count();
 		if (sleepTime > 0) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
 		}
@@ -207,12 +207,17 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	if (frameParameters.color.normalization) {
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
+		if (frameParameters.color.planesPos == Planes::MERGED)
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
+		else
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->channels, processedFrame->height, processedFrame->width}, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
 	}
 	else {
-		outputTensor = torch::from_blob(processedFrame->opaque, { 1, processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+		if (frameParameters.color.planesPos == Planes::MERGED)
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+		else
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 	}
-
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	/*
