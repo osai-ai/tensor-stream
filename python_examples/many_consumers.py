@@ -23,9 +23,9 @@ def consumer1(reader, n_frames):
         for i in range(n_frames):
             print("Enter for consumer1")
             tensor = reader.read(name="consumer1",
-                                pixel_format=FourCC.RGB24,
-                                width=540,
-                                height=304)
+                                 pixel_format=FourCC.RGB24,
+                                 width=540,
+                                 height=304)
 
         print()
         print("consumer1 shape:", tensor.shape)
@@ -33,6 +33,7 @@ def consumer1(reader, n_frames):
 
     except RuntimeError as e:
         print(f"Bad things happened: {e}")
+
 
 def consumer2(reader, n_frames):
     try:
@@ -53,7 +54,8 @@ def consumer2(reader, n_frames):
 
     except RuntimeError as e:
         print(f"Bad things happened: {e}")
- 
+
+
 if __name__ == "__main__":
     args = parse_arguments()
 

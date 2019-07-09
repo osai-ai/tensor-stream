@@ -41,8 +41,8 @@ def parse_arguments():
 
 def consumer1(reader, n_frames):
     for i in range(n_frames):
-        parameters = {'pixel_format' : FourCC.RGB24}
-        tensor = reader.read(**parameters, name = "consumer1")
+        parameters = {'pixel_format': FourCC.RGB24}
+        tensor = reader.read(**parameters, name="consumer1")
         if args.output1:
             reader.dump(tensor, args.output1, **parameters)
 
@@ -51,12 +51,15 @@ def consumer1(reader, n_frames):
     print("consumer1 dtype:", tensor.dtype, end='\n\n')
     reader.stop()
 
+
 def consumer2(reader, n_frames):
     for i in range(n_frames):
-        parameters = {'pixel_format' : FourCC.BGR24,
-                      'width' : 720,
-                      'height' : 480}
-        tensor, index = reader.read(**parameters, name = "consumer2", return_index=True)
+        parameters = {'pixel_format': FourCC.BGR24,
+                      'width': 720,
+                      'height': 480}
+        tensor, index = reader.read(**parameters,
+                                    name="consumer2",
+                                    return_index=True)
         if args.output2:
             reader.dump(tensor, args.output2, **parameters)
 
@@ -73,11 +76,15 @@ def consumer2(reader, n_frames):
 if __name__ == "__main__":
     args = parse_arguments()
 
-    reader1 = TensorStreamConverter(args.input1, cuda_device = args.cuda_device1, repeat_number=20)
+    reader1 = TensorStreamConverter(args.input1,
+                                    cuda_device=args.cuda_device1,
+                                    repeat_number=20)
     reader1.enable_logs(LogsLevel[args.verbose1], LogsType.CONSOLE)
     reader1.initialize()
 
-    reader2 = TensorStreamConverter(args.input2, cuda_device = args.cuda_device2, repeat_number=20)
+    reader2 = TensorStreamConverter(args.input2,
+                                    cuda_device=args.cuda_device2,
+                                    repeat_number=20)
     reader2.enable_logs(LogsLevel[args.verbose2], LogsType.CONSOLE)
     reader2.initialize()
 

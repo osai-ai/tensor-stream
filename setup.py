@@ -20,6 +20,7 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
+
 readme = read('README.md')
 
 VERSION = find_version('tensor_stream', '__init__.py')
@@ -29,14 +30,14 @@ include_path += ["include/"]
 include_path += ["include/Wrappers/"]
 ffmpeg_path = ""
 nvtx_path = ""
-if (platform.system() == 'Windows'):
-    if (not os.getenv('FFMPEG_PATH')):
+if platform.system() == 'Windows':
+    if not os.getenv('FFMPEG_PATH'):
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
 
     ffmpeg_path = os.getenv('FFMPEG_PATH')
     include_path += [ffmpeg_path + "/include"]
 
-    if (not os.getenv('NVTOOLSEXT_PATH')):
+    if not os.getenv('NVTOOLSEXT_PATH'):
         raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
 
     nvtx_path = os.getenv('NVTOOLSEXT_PATH')
@@ -44,13 +45,13 @@ if (platform.system() == 'Windows'):
 
 
 library_path = torch.utils.cpp_extension.library_paths(cuda=True)
-if (platform.system() == 'Windows'):
-    if (ffmpeg_path):
+if platform.system() == 'Windows':
+    if ffmpeg_path:
         library_path += [ffmpeg_path + "/bin"]
     else:
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
 
-    if (nvtx_path):
+    if nvtx_path:
         library_path += [nvtx_path + "/lib/x64"]
     else:
         raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
@@ -67,7 +68,7 @@ library += ["avformat"]
 library += ["avutil"]
 library += ["swresample"]
 library += ["swscale"]
-if (platform.system() == 'Windows'):
+if platform.system() == 'Windows':
     library += ["caffe2"]
     library += ["torch"]
     library += ["torch_python"]
@@ -75,7 +76,7 @@ if (platform.system() == 'Windows'):
     library += ["c10"]
     library += ["_C"]
 
-if (platform.system() == 'Windows'):
+if platform.system() == 'Windows':
     library += ["nvToolsExt64_1"]
 else:
     library += ["nvToolsExt"]

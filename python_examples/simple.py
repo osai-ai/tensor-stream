@@ -1,4 +1,5 @@
-from tensor_stream import TensorStreamConverter, LogsLevel, LogsType, FourCC, Planes, ResizeType
+from tensor_stream import TensorStreamConverter
+from tensor_stream import LogsLevel, LogsType, FourCC, Planes, ResizeType
 
 import argparse
 import os
@@ -20,7 +21,7 @@ def parse_arguments():
                         help="Output height (default: input bitstream height)",
                         type=int, default=0)
     parser.add_argument("-fc", "--fourcc", default="RGB24",
-                        choices=["RGB24","BGR24", "Y800"],
+                        choices=["RGB24", "BGR24", "Y800"],
                         help="Decoded stream' FourCC (default: RGB24)")
     parser.add_argument("-v", "--verbose", default="LOW",
                         choices=["LOW", "MEDIUM", "HIGH"],
@@ -56,13 +57,17 @@ def parse_arguments():
 if __name__ == '__main__':
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, max_consumers = 5, cuda_device = args.cuda_device, buffer_size = args.buffer_size, repeat_number=20)
+    reader = TensorStreamConverter(args.input,
+                                   max_consumers=5,
+                                   cuda_device=args.cuda_device,
+                                   buffer_size=args.buffer_size,
+                                   repeat_number=20)
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
-    if (args.nvtx):
+
+    if args.nvtx:
         reader.enable_nvtx()
     
     reader.initialize()
-
     reader.start()
 
     if args.output:
@@ -72,12 +77,12 @@ if __name__ == '__main__':
     tensor = None
     try:
         while True:
-            parameters = {'pixel_format' : FourCC[args.fourcc],
-                          'width' : args.width,
-                          'height' : args.height,
-                          'normalization' : args.normalize,
-                          'planes_pos' : Planes[args.planes],
-                          'resize_type' : ResizeType[args.resize_type]}
+            parameters = {'pixel_format': FourCC[args.fourcc],
+                          'width': args.width,
+                          'height': args.height,
+                          'normalization': args.normalize,
+                          'planes_pos': Planes[args.planes],
+                          'resize_type': ResizeType[args.resize_type]}
 
             tensor, index = reader.read(**parameters, return_index=True)
 
