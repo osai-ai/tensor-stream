@@ -77,6 +77,10 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		output->height = options.resize.height = input->height;
 	}
 
+	if (options.color.dstFourCC == HSV) {
+		options.color.normalization = true;
+	}
+
 	if (options.color.normalization)
 		sts = colorConversionKernel<float>(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
 	else

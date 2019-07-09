@@ -223,6 +223,51 @@ __global__ void NV12MergeBuffers(unsigned char* Y, unsigned char* UV, T* dest, i
 	}
 }
 
+
+//assume that threads are inside widthxheightx1
+template< class T >
+__global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j * 3 + i * width;
+		T R = RGB[index];
+		T G = RGB[index + 1];
+		T B = RGB[index + 2];
+		
+		T* H = &dest[index];
+		T* S = &dest[index + 1];
+		T* V = &dest[index + 2];
+		
+		T minVal = min(min(R, G), B);
+		T maxVal = max(max(R, G), B);
+		T delta = maxVal - minVal;
+
+		*V = maxVal; // v
+
+		*S = 0;
+		if (maxVal != 0) {
+			*S = 1 - minVal / maxVal;		// s
+		}
+
+		if (maxVal == minVal) {
+			*H = 0;
+			return;
+		}
+		else if (R == maxVal && G >= B)
+			*H = 60 * (G - B) / delta;
+		else if (R == maxVal && G < B)
+			*H = 60 * (G - B) / delta + 360;
+		else if (G == maxVal)
+			*H = 60 * (B - R) / delta + 120;
+		else if (B == maxVal)
+			*H = 60 * (R - G) / delta + 240;
+		if (*H < 0)
+			*H += 360;
+	}
+}
+
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	float channels = 3;
@@ -308,6 +353,18 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 		case NV12:
 			NV12MergeBuffers << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
 		break;
+		case HSV:
+		{
+			int pitchRGB = channels * width;
+			NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+			T* destinationHSV = nullptr;
+			err = cudaMalloc(&destinationHSV, channels * width * height * sizeof(T));
+			RGBMergedToHSVMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (destination, destinationHSV, width, height);
+			cudaFree(destination);
+			destination = destinationHSV;
+		}
+		break;
+
 		default:
 			err = cudaErrorMissingConfiguration;
 	}
