@@ -9,9 +9,9 @@ TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding t
 Simple example how to use TensorStream for deep learning tasks:
 
 ```python
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, FourCC, Planes
 
-reader = TensorStreamConverter("rtmp://127.0.0.1/live")
+reader = TensorStreamConverter("rtmp://127.0.0.1/live", cuda_device=0)
 reader.initialize()
 reader.start()
 
@@ -20,10 +20,10 @@ while need_predictions:
     tensor = reader.read(pixel_format=FourCC.BGR24,
                          width=256,
                          height=256,
-                         normalization=False)
+                         normalization=True,
+                         planes_pos=Planes.PLANAR)
                          
-    # tensor dtype is either torch.uint8 or torch.float32 depending on normalization parameter, 
-    # device is cuda, shape is (256, 256, 3)
+    # tensor dtype is torch.float32, device is 'cuda:0', shape is (3, 256, 256)
     prediction = model(tensor)
 ```
 
@@ -47,7 +47,7 @@ while need_predictions:
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [PyTorch](https://github.com/pytorch/pytorch) 1.0.1.post2 or above to build C++ extension for Python
+* [PyTorch](https://github.com/pytorch/pytorch) 1.1.0 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 It is convenient to use TensorStream in Docker containers. The provided [Dockerfiles](#docker-image) is supplied to create an image with all the necessary dependencies.
