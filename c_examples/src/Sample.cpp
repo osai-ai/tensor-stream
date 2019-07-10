@@ -60,7 +60,7 @@ int main()
 	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 720;
 	int dstHeight = 480;
-	ColorOptions colorOptions = { false, Planes::MERGED, HSV };
+	ColorOptions colorOptions = { true, Planes::MERGED, HSV };
 	ResizeOptions resizeOptions = { dstWidth, dstHeight, ResizeType::NEAREST };
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 

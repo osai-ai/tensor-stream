@@ -223,15 +223,13 @@ __global__ void NV12MergeBuffers(unsigned char* Y, unsigned char* UV, T* dest, i
 	}
 }
 
-
-//assume that threads are inside widthxheightx1
 template< class T >
 __global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
 	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
 	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (i < height && j < width) {
-		int index = j * 3 + i * width;
+		int index = j * 3 + i * width * 3;
 		T R = RGB[index];
 		T G = RGB[index + 1];
 		T B = RGB[index + 2];
@@ -265,6 +263,8 @@ __global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
 			*H = 60 * (R - G) / delta + 240;
 		if (*H < 0)
 			*H += 360;
+		
+		*H /= 360;
 	}
 }
 
