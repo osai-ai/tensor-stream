@@ -37,10 +37,19 @@ enum Planes {
 /** Parameters specific for color conversion
 */
 struct ColorOptions {
-	ColorOptions(bool normalization = false, Planes planesPos = Planes::MERGED, FourCC dstFourCC = FourCC::RGB24) {
-		this->normalization = normalization;
-		this->planesPos = planesPos;
+	ColorOptions(FourCC dstFourCC = FourCC::RGB24) {
 		this->dstFourCC = dstFourCC;
+		//Default values
+		planesPos = Planes::MERGED;
+		normalization = false;
+		if (dstFourCC == FourCC::HSV)
+			normalization = true;
+	}
+
+	int additionalOptions(Planes planesPos, bool normalization) {
+		this->planesPos = planesPos;
+		this->normalization = normalization;
+		return VREADER_OK;
 	}
 
 	bool normalization; /**<  @anchor normalization Should final colors be normalized or not */
@@ -58,10 +67,15 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
-	ResizeOptions(int width = 0, int height = 0, ResizeType type = ResizeType::NEAREST) {
+	ResizeOptions(int width = 0, int height = 0) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
+		this->type = ResizeType::NEAREST;
+	}
+
+	int additionalOptions(ResizeType type) {
 		this->type = type;
+		return VREADER_OK;
 	}
 
 	unsigned int width; /**< Width of destination image */
@@ -92,6 +106,8 @@ template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+
+float channelsByFourCC(FourCC fourCC);
 
 class VideoProcessor {
 public:

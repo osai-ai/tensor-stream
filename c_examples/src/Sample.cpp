@@ -60,11 +60,15 @@ int main()
 	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 720;
 	int dstHeight = 480;
-	ColorOptions colorOptions = { true, Planes::MERGED, HSV };
-	ResizeOptions resizeOptions = { dstWidth, dstHeight, ResizeType::NEAREST };
+	ColorOptions colorOptions = { FourCC::YUV444 };
+	sts = colorOptions.additionalOptions(Planes::PLANAR, false);
+	CHECK_STATUS(sts);
+	ResizeOptions resizeOptions = { dstWidth, dstHeight };
+	sts = resizeOptions.additionalOptions(ResizeType::NEAREST);
+	CHECK_STATUS(sts);
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "300"}, {"dumpName", "sample_output.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

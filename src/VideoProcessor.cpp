@@ -1,16 +1,23 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
+float channelsByFourCC(FourCC fourCC) {
+	float channels = 3;
+	if (fourCC == Y800)
+		channels = 1;
+	if (fourCC == UYVY)
+		channels = 2;
+	if (fourCC == NV12)
+		channels = 1.5;
+	
+	return channels;
+}
+
+
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
-	float channels = 3;
-	if (options.color.dstFourCC == Y800)
-		channels = 1;
-	if (options.color.dstFourCC == UYVY)
-		channels = 2;
-	if (options.color.dstFourCC == NV12)
-		channels = 1.5;
-
+	float channels = channelsByFourCC(options.color.dstFourCC);
+	
 	//allow dump Y, RGB, BGR
 	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
 
@@ -20,15 +27,9 @@ void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
-	float channels = 3;
-	if (options.color.dstFourCC == Y800)
-		channels = 1;
-	if (options.color.dstFourCC == UYVY)
-		channels = 2;
-	if (options.color.dstFourCC == NV12)
-		channels = 1.5;
+	float channels = channelsByFourCC(options.color.dstFourCC);
 	//allocate buffers
-	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[channels * options.resize.width * options.resize.height], std::default_delete<T[]>());
+	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * options.resize.width * options.resize.height)], std::default_delete<T[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(rawData.get(), options, dumpFile.get());
@@ -75,10 +76,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	else if (output->width == 0 || output->height == 0) {
 		output->width = options.resize.width = input->width;
 		output->height = options.resize.height = input->height;
-	}
-
-	if (options.color.dstFourCC == HSV) {
-		options.color.normalization = true;
 	}
 
 	if (options.color.normalization)

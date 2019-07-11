@@ -173,6 +173,7 @@ __global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* dest, int wid
 
 	if (i < height && j < width) {
 		int index = j + i * width;
+		int indexSrc = j + i * pitchNV12;
 		if (index % 2 == 0) {
 			int indexDest = index * 2;
 			//max UV for NV12 - j/2 i/2
@@ -182,7 +183,7 @@ __global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* dest, int wid
 			dest[indexDest] = UValue;
 			if (normalization)
 				dest[indexDest] /= 255;
-			dest[indexDest + 1] = Y[index];
+			dest[indexDest + 1] = Y[indexSrc];
 			if (normalization)
 				dest[indexDest + 1] /= 255;
 			unsigned char VValue = calculateUYVYChromaVertical(UV, i, j + 1, pitchNV12, height);
@@ -192,7 +193,7 @@ __global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* dest, int wid
 		}
 		else {
 			int indexDest = index * 2 + 1;
-			dest[indexDest] = Y[index];
+			dest[indexDest] = Y[indexSrc];
 			if (normalization)
 				dest[indexDest] /= 255;
 		}
@@ -242,11 +243,11 @@ __global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
 		T maxVal = max(max(R, G), B);
 		T delta = maxVal - minVal;
 
-		*V = maxVal; // v
+		*V = maxVal;
 
 		*S = 0;
 		if (maxVal != 0) {
-			*S = 1 - minVal / maxVal;		// s
+			*S = 1 - minVal / maxVal;
 		}
 
 		if (maxVal == minVal) {
@@ -270,18 +271,7 @@ __global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
 
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
-	float channels = 3;
-	switch (color.dstFourCC) {
-	case Y800:
-		channels = 1;
-		break;
-	case UYVY:
-		channels = 2;
-		break;
-	case NV12:
-		channels = 1.5;
-	}
-	
+	float channels = channelsByFourCC(color.dstFourCC);
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -292,74 +282,83 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 
 	//blocks for merged format
-	int blockX = std::ceil(channels * width / (float)threadsPerBlock.x);
+	int blockX = std::ceil(width / (float)threadsPerBlock.x);
 	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
 	
-	//blocks for planar format
-	if (color.planesPos == Planes::PLANAR) {
-		blockX = std::ceil(width / (float)threadsPerBlock.x);
-		blockY = std::ceil(channels * dst->height / (float)threadsPerBlock.y);
-	}
-
 	dim3 numBlocks(blockX, blockY);
 
-	T* destination = nullptr;
+	void* destination = nullptr;
 	cudaError err = cudaSuccess;
-	err = cudaMalloc(&destination, channels * width * height * sizeof(T));
-
 	//depends on fact of resize
 	int pitchNV12 = src->linesize[0] ? src->linesize[0] : width;
 	bool swapRB = false;
 	switch (color.dstFourCC) {
 		case BGR24:
 			swapRB = true;
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
 				int pitchRGB = channels * width;
-				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 		break;
 		case RGB24:
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
 				int pitchRGB = channels * width;
-				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				cudaStreamSynchronize(*stream);
+
 			}
 		break;
 		case Y800:
-			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12, color.normalization);
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], (T*) destination, width, height, pitchNV12, color.normalization);
 		break;
 		case UYVY:
-			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
 		break;
 		case YUV444: 
 		{
-			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
 			T* destinationYUV444 = nullptr;
 			err = cudaMalloc(&destinationYUV444, channels * width * height * sizeof(T));
 			//It's more convinient to work with width*height than with any other sizes
-			UYVYToYUV444 << <numBlocks, threadsPerBlock, 0, *stream >> > (destination, destinationYUV444, width, height, color.normalization);
+			UYVYToYUV444 << <numBlocks, threadsPerBlock, 0, *stream >> > ((T*) destination, (T*) destinationYUV444, width, height, color.normalization);
 			cudaFree(destination);
 			destination = destinationYUV444;
 
 		}
 		break;
 		case NV12:
-			NV12MergeBuffers << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, color.normalization);
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12MergeBuffers << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
 		break;
 		case HSV:
 		{
+			err = cudaMalloc(&destination, channels * width * height * sizeof(float));
+
 			int pitchRGB = channels * width;
-			NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
-			T* destinationHSV = nullptr;
-			err = cudaMalloc(&destinationHSV, channels * width * height * sizeof(T));
-			RGBMergedToHSVMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (destination, destinationHSV, width, height);
+			NV12ToRGB32KernelMerged<float> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (float*) destination, 
+																						width, height, pitchNV12, pitchRGB, /*swapRB*/ false, /*normalization*/ true);
+			float* destinationHSV = nullptr;
+			err = cudaMalloc(&destinationHSV, channels * width * height * sizeof(float));
+			RGBMergedToHSVMerged<float> << <numBlocks, threadsPerBlock, 0, *stream >> > ((float*) destination, (float*) destinationHSV, width, height);
 			cudaFree(destination);
 			destination = destinationHSV;
 		}
