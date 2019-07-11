@@ -18,10 +18,10 @@ reader.start()
 while need_predictions:
     # read latest available frame from the stream 
     tensor = reader.read(pixel_format=FourCC.BGR24,
-                         width=256,
+                         width=256,                 # resize to 256x256
                          height=256,
-                         normalization=True,
-                         planes_pos=Planes.PLANAR)
+                         normalization=True,        # normalize to range [0, 1]
+                         planes_pos=Planes.PLANAR)  # dimension order [C, H, W]
                          
     # tensor dtype is torch.float32, device is 'cuda:0', shape is (3, 256, 256)
     prediction = model(tensor.unsqueeze(0))
