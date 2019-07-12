@@ -19,7 +19,7 @@ void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	float channels = channelsByFourCC(options.color.dstFourCC);
 	
 	//allow dump Y, RGB, BGR
-	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
+	fwrite(frame, (int) (options.resize.width * options.resize.height * channels), sizeof(T), dump);
 
 	fflush(dump);
 }

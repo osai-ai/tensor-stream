@@ -156,6 +156,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
 		}
 	}
+
 	END_LOG_BLOCK(std::string("findFree decoded frame"));
 	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{

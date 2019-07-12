@@ -145,6 +145,8 @@ __global__ void UYVYToYUV444(T* src, T* dst, int width, int height, bool normali
 		int index = j + i * width;
 		int srcIndex = index * 2 + 1;
 		dst[index] = src[srcIndex];
+		if (normalization)
+			dst[index] /= 255;
 		if (index % 2 == 0) {
 			dst[width * height + index] = src[srcIndex - 1];
 			if (normalization)
@@ -334,7 +336,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 		{
 			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
 
-			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, /*normalization*/false);
 			T* destinationYUV444 = nullptr;
 			err = cudaMalloc(&destinationYUV444, channels * width * height * sizeof(T));
 			//It's more convinient to work with width*height than with any other sizes

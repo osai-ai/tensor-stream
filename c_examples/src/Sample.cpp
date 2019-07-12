@@ -58,10 +58,10 @@ int main()
 
 	CHECK_STATUS(sts);
 	std::thread pipeline([] { reader.startProcessing(); });
-	int dstWidth = 720;
-	int dstHeight = 480;
-	ColorOptions colorOptions = { FourCC::YUV444 };
-	sts = colorOptions.additionalOptions(Planes::PLANAR, false);
+	int dstWidth = 320;
+	int dstHeight = 240;
+	ColorOptions colorOptions = { FourCC::HSV };
+	sts = colorOptions.additionalOptions(Planes::PLANAR, true);
 	CHECK_STATUS(sts);
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	sts = resizeOptions.additionalOptions(ResizeType::NEAREST);

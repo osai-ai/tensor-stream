@@ -51,6 +51,14 @@ class FourCC(Enum):
     RGB24 = 1
     ## RGB format, 24 bit for pixel, color plane order: B, G, R
     BGR24 = 2
+    ## YUV semi-planar format, 12 bit for pixel
+    NV12 = 3
+    ## YUV merged format, 16 bit for pixel
+    UYVY = 4
+    ## YUV merged format, 24 bit for pixel
+    YUV444 = 5
+    ## HSV format, 24 bit for pixel
+    HSV = 6
 
 ## Algorithm used to do resize
 class ResizeType(Enum):

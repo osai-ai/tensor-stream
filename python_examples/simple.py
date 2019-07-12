@@ -20,7 +20,7 @@ def parse_arguments():
                         help="Output height (default: input bitstream height)",
                         type=int, default=0)
     parser.add_argument("-fc", "--fourcc", default="RGB24",
-                        choices=["RGB24","BGR24", "Y800"],
+                        choices=["RGB24","BGR24", "Y800", "NV12", "UYVY", "YUV444", "HSV"],
                         help="Decoded stream' FourCC (default: RGB24)")
     parser.add_argument("-v", "--verbose", default="LOW",
                         choices=["LOW", "MEDIUM", "HIGH"],

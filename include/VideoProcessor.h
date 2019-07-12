@@ -24,7 +24,7 @@ enum FourCC {
 	NV12, /**< YUV semi-planar format, 12 bit for pixel */
 	UYVY, /**< YUV merged format, 16 bit for pixel */
 	YUV444, /**< YUV merged format, 24 bit for pixel */
-	HSV /**< YUV merged format, 24 bit for pixel */
+	HSV /**< HSV format, 24 bit for pixel */
 };
 
 /** Possible planes order in RGB format
