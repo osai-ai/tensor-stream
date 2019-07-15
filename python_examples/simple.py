@@ -35,8 +35,7 @@ def parse_arguments():
                         help="Size of internal buffer stores processed frames (default: 10)",
                         type=int, default=10)
     parser.add_argument("--normalize",
-                        help="Set if output pixel values should be normalized",
-                        action='store_true')
+                        help="Set if output pixel values should be normalized")
     parser.add_argument("--nvtx",
                         help="Enable NVTX logs",
                         action='store_true')
@@ -68,6 +67,7 @@ if __name__ == '__main__':
     if args.output:
         if os.path.exists(args.output):
             os.remove(args.output)
+
 
     tensor = None
     try:

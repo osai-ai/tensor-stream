@@ -325,7 +325,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def_readwrite("resizeType", &ResizeOptions::type);
 
 	py::class_<ColorOptions>(m, "ColorOptions")
-		.def(py::init<>())
+		.def(py::init<FourCC>())
 		.def_readwrite("normalization", &ColorOptions::normalization)
 		.def_readwrite("planesPos", &ColorOptions::planesPos)
 		.def_readwrite("dstFourCC", &ColorOptions::dstFourCC);

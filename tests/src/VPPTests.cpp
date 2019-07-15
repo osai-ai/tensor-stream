@@ -51,7 +51,7 @@ TEST_F(VPP_Convert, NV12ToRGB24) {
 	
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::RGB24);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -164,7 +164,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 	int height = output->height / 2;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::RGB24);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -198,7 +198,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	int height = output->height * 2;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::RGB24);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -232,7 +232,7 @@ TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::RGB24);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height),  colorOptions};
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -289,7 +289,7 @@ TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::BGR24);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -331,7 +331,7 @@ TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::Y800);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -388,7 +388,8 @@ TEST_F(VPP_Convert, NV12ToRGB24Planar) {
 	int height = output->height;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::RGB24);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -423,7 +424,8 @@ TEST_F(VPP_Convert, NV12ToBGR24Planar) {
 	int height = output->height;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::BGR24);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -458,7 +460,8 @@ TEST_F(VPP_Convert, NV12ToUYVY422) {
 	int height = output->height;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::UYVY);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -493,7 +496,7 @@ TEST_F(VPP_Convert, NV12ToUYVY422Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::UYVY);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -551,7 +554,8 @@ TEST_F(VPP_Convert, NV12ToUYVY422Resized) {
 	int height = 480;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::UYVY);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -586,7 +590,8 @@ TEST_F(VPP_Convert, NV12ToYUV444) {
 	int height = output->height;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::YUV444);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -621,7 +626,7 @@ TEST_F(VPP_Convert, NV12ToYUV444Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::YUV444);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -679,7 +684,8 @@ TEST_F(VPP_Convert, NV12ToYUV444Resized) {
 	int height = 480;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::YUV444);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -714,7 +720,7 @@ TEST_F(VPP_Convert, NV12ToNV12Normalization) {
 	int height = 240;
 	bool normalization = true;
 	ColorOptions colorOptions(FourCC::NV12);
-	colorOptions.additionalOptions(Planes::MERGED, normalization);
+	colorOptions.normalization = normalization;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -773,7 +779,8 @@ TEST_F(VPP_Convert, NV12ToNV12) {
 	int height = output->height;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::NV12);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);
@@ -808,7 +815,8 @@ TEST_F(VPP_Convert, NV12ToNV12Resized) {
 	int height = 480;
 	bool normalization = false;
 	ColorOptions colorOptions(FourCC::NV12);
-	colorOptions.additionalOptions(Planes::PLANAR, normalization);
+	colorOptions.normalization = normalization;
+	colorOptions.planesPos = Planes::PLANAR;
 	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
 
 	float channels = channelsByFourCC(colorOptions.dstFourCC);

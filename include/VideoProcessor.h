@@ -46,12 +46,6 @@ struct ColorOptions {
 			normalization = true;
 	}
 
-	int additionalOptions(Planes planesPos, bool normalization) {
-		this->planesPos = planesPos;
-		this->normalization = normalization;
-		return VREADER_OK;
-	}
-
 	bool normalization; /**<  @anchor normalization Should final colors be normalized or not */
 	Planes planesPos; /**< Memory layout of pixels. See @ref ::Planes for more information */
 	FourCC dstFourCC; /**< Desired destination FourCC. See @ref ::FourCC for more information */
@@ -71,11 +65,6 @@ struct ResizeOptions {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
 		this->type = ResizeType::NEAREST;
-	}
-
-	int additionalOptions(ResizeType type) {
-		this->type = type;
-		return VREADER_OK;
 	}
 
 	unsigned int width; /**< Width of destination image */
