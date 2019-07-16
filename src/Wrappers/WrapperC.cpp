@@ -201,9 +201,12 @@ void TensorStream::endProcessing() {
 		SET_CUDA_DEVICE_THROW();
 		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
-		parser->Close();
-		decoder->Close();
-		vpp->Close();
+		if (parser)
+			parser->Close();
+		if (decoder)
+			decoder->Close();
+		if (vpp)
+			vpp->Close();
 		for (auto& item : processedArr)
 			av_frame_free(&item.second);
 		for (auto& item : decodedArr)
