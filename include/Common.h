@@ -86,7 +86,7 @@ public:
 //NVTXTracer should be outside of "if" because it's RAII object
 #define PUSH_RANGE(name, colorID) \
 	NVTXTracer tracer; \
-	if (logger->enableNVTX) \
+	if (logger && logger->enableNVTX) \
 	{ \
 		tracer.trace(name, colorID); \
 	} \

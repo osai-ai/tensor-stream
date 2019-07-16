@@ -61,11 +61,10 @@ int main()
 	int dstWidth = 320;
 	int dstHeight = 240;
 	ColorOptions colorOptions = { FourCC::HSV };
-	sts = colorOptions.additionalOptions(Planes::PLANAR, true);
-	CHECK_STATUS(sts);
+	colorOptions.planesPos = Planes::PLANAR;
+	colorOptions.normalization = true;
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
-	sts = resizeOptions.additionalOptions(ResizeType::NEAREST);
-	CHECK_STATUS(sts);
+	resizeOptions.type = ResizeType::NEAREST;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
 	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
