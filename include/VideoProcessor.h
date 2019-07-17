@@ -97,6 +97,7 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
 
 float channelsByFourCC(FourCC fourCC);
+float channelsByFourCC(std::string fourCC);
 
 class VideoProcessor {
 public:

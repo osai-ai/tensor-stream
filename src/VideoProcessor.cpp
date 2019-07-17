@@ -13,6 +13,17 @@ float channelsByFourCC(FourCC fourCC) {
 	return channels;
 }
 
+float channelsByFourCC(std::string fourCC) {
+	float channels = 3;
+	if (fourCC == "Y800")
+		channels = 1;
+	if (fourCC == "UYVY")
+		channels = 2;
+	if (fourCC == "NV12")
+		channels = 1.5;
+
+	return channels;
+}
 
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
