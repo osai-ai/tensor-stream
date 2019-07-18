@@ -78,12 +78,8 @@ TEST_F(VPP_Convert, NV12ToRGB24) {
 	fourCCTest(output, 1080, 608, RGB24, Planes::MERGED, 2816643056);
 }
 
-TEST_F(VPP_Convert, NV12ToBGR24) {
-	fourCCTest(output, 1080, 608, BGR24, Planes::MERGED, 3797413135);
-}
-
-TEST_F(VPP_Convert, NV12ToY800) {
-	fourCCTest(output, 1080, 608, Y800, Planes::MERGED, 3265466497);
+TEST_F(VPP_Convert, NV12ToRGB24Planar) {
+	fourCCTest(output, 1080, 608, RGB24, Planes::PLANAR, 1381178532);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
@@ -94,19 +90,23 @@ TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	fourCCTest(output, 1080 * 2, 608 * 2, RGB24, Planes::MERGED, 915070179);
 }
 
-TEST_F(VPP_Convert, NV12ToRGB24Planar) {
-	fourCCTest(output, 1080, 608, RGB24, Planes::PLANAR, 1381178532);
+TEST_F(VPP_Convert, NV12ToBGR24) {
+	fourCCTest(output, 1080, 608, BGR24, Planes::MERGED, 3797413135);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24Planar) {
 	fourCCTest(output, 1080, 608, BGR24, Planes::PLANAR, 1193620459);
 }
 
+TEST_F(VPP_Convert, NV12ToY800) {
+	fourCCTest(output, 1080, 608, Y800, Planes::MERGED, 3265466497);
+}
+
 TEST_F(VPP_Convert, NV12ToUYVY422) {
 	fourCCTest(output, 1080, 608, UYVY, Planes::MERGED, 1323730732);
 }
 
-TEST_F(VPP_Convert, NV12ToUYVY422Resized) {
+TEST_F(VPP_Convert, NV12ToUYVY422Downscale) {
 	fourCCTest(output, 720, 480, UYVY, Planes::MERGED, 971832452);
 }
 
@@ -114,7 +114,7 @@ TEST_F(VPP_Convert, NV12ToYUV444) {
 	fourCCTest(output, 1080, 608, YUV444, Planes::MERGED, 1110927649);
 }
 
-TEST_F(VPP_Convert, NV12ToYUV444Resized) {
+TEST_F(VPP_Convert, NV12ToYUV444Downscale) {
 	fourCCTest(output, 720, 480, YUV444, Planes::MERGED, 886180025);
 }
 
@@ -122,7 +122,7 @@ TEST_F(VPP_Convert, NV12ToNV12) {
 	fourCCTest(output, 1080, 608, NV12, Planes::PLANAR, 2957341121);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12Resized) {
+TEST_F(VPP_Convert, NV12ToNV12Downscale) {
 	fourCCTest(output, 720, 480, NV12, Planes::PLANAR, 2944725564);
 }
 
@@ -274,7 +274,7 @@ TEST_F(VPP_Convert, NV12ToNV12Normalization) {
 }
 
 
-TEST_F(VPP_Convert, NV12ToHSVResized) {
+TEST_F(VPP_Convert, NV12ToHSV) {
 	/* The easiest way to check correctness via Python:
 	from matplotlib import pyplot as plt
 	from matplotlib.colors import hsv_to_rgb

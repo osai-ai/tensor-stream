@@ -7,6 +7,6 @@ int main(int argc, char *argv[])
 //	::testing::GTEST_FLAG(filter) = "VPP_Convert.NV12ToNV12";
 
 	//Disable cout output from library
-	//std::cout.setstate(std::ios_base::failbit);
+	std::cout.setstate(std::ios_base::failbit);
 	return RUN_ALL_TESTS();
 }
