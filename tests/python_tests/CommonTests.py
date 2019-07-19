@@ -62,7 +62,6 @@ class TestTensorStream(unittest.TestCase):
     def test_close_start(self):
         path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
         reader = TensorStreamConverter(path)
-        reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
         reader.initialize()
         reader.stop()
         #won't work but at least no crush
