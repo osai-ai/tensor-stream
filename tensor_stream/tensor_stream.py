@@ -111,7 +111,7 @@ class TensorStreamConverter:
             status = self.tensor_stream.init(self.stream_url, self.max_consumers, self.cuda_device, self.buffer_size)
             if status != StatusLevel.OK.value:
                 self.stop()
-            repeat = repeat - 1
+                repeat = repeat - 1
 
         if repeat == 0:
             raise RuntimeError("Can't initialize TensorStream")
