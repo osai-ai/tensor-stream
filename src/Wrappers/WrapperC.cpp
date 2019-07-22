@@ -134,7 +134,8 @@ int TensorStream::startProcessing() {
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
-	decoder->notifyConsumers();
+	if (decoder)
+		decoder->notifyConsumers();
 	LOG_VALUE(std::string("All consumers were notified about processing end"), LogsLevel::LOW);
 	CHECK_STATUS(sts);
 	return sts;

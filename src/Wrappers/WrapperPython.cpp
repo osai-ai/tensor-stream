@@ -161,7 +161,8 @@ int TensorStream::startProcessing(int cudaDevice) {
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
-	decoder->notifyConsumers();
+	if (decoder)
+		decoder->notifyConsumers();
 	LOG_VALUE(std::string("All consumers were notified about processing end"), LogsLevel::LOW);
 	CHECK_STATUS(sts);
 	return sts;
@@ -295,16 +296,15 @@ int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FramePa
 	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	if (!frameParameters.resize.width) {
-		frameParameters.resize.width = stream.size(2);
+		frameParameters.resize.width = stream.size(1);
 	}
 
 	if (!frameParameters.resize.height) {
-		frameParameters.resize.height = stream.size(1);
+		frameParameters.resize.height = stream.size(0);
 	}
 
-	stream = stream.reshape({ stream.size(1), stream.size(2), stream.size(0) });
 	//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
-	std::string dumpName = consumerName + std::string("");
+	std::string dumpName = consumerName + std::string(".yuv");
 	std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
 	if (frameParameters.color.normalization)
 		status = vpp->DumpFrame<float>((float*)stream.data_ptr(), frameParameters, dumpFrame);

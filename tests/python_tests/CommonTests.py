@@ -99,6 +99,99 @@ class TestTensorStream(unittest.TestCase):
         value = tensor[0][0][0].item()
         self.assertEqual(type(value), float)
         reader.stop()
+    
+    def test_read_without_init(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        reader.start()
+        time.sleep(1.0)
+        with self.assertRaises(RuntimeError):
+            tensor, index = reader.read(return_index = True)
+
+        reader.stop()
+    
+    def test_check_dump_size(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        reader.initialize()
+        reader.start()
+        time.sleep(1.0)
+        expected_width = 1920
+        expected_height = 1080
+        expected_channels = 3
+        tensor, index = reader.read(return_index = True)
+        self.assertEqual(tensor.shape[0], expected_height)
+        self.assertEqual(tensor.shape[1], expected_width)
+        self.assertEqual(tensor.shape[2], expected_channels)
+        #need to find dumped file and compare expected and real sizes
+        reader.dump(tensor)
+
+        dump_size = os.stat('default.yuv')
+        os.remove("default.yuv")
+        self.assertEqual(dump_size.st_size, expected_width * expected_height * expected_channels)
+        reader.stop()
+
+    def test_read_without_init_start(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        time.sleep(1.0)
+        with self.assertRaises(RuntimeError):
+            tensor, index = reader.read(return_index = True)
+
+        reader.stop()
+    
+    def test_dump_name(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        reader.initialize()
+        reader.start()
+        time.sleep(1.0)
+        tensor = reader.read()
+        #need to find dumped file and compare expected and real sizes
+        reader.dump(tensor, name = "dump")
+        self.assertTrue(os.path.isfile("dump.yuv")) 
+        os.remove("dump.yuv")
+        reader.stop()
+    
+    def test_multiple_init(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        number_close_init = 10
+        while number_close_init > 0:
+            reader.initialize()
+            reader.stop()
+            number_close_init -= 1
+
+    def test_read_after_stop(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        reader.initialize()
+        reader.start()
+        time.sleep(1.0)
+        reader.stop()
+        with self.assertRaises(RuntimeError):
+            tensor = reader.read()
+    
+    def test_frame_number(self):
+        path = os.path.dirname(os.path.abspath(__file__)) + "/../../tests/resources/billiard_1920x1080_420_100.h264"
+        reader = TensorStreamConverter(path)
+        reader.initialize()
+        reader.start()
+        time.sleep(1.0)
+        frame_num = i = 10
+        while i > 0:
+            tensor = reader.read()
+            reader.dump(tensor)
+            i -= 1
+
+        dump_size = os.stat('default.yuv')
+        print(f"SIZE {dump_size}")
+        os.remove("default.yuv")
+        expected_width = 1920
+        expected_height = 1080
+        expected_channels = 3
+        self.assertEqual(dump_size.st_size, expected_width * expected_height * expected_channels * frame_num)
+        reader.stop()
 
 if __name__ == '__main__':
     unittest.main()
