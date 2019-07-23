@@ -40,7 +40,7 @@ std::string Python_Tests::setupCmdLine = "";
 
 void fourCCTest(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes, unsigned long crc) {
 	std::stringstream cmdLine;
-	std::string dumpFileName = "DumpFrame" + dstFourCC + std::string(".yuv");
+	std::string dumpFileName = "DumpFrame" + dstFourCC;
 	std::string normalizationString = "False";
 	float channels = channelsByFourCC(dstFourCC);
 #ifdef WIN32
@@ -55,17 +55,17 @@ void fourCCTest(std::string generalCmdLine, std::string input, int width, int he
 	setupCmdLine = setupCmdLine + " > nul 2>&1";
 	system(setupCmdLine.c_str());
 	{
-		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
 		std::vector<uint8_t> fileNV12Processing(width * height * channels);
 		fread(&fileNV12Processing[0], fileNV12Processing.size(), 1, readFile.get());
 		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels), crc);
 	}
-	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
 void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::string refName, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes) {
 	std::stringstream cmdLine;
-	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + std::string(".yuv");
+	std::string dumpFileName = std::string("DumpFrame") + dstFourCC;
 	std::string normalizationString = "True";
 	float channels = channelsByFourCC(dstFourCC);
 #ifdef WIN32
@@ -80,7 +80,7 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 	setupCmdLine = setupCmdLine + " > nul 2>&1";
 	system(setupCmdLine.c_str());
 	{
-		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
 		std::vector<uint8_t> fileRGBProcessing(width * height * channels);
 		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
 
@@ -95,7 +95,7 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 		}
 	}
 
-	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
 TEST_F(Python_Tests, FourCC_NV12) {
