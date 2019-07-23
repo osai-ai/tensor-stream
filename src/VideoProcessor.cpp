@@ -1,30 +1,46 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
+float channelsByFourCC(FourCC fourCC) {
+	float channels = 3;
+	if (fourCC == Y800)
+		channels = 1;
+	if (fourCC == UYVY)
+		channels = 2;
+	if (fourCC == NV12)
+		channels = 1.5;
+	
+	return channels;
+}
+
+float channelsByFourCC(std::string fourCC) {
+	float channels = 3;
+	if (fourCC == "Y800")
+		channels = 1;
+	if (fourCC == "UYVY")
+		channels = 2;
+	if (fourCC == "NV12")
+		channels = 1.5;
+
+	return channels;
+}
+
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
-	int channels = 3;
-	if (options.color.dstFourCC != RGB24 && options.color.dstFourCC != BGR24)
-		channels = 1;
+	float channels = channelsByFourCC(options.color.dstFourCC);
+	
 	//allow dump Y, RGB, BGR
-	fwrite(frame, options.resize.width * options.resize.height * channels, sizeof(T), dump);
-	
-	//UV planes should be stored after Y without any strides
-	if (options.color.dstFourCC == AV_PIX_FMT_NV12) {
-		fwrite(&frame, options.resize.width * options.resize.height / 2 * channels, sizeof(T), dump);
-	}
-	
+	fwrite(frame, (int) (options.resize.width * options.resize.height * channels), sizeof(T), dump);
+
 	fflush(dump);
 }
 
 template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
-	int channels = 3;
-	if (options.color.dstFourCC == Y800)
-		channels = 1;
+	float channels = channelsByFourCC(options.color.dstFourCC);
 	//allocate buffers
-	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[channels * options.resize.width * options.resize.height], std::default_delete<T[]>());
+	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * options.resize.width * options.resize.height)], std::default_delete<T[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(rawData.get(), options, dumpFile.get());
@@ -71,21 +87,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	else if (output->width == 0 || output->height == 0) {
 		output->width = options.resize.width = input->width;
 		output->height = options.resize.height = input->height;
-	}
-
-	switch (options.color.dstFourCC) {
-	case BGR24:
-		output->format = AV_PIX_FMT_BGR24;
-		output->channels = 3;
-		break;
-	case RGB24:
-		output->format = AV_PIX_FMT_RGB24;
-		output->channels = 3;
-		break;
-	case Y800:
-		output->format = AV_PIX_FMT_GRAY8;
-		output->channels = 1;
-		break;
 	}
 
 	if (options.color.normalization)

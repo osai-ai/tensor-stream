@@ -134,7 +134,8 @@ int TensorStream::startProcessing() {
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
-	decoder->notifyConsumers();
+	if (decoder)
+		decoder->notifyConsumers();
 	LOG_VALUE(std::string("All consumers were notified about processing end"), LogsLevel::LOW);
 	CHECK_STATUS(sts);
 	return sts;
@@ -156,6 +157,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
 		}
 	}
+
 	END_LOG_BLOCK(std::string("findFree decoded frame"));
 	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{
@@ -200,9 +202,12 @@ void TensorStream::endProcessing() {
 		SET_CUDA_DEVICE_THROW();
 		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
-		parser->Close();
-		decoder->Close();
-		vpp->Close();
+		if (parser)
+			parser->Close();
+		if (decoder)
+			decoder->Close();
+		if (vpp)
+			vpp->Close();
 		for (auto& item : processedArr)
 			av_frame_free(&item.second);
 		for (auto& item : decodedArr)

@@ -98,8 +98,182 @@ __global__ void NV12ToY800(unsigned char* Y, T* Yf, int width, int height, int p
 	}
 }
 
+__device__ unsigned char calculateUYVYChromaVertical(unsigned char* UV, int i, int j, int width, int height) {
+	int UVRow = i / 2;
+	int UVCol = j;
+	int index = UVCol + UVRow * width;
+	int value = UV[index];
+	if (UVRow % 2 != 0) {
+		int point1 = UVRow;
+		int point2 = UVRow + 1;
+		point2 = min(point2, height / 2 - 1);
+		int point3 = UVRow - 1;
+		point3 = max(point3, 0);
+		int point4 = UVRow + 2;
+		point4 = min(point4, height / 2 - 1);
+		value = ((9 * (UV[point1 * width + UVCol] + UV[point2 * width + UVCol]) 
+					- (UV[point3 * width + UVCol] + UV[point4 * width + UVCol]) + 8) >> 4);
+		value = min(value, 255);
+		value = max(value, 0);
+	}
+	
+	return value;
+}
+
+template <class T>
+__device__ T calculateYUV444ChromaHorizontal(T* src, int index, int shift, int width, int height) {
+	int point1 = index - 3 + shift;
+	int point2 = index + 1 + shift;
+	int point3 = index - 7 + shift;
+	if (point3 < 0)
+		point3 = point1;
+	int point4 = index + 5 + shift;
+	if (point4 > width * height * 2 - 1)
+		point4 = point2;
+	T value = ((9 * (src[point1] + src[point2]) - (src[point3] + src[point4]) + 8) / 16);
+	value = min(value, (T) 255);
+	value = max(value, (T) 0);
+	return value;
+}
+
+template< class T >
+__global__ void UYVYToYUV444(T* src, T* dst, int width, int height, bool normalization) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j + i * width;
+		int srcIndex = index * 2 + 1;
+		dst[index] = src[srcIndex];
+		if (normalization)
+			dst[index] /= 255;
+		if (index % 2 == 0) {
+			dst[width * height + index] = src[srcIndex - 1];
+			if (normalization)
+				dst[width * height + index] /= 255;
+			dst[2 * width * height + index] = src[srcIndex + 1];
+			if (normalization)
+				dst[2 * width * height + index] /= 255;
+		}
+		else {
+			dst[width * height + index] = calculateYUV444ChromaHorizontal(src, srcIndex, 0, width, height);
+			if (normalization)
+				dst[width * height + index] /= 255;
+			dst[2 * width * height + index] = calculateYUV444ChromaHorizontal(src, srcIndex, 2, width, height);
+			if (normalization)
+				dst[2 * width * height + index] /= 255;
+		}
+	}
+}
+
+//semi-planar 420 to merged 422
+//u0 y0 v0 y1 | u1 y2 v1 y3 | u2 y4 v2 y5 | u3 y6 v3 y7
+template< class T >
+__global__ void NV12ToUYVY(unsigned char* Y, unsigned char* UV, T* dest, int width, int height, int pitchNV12, bool normalization) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j + i * width;
+		int indexSrc = j + i * pitchNV12;
+		if (index % 2 == 0) {
+			int indexDest = index * 2;
+			//max UV for NV12 - j/2 i/2
+			//       for UYVY - j/2 i
+
+			unsigned char UValue = calculateUYVYChromaVertical(UV, i, j, pitchNV12, height);
+			dest[indexDest] = UValue;
+			if (normalization)
+				dest[indexDest] /= 255;
+			dest[indexDest + 1] = Y[indexSrc];
+			if (normalization)
+				dest[indexDest + 1] /= 255;
+			unsigned char VValue = calculateUYVYChromaVertical(UV, i, j + 1, pitchNV12, height);
+			dest[indexDest + 2] = VValue;
+			if (normalization)
+				dest[indexDest + 2] /= 255;
+		}
+		else {
+			int indexDest = index * 2 + 1;
+			dest[indexDest] = Y[indexSrc];
+			if (normalization)
+				dest[indexDest] /= 255;
+		}
+	}
+}
+
+template< class T >
+__global__ void NV12MergeBuffers(unsigned char* Y, unsigned char* UV, T* dest, int width, int height, int pitchNV12, bool normalization) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j + i * width;
+		int indexNV12 = j + i * pitchNV12;
+		dest[index] = Y[indexNV12];
+		if (normalization)
+			dest[index] /= 255;
+		if (i % 2 == 0 && j % 2 == 0) {
+			int indexUV = (int) (i / 2) * width + j;
+			int indexUVNV12 = (int) (i / 2) * pitchNV12 + j;
+			dest[width * height + indexUV] = UV[indexUVNV12];
+			if (normalization)
+				dest[width * height + indexUV] /= 255;
+			dest[width * height + indexUV + 1] = UV[indexUVNV12 + 1];
+			if (normalization)
+				dest[width * height + indexUV + 1] /= 255;
+		}
+	}
+}
+
+template< class T >
+__global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int index = j * 3 + i * width * 3;
+		T R = RGB[index];
+		T G = RGB[index + 1];
+		T B = RGB[index + 2];
+		
+		T* H = &dest[index];
+		T* S = &dest[index + 1];
+		T* V = &dest[index + 2];
+		
+		T minVal = min(min(R, G), B);
+		T maxVal = max(max(R, G), B);
+		T delta = maxVal - minVal;
+
+		*V = maxVal;
+
+		*S = 0;
+		if (maxVal != 0) {
+			*S = 1 - minVal / maxVal;
+		}
+
+		if (maxVal == minVal) {
+			*H = 0;
+			return;
+		}
+		else if (R == maxVal && G >= B)
+			*H = 60 * (G - B) / delta;
+		else if (R == maxVal && G < B)
+			*H = 60 * (G - B) / delta + 360;
+		else if (G == maxVal)
+			*H = 60 * (B - R) / delta + 120;
+		else if (B == maxVal)
+			*H = 60 * (R - G) / delta + 240;
+		if (*H < 0)
+			*H += 360;
+		
+		*H /= 360;
+	}
+}
+
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
+	float channels = channelsByFourCC(color.dstFourCC);
 	/*
 	src in GPU nv12, dst in CPU rgb (packed)
 	*/
@@ -110,49 +284,88 @@ int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int ma
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
 
 	//blocks for merged format
-	int blockX = std::ceil(dst->channels * width / (float)threadsPerBlock.x);
+	int blockX = std::ceil(width / (float)threadsPerBlock.x);
 	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
 	
-	//blocks for planar format
-	if (color.planesPos == Planes::PLANAR) {
-		blockX = std::ceil(width / (float)threadsPerBlock.x);
-		blockY = std::ceil(dst->channels * dst->height / (float)threadsPerBlock.y);
-	}
-
 	dim3 numBlocks(blockX, blockY);
 
-	T* destination = nullptr;
+	void* destination = nullptr;
 	cudaError err = cudaSuccess;
-	err = cudaMalloc(&destination, dst->channels * width * height * sizeof(T));
-
 	//depends on fact of resize
 	int pitchNV12 = src->linesize[0] ? src->linesize[0] : width;
 	bool swapRB = false;
 	switch (color.dstFourCC) {
 		case BGR24:
 			swapRB = true;
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
-				int pitchRGB = dst->channels * width;
-				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				int pitchRGB = channels * width;
+				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 		break;
 		case RGB24:
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
 			if (color.planesPos == Planes::PLANAR) {
 				int pitchRGB = width;
-				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				NV12ToRGB32KernelPlanar<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
 			}
 			else {
-				int pitchRGB = dst->channels * width;
-				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				int pitchRGB = channels * width;
+				NV12ToRGB32KernelMerged<T> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, pitchRGB, swapRB, color.normalization);
+				cudaStreamSynchronize(*stream);
+
 			}
 		break;
 		case Y800:
-			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], destination, width, height, pitchNV12, color.normalization);
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToY800 << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], (T*) destination, width, height, pitchNV12, color.normalization);
 		break;
+		case UYVY:
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
+		break;
+		case YUV444: 
+		{
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12ToUYVY << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, /*normalization*/false);
+			T* destinationYUV444 = nullptr;
+			err = cudaMalloc(&destinationYUV444, channels * width * height * sizeof(T));
+			//It's more convinient to work with width*height than with any other sizes
+			UYVYToYUV444 << <numBlocks, threadsPerBlock, 0, *stream >> > ((T*) destination, (T*) destinationYUV444, width, height, color.normalization);
+			cudaFree(destination);
+			destination = destinationYUV444;
+
+		}
+		break;
+		case NV12:
+			err = cudaMalloc(&destination, channels * width * height * sizeof(T));
+
+			NV12MergeBuffers << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (T*) destination, width, height, pitchNV12, color.normalization);
+		break;
+		case HSV:
+		{
+			err = cudaMalloc(&destination, channels * width * height * sizeof(float));
+
+			int pitchRGB = channels * width;
+			NV12ToRGB32KernelMerged<float> << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], (float*) destination, 
+																						width, height, pitchNV12, pitchRGB, /*swapRB*/ false, /*normalization*/ true);
+			float* destinationHSV = nullptr;
+			err = cudaMalloc(&destinationHSV, channels * width * height * sizeof(float));
+			RGBMergedToHSVMerged<float> << <numBlocks, threadsPerBlock, 0, *stream >> > ((float*) destination, (float*) destinationHSV, width, height);
+			cudaFree(destination);
+			destination = destinationHSV;
+		}
+		break;
+
 		default:
 			err = cudaErrorMissingConfiguration;
 	}

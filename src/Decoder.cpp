@@ -137,9 +137,6 @@ int Decoder::Decode(AVPacket* pkt) {
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
 	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-	//TensorStream parses only video and not audio so let's use audio variable for video frame channels number
-	//Number of channels for NV12 = 1
-	decodedFrame->channels = 1;
 
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);

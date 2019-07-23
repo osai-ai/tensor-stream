@@ -19,9 +19,7 @@ def parse_arguments():
 
 def consumer1(reader, n_frames):
     try:
-        print("Enter try consumer1")
         for i in range(n_frames):
-            print("Enter for consumer1")
             tensor = reader.read(name="consumer1",
                                  pixel_format=FourCC.RGB24,
                                  width=540,
@@ -37,9 +35,7 @@ def consumer1(reader, n_frames):
 
 def consumer2(reader, n_frames):
     try:
-        print("Enter try consumer2")
         for i in range(n_frames):
-            print("Enter for consumer2")
             tensor, index = reader.read(name="consumer2",
                                         pixel_format=FourCC.BGR24,
                                         return_index=True)

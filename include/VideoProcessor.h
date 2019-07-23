@@ -20,7 +20,11 @@ extern "C" {
 enum FourCC {
 	Y800 = 0, /**< Monochrome format, 8 bit for pixel */
 	RGB24, /**< RGB format, 24 bit for pixel, color plane order: R, G, B */
-	BGR24 /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
+	BGR24, /**< RGB format, 24 bit for pixel, color plane order: B, G, R */
+	NV12, /**< YUV semi-planar format, 12 bit for pixel */
+	UYVY, /**< YUV merged format, 16 bit for pixel */
+	YUV444, /**< YUV merged format, 24 bit for pixel */
+	HSV /**< HSV format, 24 bit for pixel */
 };
 
 /** Possible planes order in RGB format
@@ -33,10 +37,13 @@ enum Planes {
 /** Parameters specific for color conversion
 */
 struct ColorOptions {
-	ColorOptions(bool normalization = false, Planes planesPos = Planes::MERGED, FourCC dstFourCC = FourCC::RGB24) {
-		this->normalization = normalization;
-		this->planesPos = planesPos;
+	ColorOptions(FourCC dstFourCC = FourCC::RGB24) {
 		this->dstFourCC = dstFourCC;
+		//Default values
+		planesPos = Planes::MERGED;
+		normalization = false;
+		if (dstFourCC == FourCC::HSV)
+			normalization = true;
 	}
 
 	bool normalization; /**<  @anchor normalization Should final colors be normalized or not */
@@ -54,10 +61,10 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
-	ResizeOptions(int width = 0, int height = 0, ResizeType type = ResizeType::NEAREST) {
+	ResizeOptions(int width = 0, int height = 0) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
-		this->type = type;
+		this->type = ResizeType::NEAREST;
 	}
 
 	unsigned int width; /**< Width of destination image */
@@ -88,6 +95,9 @@ template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+
+float channelsByFourCC(FourCC fourCC);
+float channelsByFourCC(std::string fourCC);
 
 class VideoProcessor {
 public:

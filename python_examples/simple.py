@@ -4,6 +4,10 @@ from tensor_stream import LogsLevel, LogsType, FourCC, Planes, ResizeType
 import argparse
 import os
 
+def string_bool(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
 
 def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
@@ -21,7 +25,7 @@ def parse_arguments():
                         help="Output height (default: input bitstream height)",
                         type=int, default=0)
     parser.add_argument("-fc", "--fourcc", default="RGB24",
-                        choices=["RGB24", "BGR24", "Y800"],
+                        choices=["RGB24","BGR24", "Y800", "NV12", "UYVY", "YUV444", "HSV"],
                         help="Decoded stream' FourCC (default: RGB24)")
     parser.add_argument("-v", "--verbose", default="LOW",
                         choices=["LOW", "MEDIUM", "HIGH"],
@@ -37,7 +41,7 @@ def parse_arguments():
                         type=int, default=10)
     parser.add_argument("--normalize",
                         help="Set if output pixel values should be normalized",
-                        action='store_true')
+                        type=string_bool)
     parser.add_argument("--nvtx",
                         help="Enable NVTX logs",
                         action='store_true')
@@ -74,6 +78,7 @@ if __name__ == '__main__':
         if os.path.exists(args.output):
             os.remove(args.output)
 
+    print(f"Normalize {args.normalize}")
     tensor = None
     try:
         while True:

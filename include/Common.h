@@ -86,7 +86,7 @@ public:
 //NVTXTracer should be outside of "if" because it's RAII object
 #define PUSH_RANGE(name, colorID) \
 	NVTXTracer tracer; \
-	if (logger->enableNVTX) \
+	if (logger && logger->enableNVTX) \
 	{ \
 		tracer.trace(name, colorID); \
 	} \
@@ -112,7 +112,7 @@ public:
 #define LOG_VALUE(messageIn, neededLevel) \
 	{ \
 		std::unique_lock<std::mutex> locker(logsMutex); \
-		if (logger->logsLevel && std::abs(logger->logsLevel) >= std::abs(neededLevel)) \
+		if (logger && logger->logsLevel && std::abs(logger->logsLevel) >= std::abs(neededLevel)) \
 		{ \
 			std::string finalMessage = messageIn + std::string("\n"); \
 			if (logger->logsLevel < 0) \
@@ -127,7 +127,7 @@ public:
 		std::chrono::high_resolution_clock::time_point startFunc; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger->logsLevel) \
+			if (logger && logger->logsLevel) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
 				if (logger->logsLevel < 0) \
@@ -142,7 +142,7 @@ public:
 #define END_LOG_FUNCTION(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger->logsLevel) { \
+			if (logger && logger->logsLevel) { \
 				std::string finalMessage; \
 				if (std::abs(logger->logsLevel) >= MEDIUM) { \
 					int timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count(); \
@@ -164,7 +164,7 @@ public:
 		std::chrono::high_resolution_clock::time_point start; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logger->logsLevel) >= HIGH) \
+			if (logger && std::abs(logger->logsLevel) >= HIGH) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
 				if (logger->logsLevel < 0) \
@@ -178,7 +178,7 @@ public:
 #define END_LOG_BLOCK(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (std::abs(logger->logsLevel) >= HIGH) { \
+			if (logger && std::abs(logger->logsLevel) >= HIGH) { \
 				std::string finalMessage; \
 				std::string time = \
 				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count()); \

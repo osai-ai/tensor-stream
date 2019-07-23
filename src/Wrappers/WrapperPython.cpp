@@ -18,8 +18,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	CHECK_STATUS(sts);
 	if (cudaDevice >= 0 && cudaDevice < cudaDevicesNumber) {
 		currentCUDADevice = cudaDevice;
-	}
-	else {
+	} else {
 		int device;
 		auto sts = cudaGetDevice(&device);
 		currentCUDADevice = device;
@@ -162,6 +161,7 @@ int TensorStream::startProcessing(int cudaDevice) {
 	sts = processingLoop();
 	LOG_VALUE(std::string("Processing was interrupted or stream has ended"), LogsLevel::LOW);
 	//we should unlock mutex to allow get() function end execution
+	if (decoder)
 	decoder->notifyConsumers();
 	LOG_VALUE(std::string("All consumers were notified about processing end"), LogsLevel::LOW);
 	CHECK_STATUS(sts);
@@ -206,17 +206,31 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-	if (frameParameters.color.normalization) {
-		if (frameParameters.color.planesPos == Planes::MERGED)
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
-		else
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->channels, processedFrame->height, processedFrame->width}, c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
-	}
-	else {
-		if (frameParameters.color.planesPos == Planes::MERGED)
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, processedFrame->channels }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
-		else
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->channels, processedFrame->height, processedFrame->width }, c10::TensorOptions(at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+
+	float channels = channelsByFourCC(frameParameters.color.dstFourCC);
+	switch (frameParameters.color.dstFourCC) {
+		case FourCC::RGB24:
+		case FourCC::BGR24:
+			if (frameParameters.color.planesPos == Planes::MERGED)
+				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int) channels },
+					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			else
+				outputTensor = torch::from_blob(processedFrame->opaque, { (int) channels, processedFrame->height, processedFrame->width },
+					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::YUV444:
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int) channels },
+				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::UYVY:
+		case FourCC::NV12:
+		case FourCC::Y800:
+			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int) (processedFrame->height * channels), processedFrame->width},
+				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::HSV:
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int) channels },
+				c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
 	}
 	outputTuple = std::make_tuple(outputTensor, indexFrame);
 	END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -242,8 +256,11 @@ void TensorStream::endProcessing() {
 		SET_CUDA_DEVICE_THROW();
 		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
 		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
+		if (parser)
 		parser->Close();
+		if (decoder)
 		decoder->Close();
+		if (vpp)
 		vpp->Close();
 		for (auto& item : processedArr)
 			av_frame_free(&item.second);
@@ -279,16 +296,15 @@ int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FramePa
 	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	if (!frameParameters.resize.width) {
-		frameParameters.resize.width = stream.size(3);
+		frameParameters.resize.width = stream.size(1);
 	}
 
 	if (!frameParameters.resize.height) {
-		frameParameters.resize.height = stream.size(2);
+		frameParameters.resize.height = stream.size(0);
 	}
 
-	stream = stream.reshape({ stream.size(2), stream.size(3), stream.size(1) });
 	//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
-	std::string dumpName = consumerName + std::string("");
+	std::string dumpName = consumerName + std::string(".yuv");
 	std::shared_ptr<FILE> dumpFrame = std::shared_ptr<FILE>(fopen(dumpName.c_str(), "ab+"), std::fclose);
 	if (frameParameters.color.normalization)
 		status = vpp->DumpFrame<float>((float*)stream.data_ptr(), frameParameters, dumpFrame);
@@ -311,7 +327,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def_readwrite("resizeType", &ResizeOptions::type);
 
 	py::class_<ColorOptions>(m, "ColorOptions")
-		.def(py::init<>())
+		.def(py::init<FourCC>())
 		.def_readwrite("normalization", &ColorOptions::normalization)
 		.def_readwrite("planesPos", &ColorOptions::planesPos)
 		.def_readwrite("dstFourCC", &ColorOptions::dstFourCC);
@@ -330,6 +346,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.value("Y800", FourCC::Y800)
 		.value("RGB24", FourCC::RGB24)
 		.value("BGR24", FourCC::BGR24)
+		.value("NV12",   FourCC::NV12)
+		.value("UYVY",   FourCC::UYVY)
+		.value("YUV444", FourCC::YUV444)
+		.value("HSV",    FourCC::HSV)
 		.export_values();
 
 	py::class_<TensorStream>(m, "TensorStream")
