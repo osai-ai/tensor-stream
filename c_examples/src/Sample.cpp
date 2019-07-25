@@ -49,7 +49,8 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+		//sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
+ 		sts = reader.initPipeline("C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\resources\\forest.jpg");
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
@@ -58,16 +59,16 @@ int main()
 
 	CHECK_STATUS(sts);
 	std::thread pipeline([] { reader.startProcessing(); });
-	int dstWidth = 320;
-	int dstHeight = 240;
-	ColorOptions colorOptions = { FourCC::HSV };
+	int dstWidth = 720;
+	int dstHeight = 480;
+	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
-	colorOptions.normalization = true;
+	colorOptions.normalization = false;
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	resizeOptions.type = ResizeType::NEAREST;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"}, {"dumpName", "sample_output.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "1"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();
