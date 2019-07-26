@@ -62,6 +62,7 @@ public:
 */
 	void enableNVTX();
 	int getDelay();
+	void skipAnalyzeStage();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
@@ -73,6 +74,7 @@ private:
 	int realTimeDelay = 0;
 	std::pair<int, int> frameRate;
 	bool shouldWork;
+	bool skipAnalyze;
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::mutex freeSync;

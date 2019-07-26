@@ -299,49 +299,42 @@ TEST_F(VPP_Convert, NV12ToHSV) {
 //monochrome reference and monochrome input (noisy approximation)
 double checkPSNR(uint8_t* reference, uint8_t* input, int width, int height) {
 	//we have reference and input in RGB format
-	double mseR = 0;
-	double mseG = 0;
-	double mseB = 0;
+	std::vector<double> mseChannels(3);
 	double normCoeff = (height * width);
-	uint8_t maxValue = 0;
+	double maxValue = 255;
 	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j += 3) {
-			int indexR = j + i * width;
-			int indexG = j + i * width + 1;
-			int indexB = j + i * width + 2;
-			if (maxValue < reference[indexR])
-				maxValue = reference[indexR];
-			if (maxValue < reference[indexG])
-				maxValue = reference[indexG];
-			if (maxValue < reference[indexB])
-				maxValue = reference[indexB];
-			mseR += std::pow(std::abs(reference[indexR] - input[indexR]), 2);
-			mseG += std::pow(std::abs(reference[indexG] - input[indexG]), 2);
-			mseB += std::pow(std::abs(reference[indexB] - input[indexB]), 2);
+		for (int j = 0; j < 3 * width; j += 3) {
+			mseChannels[0] += std::pow(std::abs(reference[j + i * width] - input[j + i * width]), 2);
+			mseChannels[1] += std::pow(std::abs(reference[j + i * width + 1] - input[j + i * width + 1]), 2);
+			mseChannels[2] += std::pow(std::abs(reference[j + i * width + 2] - input[j + i * width + 2]), 2);
 		}
 	}
 
-	mseR /= normCoeff;
-	mseG /= normCoeff;
-	mseB /= normCoeff;
+	for (auto &channel : mseChannels) {
+		channel /= normCoeff;
+	}
 
-	double mse = (mseR + mseG + mseB) / 3;
+	double mse = 0;
+	for (auto &channel : mseChannels)
+		mse += channel;
 
-	double psnr = 20 * std::log10(maxValue / std::sqrt(mse));
+	mse /= mseChannels.size();
+
+	double psnr = 10 * std::log10(std::pow(maxValue, 2) / mse);
 	return psnr;
 }
 
 uint8_t* getFrame(std::string path, FrameParameters frameParams) {
 	TensorStream reader;
-	reader.enableLogs(MEDIUM);
-	reader.initPipeline(path, 5, 0, 5);
+	auto sts = reader.initPipeline(path);
+	reader.skipAnalyzeStage();
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::tuple<uint8_t*, int> result;
 	std::thread get([&reader, &result, &frameParams]() {
 		try {
 			int frames = 1;
 			for (int i = 0; i < frames; i++) {
-				result = reader.getFrame<uint8_t>("first", 0, frameParams);
+				result = reader.getFrame<uint8_t>("frame", 0, frameParams);
 			}
 		}
 		catch (std::runtime_error e) {
@@ -360,89 +353,138 @@ uint8_t* getFrame(uint8_t* frame, int width, int height, FrameParameters framePa
 	AVFrame* inputAV = av_frame_alloc();
 	AVFrame* outputAV = av_frame_alloc();
 
-	ColorOptions colorOptions(RGB24);
-	colorOptions.normalization = false;
-	colorOptions.planesPos = Planes::MERGED;
-	FrameParameters options = { ResizeOptions(frameParams.resize.width, frameParams.resize.height), colorOptions };
 	//need to split YUV to AVFrame
 	uint8_t* destinationY;
 	uint8_t* destinationUV;
-	cudaError err = cudaMalloc(&destinationY, width * height * sizeof(uint8_t));
+	cudaError err;
+	err = cudaMalloc(&destinationY, width * height * sizeof(uint8_t));
 	err = cudaMalloc(&destinationUV, width * height * sizeof(uint8_t) / 2);
 	err = cudaMemcpy(destinationY, frame, width * height * sizeof(uint8_t), cudaMemcpyDeviceToDevice);
 	err = cudaMemcpy(destinationUV, frame + width * height * sizeof(uint8_t), width * height * sizeof(uint8_t) / 2, cudaMemcpyDeviceToDevice);
 	inputAV->data[0] = destinationY;
 	inputAV->data[1] = destinationUV;
-	inputAV->linesize[0] = width;
-	inputAV->linesize[1] = width;
-	inputAV->width = width;
+	inputAV->linesize[0] = inputAV->linesize[1] = inputAV->width = width;
 	inputAV->height = height;
+	vpp.Convert(inputAV, outputAV, frameParams, "PSNR");
 
-	/*
-	{
-		//allocate buffers
-		uint8_t* rawData = new uint8_t[(int)(width * height * 1.5)];
-
-		err = cudaMemcpy(rawData, inputAV->data[0], width * height, cudaMemcpyDeviceToHost);
-		err = cudaMemcpy(rawData + width * height, inputAV->data[1], width * height / 2, cudaMemcpyDeviceToHost);
-
-		std::string dumpFileName = "DumpFrameNV12480x360_memcpy.yuv";
-		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		fwrite(rawData, (int)(width * height * 1.5), sizeof(uint8_t), writeFile.get());
-		fflush(writeFile.get());
-	}
-	*/
-
-	vpp.Convert(inputAV, outputAV, options, "PSNR");
-	//uint8_t* outputProcessed = new uint8_t[(int) (frameParams.resize.width * frameParams.resize.height * 3)];
-	//cudaMemcpy(outputProcessed, outputAV->opaque, (int) (frameParams.resize.width * frameParams.resize.height * sizeof(uint8_t) * 3), cudaMemcpyDeviceToHost);
-	return (uint8_t*) outputAV->opaque;
+	cudaFree(destinationY);
+	cudaFree(destinationUV);
+	av_frame_free(&inputAV);
+	return (uint8_t*)outputAV->opaque;
 }
 
-TEST_F(VPP_Convert, PSNR) {
+double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int resizeWidth, int resizeHeight, ResizeType resizeType, FourCC dstFourCC) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
+
 	ResizeOptions resizeOptions;
-	resizeOptions.width = 720;
-	resizeOptions.height = 480;
+	resizeOptions.width = dstWidth;
+	resizeOptions.height = dstHeight;
+	resizeOptions.type = resizeType;
 	ColorOptions colorOptions;
-	colorOptions.dstFourCC = RGB24;
+	colorOptions.dstFourCC = dstFourCC;
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
-	auto source = getFrame("../resources/test_resize/tv_template.jpg", frameArgs);
-	std::string dumpFileName = "DumpFrameRGB720x480.yuv";
+	auto source = getFrame(imagePath, frameArgs);
+
+	/*
+	std::string dumpFileName = "DumpFrameSource720x480.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(source, frameArgs, writeFile), VREADER_OK);
 	}
-
-	resizeOptions.width = 480;
-	resizeOptions.height = 360;
+	*/
+	resizeOptions.width = resizeWidth;
+	resizeOptions.height = resizeHeight;
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
-	auto downscaled = getFrame("../resources/test_resize/tv_template.jpg", frameArgs);
-	dumpFileName = "DumpFrameNV12480x360.yuv";
+	auto scaled = getFrame(imagePath, frameArgs);
+	/*
+	dumpFileName = "DumpFrameNV12Scaled.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(downscaled, frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(scaled, frameArgs, writeFile), VREADER_OK);
 	}
-
-	resizeOptions.width = 720;
-	resizeOptions.height = 480;
-	colorOptions.dstFourCC = RGB24;
+	*/
+	resizeOptions.width = dstWidth;
+	resizeOptions.height = dstHeight;
+	colorOptions.dstFourCC = dstFourCC;
 	frameArgs = { resizeOptions, colorOptions };
-	auto upscaled = getFrame(downscaled, 480, 360, frameArgs);
-	dumpFileName = "DumpFrameRGB720x480_rescaled.yuv";
+	auto rescaled = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
+	/*
+	dumpFileName = "DumpFrameRGBRescaled.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
-		EXPECT_EQ(VPP.DumpFrame(upscaled, frameArgs, writeFile), VREADER_OK);
+		EXPECT_EQ(VPP.DumpFrame(rescaled, frameArgs, writeFile), VREADER_OK);
 	}
+	*/
+	uint8_t* sourceHost = new uint8_t[dstWidth * dstHeight * channelsByFourCC(dstFourCC)];
+	uint8_t* rescaledHost = new uint8_t[dstWidth * dstHeight * channelsByFourCC(dstFourCC)];;
+	auto err = cudaMemcpy(sourceHost, source, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+	err = cudaMemcpy(rescaledHost, rescaled, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
+	double psnr = checkPSNR(sourceHost, rescaledHost, 720, 480);
+	delete[] sourceHost;
+	delete[] rescaledHost;
+	return psnr;
+}
 
+/*
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = NEAREST;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	resizeType = BILINEAR;
+	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	ASSERT_GT(psnrBilinear, psnrNearest);
+	
+}
+*/
 
-	uint8_t* sourceHost = new uint8_t[720 * 480 * 3];
-	uint8_t* downscaledHost = new uint8_t[720 * 480 * 3];;
-	auto err = cudaMemcpy(sourceHost, source, 3 * 720 * 480 * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-	err = cudaMemcpy(downscaledHost, downscaled, 3 * 720 * 480 * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-	checkPSNR(sourceHost, downscaledHost, 720, 480);
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = BILINEAR;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 16.166531, 0.00001);
+}
 
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = NEAREST;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 16.166531, 0.00001);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = NEAREST;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 12.77737, 0.00001);
 }

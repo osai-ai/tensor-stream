@@ -14,6 +14,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer) {
 	int sts = VREADER_OK;
 	shouldWork = true;
+	skipAnalyze = false;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
@@ -84,6 +85,10 @@ std::map<std::string, int> TensorStream::getInitializedParams() {
 	return params;
 }
 
+void TensorStream::skipAnalyzeStage() {
+	skipAnalyze = true;
+}
+
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
@@ -102,10 +107,12 @@ int TensorStream::processingLoop() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
-		START_LOG_BLOCK(std::string("parser->Analyze"));
-		//Parse package to find some syntax issues, don't handle errors returned from this function
-		sts = parser->Analyze(parsed);
-		END_LOG_BLOCK(std::string("parser->Analyze"));
+		if (!skipAnalyze) {
+			START_LOG_BLOCK(std::string("parser->Analyze"));
+			//Parse package to find some syntax issues, don't handle errors returned from this function
+			sts = parser->Analyze(parsed);
+			END_LOG_BLOCK(std::string("parser->Analyze"));
+		}
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
