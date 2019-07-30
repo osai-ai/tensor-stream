@@ -33,12 +33,11 @@ __global__ void resizeNV12NearestKernel(unsigned char* inputY, unsigned char* in
 	}
 }
 
-__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, int xDiff, int yDiff, int linesize, int weightX, int weightY) {
-	// range is 0 to 255 thus bitwise AND with 0xff
-	int A = data[startIndex] & 0xff;
-	int B = data[startIndex + xDiff] & 0xff;
-	int C = data[startIndex + linesize] & 0xff;
-	int D = data[startIndex + linesize + yDiff] & 0xff;
+__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, int xDiff, int yDiff, int linesize, float weightX, float weightY) {
+	int A = data[startIndex];
+	int B = data[startIndex + xDiff];
+	int C = data[startIndex + linesize];
+	int D = data[startIndex + linesize + yDiff];
 
 	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
 	int value = (int)(

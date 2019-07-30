@@ -428,7 +428,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	return psnr;
 }
 
-/*
+
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	//Test parameters
 	int dstWidth = 720;
@@ -445,9 +445,8 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	ASSERT_GT(psnrBilinear, psnrNearest);
 	
 }
-*/
 
-TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 	//Test parameters
 	int dstWidth = 720;
 	int dstHeight = 480;
@@ -458,10 +457,10 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 16.166531, 0.00001);
+	EXPECT_NEAR(psnrNearest, 21.868354, 0.00001);
 }
 
-TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	//Test parameters
 	int dstWidth = 720;
 	int dstHeight = 480;
@@ -487,4 +486,18 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
 	EXPECT_NEAR(psnrNearest, 12.77737, 0.00001);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = BILINEAR;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 19.016092, 0.00001);
 }
