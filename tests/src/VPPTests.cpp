@@ -418,8 +418,8 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 		EXPECT_EQ(VPP.DumpFrame(rescaled, frameArgs, writeFile), VREADER_OK);
 	}
 	*/
-	uint8_t* sourceHost = new uint8_t[dstWidth * dstHeight * channelsByFourCC(dstFourCC)];
-	uint8_t* rescaledHost = new uint8_t[dstWidth * dstHeight * channelsByFourCC(dstFourCC)];;
+	uint8_t* sourceHost = new uint8_t[(int)(dstWidth * dstHeight * channelsByFourCC(dstFourCC))];
+	uint8_t* rescaledHost = new uint8_t[(int) (dstWidth * dstHeight * channelsByFourCC(dstFourCC))];;
 	auto err = cudaMemcpy(sourceHost, source, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	err = cudaMemcpy(rescaledHost, rescaled, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	double psnr = checkPSNR(sourceHost, rescaledHost, 720, 480);
