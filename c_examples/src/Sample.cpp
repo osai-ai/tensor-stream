@@ -50,22 +50,23 @@ int main()
 
 	while (initNumber--) {
 		//sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
- 		sts = reader.initPipeline("C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\resources\\forest.jpg");
+ 		sts = reader.initPipeline("..\\..\\tests\\resources\\test_resize\\forest.jpg");
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
 			break;
 	}
 
+	reader.skipAnalyzeStage();
 	CHECK_STATUS(sts);
 	std::thread pipeline([] { reader.startProcessing(); });
-	int dstWidth = 720;
-	int dstHeight = 480;
+	int dstWidth = 400;
+	int dstHeight = 300;
 	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
-	resizeOptions.type = ResizeType::NEAREST;
+	resizeOptions.type = ResizeType::AREA;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
 	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "1"}, {"dumpName", "sample_output.yuv"} };
