@@ -60,8 +60,8 @@ int main()
 	reader.skipAnalyzeStage();
 	CHECK_STATUS(sts);
 	std::thread pipeline([] { reader.startProcessing(); });
-	int dstWidth = 400;
-	int dstHeight = 300;
+	int dstWidth = 500;
+	int dstHeight = 400;
 	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
