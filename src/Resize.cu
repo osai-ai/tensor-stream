@@ -2,7 +2,23 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
-__device__ int calculateIntegerAreaInterpolation(unsigned char* data, int startIndex, float scaleX, float scaleY, int linesize, int stride, float* patternX, float* patternY) {
+__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, int xDiff, int yDiff, int linesize, float weightX, float weightY) {
+	int A = data[startIndex];
+	int B = data[startIndex + xDiff];
+	int C = data[startIndex + linesize];
+	int D = data[startIndex + linesize + yDiff];
+
+	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
+	int value = (int)(
+		A * (1 - weightX) * (1 - weightY) +
+		B * (weightX) * (1 - weightY) +
+		C * (weightY) * (1 - weightX) +
+		D * (weightX  *      weightY)
+		);
+	return value;
+}
+
+__device__ int calculateAreaInterpolation(unsigned char* data, int startIndex, float scaleX, float scaleY, int linesize, int stride, float* patternX, float* patternY) {
 	float colorSum = 0;
 	int rScaleX = round(scaleX);
 	int rScaleY = round(scaleY);
@@ -23,7 +39,7 @@ __device__ int calculateIntegerAreaInterpolation(unsigned char* data, int startI
 	return colorSum;
 }
 
-__global__ void resizeNV12IntegerDownscaleAreaKernel(unsigned char* inputY, unsigned char* inputUV, unsigned char* outputY, unsigned char* outputUV,
+__global__ void resizeNV12DownscaleAreaKernel(unsigned char* inputY, unsigned char* inputUV, unsigned char* outputY, unsigned char* outputUV,
 	int srcWidth, int srcHeight, int srcLinesizeY, int srcLinesizeUV, int dstWidth, int dstHeight, float xRatio, float yRatio, 
 	float** patternX, int patternXSize, float** patternY, int patternYSize) {
 	unsigned int i = blockIdx.y * blockDim.y + threadIdx.y; //coordinate of pixel (y) in destination image
@@ -36,7 +52,7 @@ __global__ void resizeNV12IntegerDownscaleAreaKernel(unsigned char* inputY, unsi
 		int patternIndexY = index % patternYSize;
 		float* rowPatternX = patternX[patternIndexX];
 		float* rowPatternY = patternY[patternIndexY];
-		outputY[i * dstWidth + j] = calculateIntegerAreaInterpolation(inputY, index, xRatio, yRatio, srcLinesizeY, 1, rowPatternX, rowPatternY);
+		outputY[i * dstWidth + j] = calculateAreaInterpolation(inputY, index, xRatio, yRatio, srcLinesizeY, 1, rowPatternX, rowPatternY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
@@ -44,8 +60,8 @@ __global__ void resizeNV12IntegerDownscaleAreaKernel(unsigned char* inputY, unsi
 			int indexU, indexV;
 			indexU = index;
 			indexV = index + 1;
-			outputUV[i * dstWidth + 2 * j] = calculateIntegerAreaInterpolation(inputUV, indexU, xRatio, yRatio, srcLinesizeUV, 2, rowPatternX, rowPatternY);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateIntegerAreaInterpolation(inputUV, indexV, xRatio, yRatio, srcLinesizeUV, 2, rowPatternX, rowPatternY);
+			outputUV[i * dstWidth + 2 * j] = calculateAreaInterpolation(inputUV, indexU, xRatio, yRatio, srcLinesizeUV, 2, rowPatternX, rowPatternY);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateAreaInterpolation(inputUV, indexV, xRatio, yRatio, srcLinesizeUV, 2, rowPatternX, rowPatternY);
 			/*
 			0 0 -> 0 -> 0 1 -> 0 1
 			0 1 -> 2 -> 2 3 -> 2 3
@@ -57,7 +73,48 @@ __global__ void resizeNV12IntegerDownscaleAreaKernel(unsigned char* inputY, unsi
 
 __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char* inputUV, unsigned char* outputY, unsigned char* outputUV,
 	int srcWidth, int srcHeight, int srcLinesizeY, int srcLinesizeUV, int dstWidth, int dstHeight, float xRatio, float yRatio) {
+	unsigned int i = blockIdx.y * blockDim.y + threadIdx.y; //coordinate of pixel (y) in destination image
+	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 
+	if (i < dstHeight && j < dstWidth) {
+		/*
+		sx = cvFloor(dx*scale_x);
+		fx = (float)((dx+1) - (sx+1)*inv_scale_x);
+		fx = fx <= 0 ? 0.f : fx - cvFloor(fx);
+		*/
+		int x = floor(xRatio * j); //it's coordinate of pixel in source image
+		float xFloat = (j + 1) - (x + 1) / xRatio;
+		if (xFloat <= 0)
+			xFloat = 0;
+		else
+			xFloat = xFloat - floor(xFloat);
+
+		int y = floor(yRatio * i); //it's coordinate of pixel in source image
+		float yFloat = (i + 1) - (y + 1) / yRatio;
+		if (yFloat <= 0)
+			yFloat = 0;
+		else
+			yFloat = yFloat - floor(yFloat);
+
+		int index = y * srcLinesizeY + x; //index in source image
+		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, index, 1, 1, srcLinesizeY, xFloat, yFloat);
+		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
+		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+		if (j % 2 == 0 && i < dstHeight / 2) {
+			index = y * srcLinesizeUV + x; //index in source image
+			int indexU, indexV;
+			if (index % 2 == 0) {
+				indexU = index;
+				indexV = index + 1;
+			}
+			else {
+				indexU = index - 1;
+				indexV = index;
+			}
+			outputUV[i * dstWidth + j] = calculateBillinearInterpolation(inputUV, indexU, 2, 2, srcLinesizeUV, xFloat, yFloat);
+			outputUV[i * dstWidth + j + 1] = calculateBillinearInterpolation(inputUV, indexV, 2, 2, srcLinesizeUV, xFloat, yFloat);
+		}
+	}
 }
 
 __global__ void resizeNV12NearestKernel(unsigned char* inputY, unsigned char* inputUV, unsigned char* outputY, unsigned char* outputUV,
@@ -88,22 +145,6 @@ __global__ void resizeNV12NearestKernel(unsigned char* inputY, unsigned char* in
 			outputUV[i * dstWidth + j + 1] = inputUV[indexV];
 		}
 	}
-}
-
-__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, int xDiff, int yDiff, int linesize, float weightX, float weightY) {
-	int A = data[startIndex];
-	int B = data[startIndex + xDiff];
-	int C = data[startIndex + linesize];
-	int D = data[startIndex + linesize + yDiff];
-
-	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-	int value = (int)(
-		A * (1 - weightX) * (1 - weightY) +
-		B * (weightX) * (1 - weightY) +
-		C * (weightY) * (1 - weightX) +
-		D * (weightX  *      weightY)
-		);
-	return value;
 }
 
 __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* inputUV, unsigned char* outputY, unsigned char* outputUV,
@@ -197,33 +238,40 @@ int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPe
 	float xRatio = (float)(src->width) / dst->width; //if not -1 we should examine 2x2 square with top-left corner in the last pixel of src, so it's impossible
 	float yRatio = (float)(src->height) / dst->height;
 	switch (resize) {
-		case ResizeType::BILINEAR:
-			resizeNV12BilinearKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-				src->width, src->height, src->linesize[0], src->linesize[1],
-				dst->width, dst->height, xRatio, yRatio);
+	case ResizeType::BILINEAR:
+		resizeNV12BilinearKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
+			src->width, src->height, src->linesize[0], src->linesize[1],
+			dst->width, dst->height, xRatio, yRatio);
 		break;
-		case ResizeType::NEAREST:
-			resizeNV12NearestKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-				src->width, src->height, src->linesize[0], src->linesize[1],
-				dst->width, dst->height, xRatio, yRatio);
+	case ResizeType::NEAREST:
+		resizeNV12NearestKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
+			src->width, src->height, src->linesize[0], src->linesize[1],
+			dst->width, dst->height, xRatio, yRatio);
 		break;
-		case ResizeType::AREA:
+	case ResizeType::AREA:
+		//The smart "area" algorithm is used only in case of downscaling
+		if (xRatio > 1 && yRatio > 1) {
 			std::vector<std::vector<float> > patternX;
 			std::vector<std::vector<float> > patternY;
 			generateResizePattern(xRatio, patternX);
 			generateResizePattern(yRatio, patternY);
-			
+
 			float** patternXCUDA = copy2DArray(patternX, xRatio);
 			float** patternYCUDA = copy2DArray(patternY, yRatio);
 
 			//Here we should decide which AREA algorithm to use
-			resizeNV12IntegerDownscaleAreaKernel<< <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, 
-				outputUV, src->width, src->height, src->linesize[0], src->linesize[1], dst->width, 	dst->height, xRatio, yRatio, 
+			resizeNV12DownscaleAreaKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY,
+				outputUV, src->width, src->height, src->linesize[0], src->linesize[1], dst->width, dst->height, xRatio, yRatio,
 				patternXCUDA, patternX.size(), patternYCUDA, patternY.size());
-			
+
 			free2DArray(patternXCUDA, patternX.size(), xRatio);
 			free2DArray(patternYCUDA, patternY.size(), yRatio);
-
+		}
+		//otherwise bilinear + some weight adjustment algorithm is used
+		else {
+			resizeNV12UpscaleAreaKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY,
+				outputUV, src->width, src->height, src->linesize[0], src->linesize[1], dst->width, dst->height, xRatio, yRatio);
+		}
 		break;
 	}
 	dst->data[0] = outputY;
