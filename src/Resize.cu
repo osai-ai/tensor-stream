@@ -2,12 +2,17 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
-__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, int xDiff, int yDiff, int linesize, float weightX, float weightY) {
+__device__ int calculateBillinearInterpolation(unsigned char* data, int startIndex, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
+	if (x + xDiff >= width)
+		xDiff = 0;
+	if (y + linesize * yDiff >= height)
+		linesize = 0;
 	int A = data[startIndex];
 	int B = data[startIndex + xDiff];
-	int C = data[startIndex + linesize];
-	int D = data[startIndex + linesize + yDiff];
-
+	int C = data[startIndex + linesize * yDiff];
+	int D = data[startIndex + linesize * yDiff + xDiff];
+	if (D == 0)
+		C = D;
 	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
 	int value = (int)(
 		A * (1 - weightX) * (1 - weightY) +
@@ -15,6 +20,9 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, int startInd
 		C * (weightY) * (1 - weightX) +
 		D * (weightX  *      weightY)
 		);
+	if (xDiff == 2 && value == 0) {
+		printf("\nATTENTION: index: %d xDiff: %d yDiff: %d value: %d A %d B %d C %d D %d\n", startIndex, xDiff, yDiff, value, A, B, C, D);
+	}
 	return value;
 }
 
@@ -97,9 +105,10 @@ __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char
 			yFloat = yFloat - floor(yFloat);
 
 		int index = y * srcLinesizeY + x; //index in source image
-		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, index, 1, 1, srcLinesizeY, xFloat, yFloat);
+		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, index, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+		/*
 		if (j % 2 == 0 && i < dstHeight / 2) {
 			index = y * srcLinesizeUV + x; //index in source image
 			int indexU, indexV;
@@ -113,6 +122,20 @@ __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char
 			}
 			outputUV[i * dstWidth + j] = calculateBillinearInterpolation(inputUV, indexU, 2, 2, srcLinesizeUV, xFloat, yFloat);
 			outputUV[i * dstWidth + j + 1] = calculateBillinearInterpolation(inputUV, indexV, 2, 2, srcLinesizeUV, xFloat, yFloat);
+		}
+		*/
+		if (i < dstHeight / 2 && j < dstWidth / 2) {
+			index = y * srcLinesizeUV + x * 2; //index in source image
+			int indexU, indexV;
+			indexU = index;
+			indexV = index + 1;
+			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, indexU, x, y, 2, 2, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, indexV, x, y, 2, 2, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			/*
+			0 0 -> 0 -> 0 1 -> 0 1
+			0 1 -> 2 -> 2 3 -> 2 3
+			0 2 -> 6 -> 6 7 -> 4 5
+			*/
 		}
 	}
 }
@@ -159,9 +182,10 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 		float xFloat = (xRatio * j) - x;
 		float yFloat = (yRatio * i) - y;
 		int index = y * srcLinesizeY + x; //index in source image
-		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, index, 1, 1, srcLinesizeY, xFloat, yFloat);
+		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, index, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+		/*
 		if (j % 2 == 0 && i < dstHeight / 2) {
 			index = y * srcLinesizeUV + x; //index in source image
 			int indexU, indexV;
@@ -175,6 +199,27 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 			}
 			outputUV[i * dstWidth + j] = calculateBillinearInterpolation(inputUV, indexU, 2, 2, srcLinesizeUV, xFloat, yFloat);
 			outputUV[i * dstWidth + j + 1] = calculateBillinearInterpolation(inputUV, indexV, 2, 2, srcLinesizeUV, xFloat, yFloat);
+		}
+		*/
+
+		if (j == dstWidth / 2 - 1) {
+			index = y * srcLinesizeUV + x * 2;
+			index = 1;
+			index = y * srcLinesizeUV + x * 2;
+		}
+
+		if (i < dstHeight / 2 && j < dstWidth / 2) {
+			index = y * srcLinesizeUV + x * 2; //index in source image
+			int indexU, indexV;
+			indexU = index;
+			indexV = index + 1;
+			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, indexU, 2*x, y, 2, 2, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, indexV, 2 * x, y, 2, 2, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			/*
+			0 0 -> 0 -> 0 1 -> 0 1
+			0 1 -> 2 -> 2 3 -> 2 3
+			0 2 -> 6 -> 6 7 -> 4 5
+			*/
 		}
 	}
 }
