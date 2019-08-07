@@ -56,6 +56,7 @@ struct ColorOptions {
 enum ResizeType {
 	NEAREST = 0, /**< Simple algorithm without any interpolation */
 	BILINEAR, /** Algorithm that does simple linear interpolation */
+	BICUBIC, /** Algorithm that does cubic interpolation */
 	AREA /** OpenCV INTER_AREA algorithm */
 };
 
