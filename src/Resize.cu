@@ -27,45 +27,67 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 
 __device__ int calculateBicubicInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
+	x = weightX;
+	y = weightY;
 
-	int p1  = data[startIndex                           ]; //f(0, 0)
-	int p2  = data[startIndex         + linesize * yDiff]; //f(0, 1)
-	int p3  = data[startIndex + xDiff                   ]; //f(1, 0)
-	int p4  = data[startIndex + xDiff + linesize * yDiff]; //f(1, 1)
-	int p5  = data[startIndex - linesize * yDiff]; //f(0, -1)
-	int p6  = data[startIndex - xDiff]; //f(-1, 0)
-	int p7  = data[startIndex + xDiff - linesize * yDiff]; //f(1, -1)
-	int p8  = data[startIndex - xDiff + linesize * yDiff]; //f(-1, 1)
-	int p9  = data[startIndex + 2 * linesize * yDiff]; //f(0, 2)
-	int p10 = data[startIndex + 2 * xDiff]; //f(2, 0)
-	int p11 = data[startIndex - xDiff - linesize * yDiff]; //f(-1, -1)
-	int p12 = data[startIndex + xDiff + 2 * linesize * yDiff]; //f(1, 2)
-	int p13 = data[startIndex + 2 * xDiff + linesize * yDiff]; //f(2, 1)
-	int p14 = data[startIndex - xDiff + 2 * linesize * yDiff]; //f(-1, 2)
-	int p15 = data[startIndex + 2 * xDiff - linesize * yDiff]; //f(2, -1)
-	int p16 = data[startIndex + 2 * xDiff - 2 * linesize * yDiff]; //f(2, 2)
+	if (x + xDiff >= width)
+		xDiff = 0;
+	if (x - xDiff < 0)
+		xDiff = 0;
+	if (y + linesize * yDiff >= height)
+		linesize = 0;
+	if (y - linesize * yDiff < 0)
+		linesize = 0;
 
-	int b1 = 1 / 4 * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) * (y + 1);
-	int b2 = - 1 / 4 * x * (x + 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1);
-	int b3 = - 1 / 4 * y * (x - 1) * (x + 1) * (x - 2) * (y - 2) * (y + 1);
-	int b4 = 1 / 4 * x * y * (x + 1) * (x - 2) * (y + 1) * (y - 2);
-	int b5 = - 1 / 12 * x * (x - 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1);
-	int b6 = - 1 / 12 * y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2);
-	int b7 = 1 / 12 * x * y * (x - 1) * (x - 2) * (y + 1) * (y - 2);
-	int b8 = 1 / 12 * x * y * (x + 1) * (x - 2) * (y - 1) * (y - 2);
-	int b9 = 1/ 12 * x * (x - 1) * (x + 1) * (y - 1) * (y - 2) * (y + 1);
-	int b10 = 1 / 12 * y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y + 1);
-	int b11 = 1 / 36 * (x - 1) * (x - 2) * (y - 1) * (y - 2);
-	int b12 = -1 / 12 * x * y * (x - 1) * (x + 1) * (y + 1) * (y - 2);
-	int b13 = -1 / 12 * x * y * (x + 1) * (x - 2) * (y - 1) * (y + 1);
-	int b14 = - 1 / 36 * x  * y * (x - 1) * (x + 1) * (y - 1) * (y - 2);
-	int b15 = - 1/ 36 * x * y * (x - 1) * (x - 2) * (y - 1) * (y + 1);
-	int b16 = 1 / 36 * x * y * (x - 1) * (x + 1) * (y - 1) * (y + 1);
-	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-	int value = (int)(
-		p1 * b1 + p2 * b2 + p3 * b3 + p4 * b4 + p5 * b5 + p6 * b6 + p7 * b7 + p8 * b8 + 
-		p9 * b9 + p10 * b10 + p11 * b11 + p12 * b12 + p13 * b13 + p14 * b14 + p15 * b15 + p16 * b16
-		);
+	float value;
+	float p1  = data[startIndex                           ]; //f(y, x) = f1(0, 0)
+	float b1 = (float)(x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 4;
+	value += p1 * b1;
+	p1  = data[startIndex + xDiff                           ]; //f(y, x) = f2(0, 1)
+	b1 = (float)-x * (x + 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 4;
+	value += p1 * b1;
+	p1  = data[startIndex              + linesize * yDiff   ]; //f(y, x) = f3(1, 0)
+	b1 = (float)-y * (x - 1) * (x - 2) * (x + 1) * (y + 1) * (y - 2) / 4;
+	value += p1 * b1;
+	p1  = data[startIndex + xDiff      + linesize * yDiff   ]; //f(y, x) = f4(1, 1)
+	b1 = (float)x * y * (x + 1) * (x - 2) * (y + 1) * (y - 2) / 4;
+	value += p1 * b1;
+	p1  = data[startIndex - xDiff                           ]; //f(y, x) = f5(0, -1)
+	b1 = (float)-x * (x - 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 12;
+	value += p1 * b1;
+	p1  = data[startIndex             - linesize * yDiff    ]; //f(y, x) = f6(-1, 0)
+	b1 = (float)-y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) / 12;
+	value += p1 * b1;
+	p1  = data[startIndex - xDiff     + linesize * yDiff    ]; //f(y, x) = f7(1, -1)
+	b1 = (float)x * y * (x - 1) * (x - 2) * (y + 1) * (y - 2) / 12;
+	value += p1 * b1;
+	p1  = data[startIndex + xDiff     - linesize * yDiff    ]; //f(y, x) = f8(-1, 1)
+	b1 = (float)x * y * (x + 1) * (x - 2) * (y - 1) * (y - 2) / 12;
+	value += p1 * b1;
+	p1  = data[startIndex + 2 * xDiff                       ]; //f(y, x) = f9(0, 2)
+	b1 = (float)x * (x - 1) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 12;
+	value += p1 * b1;
+	p1 = data[startIndex              + 2 * linesize * yDiff]; //f(y, x) = f10(2, 0)
+	b1 = (float)y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y + 1) / 12;
+	value += p1 * b1;
+	p1 = data[startIndex - xDiff      - linesize * yDiff    ]; //f(y, x) = f11(-1, -1)
+	b1 = (float)x * y * (x - 1) * (x - 2) * (y - 1) * (y - 2) / 36;
+	value += p1 * b1;
+	p1 = data[startIndex + 2 * xDiff  + linesize * yDiff    ]; //f(y, x) = f12(1, 2)
+	b1 = (float)-x * y * (x - 1) * (x + 1) * (y + 1) * (y - 2) / 12;
+	value += p1 * b1;
+	p1 = data[startIndex + xDiff      + 2 * linesize * yDiff]; //f(y, x) = f13(2, 1)
+	b1 = (float)-x * y * (x + 1) * (x - 2) * (y - 1) * (y + 1) / 12;
+	value += p1 * b1;
+	p1 = data[startIndex + 2 * xDiff  - linesize * yDiff    ]; //f(y, x) = f14(-1, 2)
+	b1 = (float)-x * y * (x - 1) * (x + 1) * (y - 1) * (y - 2) / 36;
+	value += p1 * b1;
+	p1 = data[startIndex - xDiff     + 2 * linesize * yDiff]; //f(y, x) = f15(2, -1)
+	b1 = (float)-x * y * (x - 1) * (x - 2) * (y - 1) * (y + 1) / 36;
+	value += p1 * b1;
+	p1 = data[startIndex + 2 * xDiff + 2 * linesize * yDiff]; //f(y, x) = f16(2, 2)
+	b1 = (float)  x * y * (x - 1) * (x + 1) * (y - 1) * (y + 1) / 36;
+	value += p1 * b1;
 
 	return value;
 }
