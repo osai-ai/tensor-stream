@@ -411,12 +411,25 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
 	
-	dumpFileName = "DumpFrameNV12Scaled.yuv";
+	dumpFileName = "DumpFrameNV12_480x360_Scaled.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaled, frameArgs, writeFile), VREADER_OK);
 	}
 	
+	resizeOptions.width = resizeWidth;
+	resizeOptions.height = resizeHeight;
+	colorOptions.dstFourCC = RGB24;
+	frameArgs = { resizeOptions, colorOptions };
+	auto scaledRGB = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
+	
+	dumpFileName = "DumpFrameRGB_480x360_Scaled.yuv";
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(scaledRGB, frameArgs, writeFile), VREADER_OK);
+	}
+	
+
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	colorOptions.dstFourCC = dstFourCC;
@@ -469,6 +482,19 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
 	EXPECT_NEAR(psnrNearest, 23.19, 0.01);
+}
+
+TEST_F(VPP_Convert, Compare) {
+	//Test parameters
+	int srcWidth = 720;
+	int dstWidth = 480;
+	std::string reference = "";
+	std::string resizeOpenCV = "";
+	std::string resizeTensorStream = "";
+	int startX = 0;
+	int startY = 0;
+	int windowSize = 3;
+
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
