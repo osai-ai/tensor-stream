@@ -386,19 +386,19 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
 	auto source = getFrame(imagePath, frameArgs);
-	std::string dumpFileName = "DumpFrameSource720x480_NV12.yuv";
+	std::string dumpFileName = "Dump_NV12_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(source, frameArgs, writeFile), VREADER_OK);
 	}
-	
+
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto converted = getFrame(imagePath, frameArgs);
 
-	dumpFileName = "DumpFrameSource720x480_RGB24.yuv";
+	dumpFileName = "Dump_RGB24_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(converted, frameArgs, writeFile), VREADER_OK);
@@ -410,40 +410,40 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
-	
-	dumpFileName = "DumpFrameNV12_480x360_Scaled.yuv";
+
+	dumpFileName = "Dump_NV12_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaled, frameArgs, writeFile), VREADER_OK);
 	}
-	
+
 	resizeOptions.width = resizeWidth;
 	resizeOptions.height = resizeHeight;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaledRGB = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
-	
-	dumpFileName = "DumpFrameRGB_480x360_Scaled.yuv";
+
+	dumpFileName = "Dump_RGB24_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";;
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaledRGB, frameArgs, writeFile), VREADER_OK);
 	}
-	
+
 
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	colorOptions.dstFourCC = dstFourCC;
 	frameArgs = { resizeOptions, colorOptions };
 	auto rescaled = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
-	
-	dumpFileName = "DumpFrame_720x480_RGB24_Rescaled.yuv";
+
+	dumpFileName = "Dump_RGB24_Rescaled_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";;
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(rescaled, frameArgs, writeFile), VREADER_OK);
 	}
-	
+
 	uint8_t* sourceHost = new uint8_t[(int)(dstWidth * dstHeight * channelsByFourCC(dstFourCC))];
-	uint8_t* rescaledHost = new uint8_t[(int) (dstWidth * dstHeight * channelsByFourCC(dstFourCC))];;
+	uint8_t* rescaledHost = new uint8_t[(int)(dstWidth * dstHeight * channelsByFourCC(dstFourCC))];;
 	auto err = cudaMemcpy(sourceHost, source, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	err = cudaMemcpy(rescaledHost, rescaled, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	double psnr = checkPSNR(sourceHost, rescaledHost, dstWidth, dstHeight);
@@ -487,14 +487,89 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 TEST_F(VPP_Convert, Compare) {
 	//Test parameters
 	int srcWidth = 720;
-	int dstWidth = 480;
-	std::string reference = "";
-	std::string resizeOpenCV = "";
-	std::string resizeTensorStream = "";
-	int startX = 0;
-	int startY = 0;
-	int windowSize = 3;
+	int srcHeight = 480;
 
+	int dstWidth = 360;
+	int dstHeight = 240;
+
+	float scaleX = (float)srcWidth / (float)dstWidth;
+	float scaleY = (float)srcHeight / (float)dstHeight;
+	if (scaleX != scaleY)
+		return;
+	float scale = scaleX;
+	std::string reference = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\ts\\Dump_RGB24_720x480.yuv";
+	std::string resizeOpenCV = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\DumpFrameSource360x240_RGB24_CV.yuv";
+	std::string resizeTensorStream = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\ts\\Dump_RGB24_360x240.yuv";
+	int startDstX = 93;
+	int startDstY = 63;
+	int windowSizeDst = 15;
+
+	std::ifstream inputReference(reference, std::ios::binary);
+	// copies all data into buffer
+	std::vector<unsigned char> referenceBuffer(std::istreambuf_iterator<char>(inputReference), {});
+
+	std::ifstream inputOpenCV(resizeOpenCV, std::ios::binary);
+	// copies all data into buffer
+	std::vector<unsigned char> openCVBuffer(std::istreambuf_iterator<char>(inputOpenCV), {});
+
+	std::ifstream inputTensorStream(resizeTensorStream, std::ios::binary);
+	// copies all data into buffer
+	std::vector<unsigned char> tensorStreamBuffer(std::istreambuf_iterator<char>(inputTensorStream), {});
+
+	int xDiff = 0;
+	int yDiff = 0;
+	for (int i = 0; i < dstHeight; i++) {
+		for (int j = 0; j < dstWidth * 3; j += 3) {
+			int valueCV = openCVBuffer[j + i * 3 * dstWidth];
+			int valueTensor = tensorStreamBuffer[j + i * 3 * dstWidth];
+
+			if (valueCV != valueTensor) {
+				xDiff = j;
+				yDiff = i;
+				goto end;
+			}
+		}
+	}
+
+	end:
+
+	std::shared_ptr<FILE> openCVWrite(fopen("cv.txt", "wb"), fclose);
+	std::shared_ptr<FILE> referenceWrite(fopen("reference.txt", "wb"), fclose);
+	std::shared_ptr<FILE> tensorWrite(fopen("tensor.txt", "wb"), fclose);
+
+	for (int i = startDstY; i < startDstY + windowSizeDst; i++) {
+		for (int j = startDstX; j < startDstX + windowSizeDst * 3; j+= 3) {
+			int valueCV = openCVBuffer[j + i * 3 * dstWidth];
+			int valueTensor = tensorStreamBuffer[j + i * 3 * dstWidth];
+			
+			fwrite(std::to_string(valueCV).c_str(), sizeof(char), strlen(std::to_string(valueCV).c_str()), openCVWrite.get());
+			fflush(openCVWrite.get());
+			std::string space = " ";
+			fwrite(space.c_str(), sizeof(char), 1, openCVWrite.get());
+			fflush(openCVWrite.get());
+
+			fwrite(std::to_string(valueTensor).c_str(), sizeof(char), strlen(std::to_string(valueTensor).c_str()), tensorWrite.get());
+			fflush(tensorWrite.get());
+			fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+			fflush(tensorWrite.get());
+		}
+		fwrite("\n", sizeof(char), 1, openCVWrite.get());
+		fflush(openCVWrite.get());
+		fwrite("\n", sizeof(char), 1, tensorWrite.get());
+		fflush(tensorWrite.get());
+	}
+	for (int i = startDstY * scale; i < startDstY * scale + windowSizeDst * scale; i++) {
+		for (int j = startDstX * scale; j < startDstX * scale + windowSizeDst * scale * 3; j+= 3) {
+			int valueRef = referenceBuffer[j + i * 3 * srcWidth];
+			std::string space = " ";
+			fwrite(std::to_string(valueRef).c_str(), sizeof(char), strlen(std::to_string(valueRef).c_str()), referenceWrite.get());
+			fflush(referenceWrite.get());
+			fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+			fflush(referenceWrite.get());
+		}
+		fwrite("\n", sizeof(char), 1, referenceWrite.get());
+		fflush(referenceWrite.get());
+	}
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
