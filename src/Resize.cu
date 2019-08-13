@@ -182,19 +182,9 @@ __global__ void resizeNV12NearestKernel(unsigned char* inputY, unsigned char* in
 		outputY[i * dstWidth + j] = inputY[index];
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
-		if (j % 2 == 0 && i < dstHeight / 2) {
-			index = y * srcLinesizeUV + x; //index in source image
-			int indexU, indexV;
-			if (index % 2 == 0) {
-				indexU = index;
-				indexV = index + 1;
-			}
-			else {
-				indexU = index - 1;
-				indexV = index;
-			}
-			outputUV[i * dstWidth + j] = inputUV[indexU];
-			outputUV[i * dstWidth + j + 1] = inputUV[indexV];
+		if (i < dstHeight / 2 && j < dstWidth / 2) {
+			outputUV[i * dstWidth + 2 * j] = inputUV[y * srcLinesizeUV + 2 * x];
+			outputUV[i * dstWidth + 2 * j + 1] = inputUV[y * srcLinesizeUV + 2 * x + 1];
 		}
 	}
 }

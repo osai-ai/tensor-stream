@@ -382,23 +382,34 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	resizeOptions.height = dstHeight;
 	resizeOptions.type = resizeType;
 	ColorOptions colorOptions;
-	colorOptions.dstFourCC = dstFourCC;
+	colorOptions.dstFourCC = NV12;
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
 	auto source = getFrame(imagePath, frameArgs);
-
-	
-	std::string dumpFileName = "DumpFrameSource720x480.yuv";
+	std::string dumpFileName = "DumpFrameSource720x480_NV12.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(source, frameArgs, writeFile), VREADER_OK);
 	}
 	
+	resizeOptions.width = dstWidth;
+	resizeOptions.height = dstHeight;
+	colorOptions.dstFourCC = RGB24;
+	frameArgs = { resizeOptions, colorOptions };
+	auto converted = getFrame(imagePath, frameArgs);
+
+	dumpFileName = "DumpFrameSource720x480_RGB24.yuv";
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(converted, frameArgs, writeFile), VREADER_OK);
+	}
+
+
 	resizeOptions.width = resizeWidth;
 	resizeOptions.height = resizeHeight;
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
-	auto scaled = getFrame(imagePath, frameArgs);
+	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
 	
 	dumpFileName = "DumpFrameNV12Scaled.yuv";
 	{
@@ -412,7 +423,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	frameArgs = { resizeOptions, colorOptions };
 	auto rescaled = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
 	
-	dumpFileName = "DumpFrameRGBRescaled.yuv";
+	dumpFileName = "DumpFrame_720x480_RGB24_Rescaled.yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(rescaled, frameArgs, writeFile), VREADER_OK);
@@ -422,7 +433,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	uint8_t* rescaledHost = new uint8_t[(int) (dstWidth * dstHeight * channelsByFourCC(dstFourCC))];;
 	auto err = cudaMemcpy(sourceHost, source, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
 	err = cudaMemcpy(rescaledHost, rescaled, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-	double psnr = checkPSNR(sourceHost, rescaledHost, 720, 480);
+	double psnr = checkPSNR(sourceHost, rescaledHost, dstWidth, dstHeight);
 	delete[] sourceHost;
 	delete[] rescaledHost;
 	return psnr;
@@ -457,7 +468,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 21.86, 0.01);
+	EXPECT_NEAR(psnrNearest, 23.19, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
@@ -471,7 +482,35 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 16.16, 0.01);
+	EXPECT_NEAR(psnrNearest, 20.59, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = BICUBIC;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 20.57, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = AREA;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 25.22, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
@@ -484,8 +523,9 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
+	//15.438857816749369
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 12.77, 0.01);
+	EXPECT_NEAR(psnrNearest, 15.43, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBilinear) {
@@ -498,6 +538,37 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBilinear) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
+	//18.299720207976222
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 19.01, 0.01);
+	EXPECT_NEAR(psnrNearest, 18.29, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = BICUBIC;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	//15.432385445207258
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 15.43, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	ResizeType resizeType = AREA;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	//20.312481953913306
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 20.31, 0.01);
 }
