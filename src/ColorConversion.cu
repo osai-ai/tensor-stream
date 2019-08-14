@@ -4,11 +4,12 @@
 #include <iostream>
 
 __device__ void NV12toRGB32Kernel(unsigned char* Y, unsigned char* UV, int* R, int* G, int* B, int i, int j, int pitchNV12) {
-	/*
+/*
 	R = 1.164(Y - 16) + 1.596(V - 128)
 	B = 1.164(Y - 16)                   + 2.018(U - 128)
 	G = 1.164(Y - 16) - 0.813(V - 128)  - 0.391(U - 128)
 */
+
 /*
 in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 */
@@ -19,7 +20,23 @@ in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	unsigned char U = UV[UIndex];
 	unsigned char V = UV[VIndex];
 	int indexNV12 = j + i * pitchNV12; /*indexNV12 and indexRGB with/without pitch*/
-	unsigned char YVal = Y[indexNV12];
+	float YVal = max(0.f, Y[indexNV12] - 16.f) * 1.163999557f;
+
+	float RVal = 1.5959997177f * (V - 128) + 0.5f;
+	*R = YVal + RVal;
+	*R = min(*R, 255);
+	*R = max(*R, 0);
+
+	float BVal = 2.017999649f  * (U - 128) + 0.5f;
+	*B = YVal + BVal;
+	*B = min(*B, 255);
+	*B = max(*B, 0);
+
+	float GVal = -0.812999725f  * (V - 128) - 0.390999794f * (U - 128) + 0.5f;
+	*G = YVal + GVal;
+	*G = min(*G, 255);
+	*G = max(*G, 0);
+	/*
 	*R = 1.164f*(YVal - 16) + 1.596f*(V - 128);
 	*R = min(*R, 255);
 	*R = max(*R, 0);
@@ -29,7 +46,7 @@ in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	*G = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
 	*G = min(*G, 255);
 	*G = max(*G, 0);
-	
+	*/
 }
 
 template< class T >
