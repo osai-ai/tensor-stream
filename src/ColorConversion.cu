@@ -36,17 +36,6 @@ in case of NV12 we have Y component for every pixel and UV for every 2x2 Y
 	*G = YVal + GVal;
 	*G = min(*G, 255);
 	*G = max(*G, 0);
-	/*
-	*R = 1.164f*(YVal - 16) + 1.596f*(V - 128);
-	*R = min(*R, 255);
-	*R = max(*R, 0);
-	*B = 1.164f*(YVal - 16) + 2.018f*(U - 128);
-	*B = min(*B, 255);
-	*B = max(*B, 0);
-	*G = 1.164f*(YVal - 16) - 0.813f*(V - 128) - 0.391f*(U - 128);
-	*G = min(*G, 255);
-	*G = max(*G, 0);
-	*/
 }
 
 template< class T >

@@ -484,6 +484,131 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 	EXPECT_NEAR(psnrNearest, 23.19, 0.01);
 }
 
+void compareNV12() {
+	//Test parameters
+	int srcWidth = 720;
+	int srcHeight = 480;
+
+	int dstWidth = 360;
+	int dstHeight = 240;
+
+	float scaleX = (float)srcWidth / (float)dstWidth;
+	float scaleY = (float)srcHeight / (float)dstHeight;
+	if (scaleX != scaleY)
+		return;
+	float scale = scaleX;
+	std::string referenceNV12 = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_NV12_720x480.yuv";
+	std::string resizeTensorStreamNV12 = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_NV12_360x240.yuv";
+	int startDstX = 0;
+	int startDstY = 0;
+	int windowSizeDst = 18;
+
+	std::ifstream inputReference(referenceNV12, std::ios::binary);
+	// copies all data into buffer
+	std::vector<unsigned char> referenceBuffer(std::istreambuf_iterator<char>(inputReference), {});
+
+	std::ifstream inputTensorStream(resizeTensorStreamNV12, std::ios::binary);
+	// copies all data into buffer
+	std::vector<unsigned char> tensorStreamBuffer(std::istreambuf_iterator<char>(inputTensorStream), {});
+
+	std::shared_ptr<FILE> referenceWrite(fopen("referenceNV12.txt", "wb"), fclose);
+	std::shared_ptr<FILE> tensorWrite(fopen("resizedNV12.txt", "wb"), fclose);
+
+	//Print Y plane
+	fwrite("Y\n", sizeof(char), 2, tensorWrite.get());
+	fflush(tensorWrite.get());
+	for (int i = startDstY; i < startDstY + windowSizeDst; i++) {
+		for (int j = startDstX; j < startDstX + windowSizeDst; j += 1) {
+			int valueTensor = tensorStreamBuffer[j + i * dstWidth];
+			int size = strlen(std::to_string(valueTensor).c_str());
+			std::string space = " ";
+			fwrite(std::to_string(valueTensor).c_str(), sizeof(char), strlen(std::to_string(valueTensor).c_str()), tensorWrite.get());
+			fflush(tensorWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+				fflush(tensorWrite.get());
+			}
+			fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+			fflush(tensorWrite.get());
+		}
+		fwrite("\n", sizeof(char), 1, tensorWrite.get());
+		fflush(tensorWrite.get());
+	}
+
+	fwrite("UV\n", sizeof(char), 3, tensorWrite.get());
+	fflush(tensorWrite.get());
+	for (int i = startDstY / 2; i < startDstY / 2 + windowSizeDst / 2; i++) {
+		for (int j = startDstX; j < startDstX + windowSizeDst; j += 1) {
+			int valueTensor = tensorStreamBuffer[dstWidth* dstHeight + j + i * dstWidth];
+			int size = strlen(std::to_string(valueTensor).c_str());
+			std::string space = " ";
+			fwrite(std::to_string(valueTensor).c_str(), sizeof(char), size, tensorWrite.get());
+			fflush(tensorWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+				fflush(tensorWrite.get());
+			}
+			fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+			fflush(tensorWrite.get());
+		}
+		fwrite("\n", sizeof(char), 1, tensorWrite.get());
+		fflush(tensorWrite.get());
+	}
+
+	//Print Y plane
+	fwrite("Y\n", sizeof(char), 2, referenceWrite.get());
+	fflush(referenceWrite.get());
+	for (int i = startDstY * scale; i < startDstY * scale + windowSizeDst * scale; i++) {
+		for (int j = startDstX * scale; j < startDstX * scale + windowSizeDst * scale; j += 1) {
+			int valueRef = referenceBuffer[j + i * srcWidth];
+			std::string space = " ";
+			int size = strlen(std::to_string(valueRef).c_str());
+			fwrite(std::to_string(valueRef).c_str(), sizeof(char), size, referenceWrite.get());
+			fflush(referenceWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+				fflush(referenceWrite.get());
+			}
+			fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+			fflush(referenceWrite.get());
+		}
+		fwrite("\n", sizeof(char), 1, referenceWrite.get());
+		fflush(referenceWrite.get());
+	}
+
+	fwrite("UV\n", sizeof(char), 3, referenceWrite.get());
+	fflush(referenceWrite.get());
+	for (int i = startDstY * scale / 2; i < startDstY * scale / 2 + windowSizeDst * scale / 2; i++) {
+		for (int j = startDstX * scale; j < startDstX  * scale + windowSizeDst * scale; j += 2) {
+			int valueTensorU = referenceBuffer[srcWidth* srcHeight + j + i * srcWidth];
+			int valueTensorV = referenceBuffer[srcWidth* srcHeight + j + i * srcWidth + 1];
+			int sizeU = strlen(std::to_string(valueTensorU).c_str());
+			int sizeV = strlen(std::to_string(valueTensorV).c_str());
+			std::string space = " ";
+			fwrite(std::to_string(valueTensorU).c_str(), sizeof(char), sizeU, referenceWrite.get());
+			fflush(referenceWrite.get());
+			while (sizeU++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+				fflush(referenceWrite.get());
+			}
+			fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+			fflush(referenceWrite.get());
+
+			fwrite(std::to_string(valueTensorV).c_str(), sizeof(char), sizeV, referenceWrite.get());
+			fflush(referenceWrite.get());
+			while (sizeV++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+				fflush(referenceWrite.get());
+			}
+			fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+			fflush(referenceWrite.get());
+
+		}
+		fwrite("\n", sizeof(char), 1, referenceWrite.get());
+		fflush(referenceWrite.get());
+	}
+}
+
 TEST_F(VPP_Convert, Compare) {
 	//Test parameters
 	int srcWidth = 720;
@@ -497,12 +622,12 @@ TEST_F(VPP_Convert, Compare) {
 	if (scaleX != scaleY)
 		return;
 	float scale = scaleX;
-	std::string reference = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\ts\\Dump_RGB24_720x480.yuv";
-	std::string resizeOpenCV = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\DumpFrameSource360x240_RGB24_CV.yuv";
-	std::string resizeTensorStream = "C:\\Users\\Julie\\Desktop\\Work\\argus-tensor-stream\\tests\\build\\cv\\ts\\Dump_RGB24_360x240.yuv";
-	int startDstX = 93;
-	int startDstY = 63;
-	int windowSizeDst = 15;
+	std::string reference = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_720x480.yuv";
+	std::string resizeOpenCV = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
+	std::string resizeTensorStream = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\notebooks\\Pure_RGB24_360x240.yuv";
+	int startDstX = 0;
+	int startDstY = 0;
+	int windowSizeDst = 18;
 
 	std::ifstream inputReference(reference, std::ios::binary);
 	// copies all data into buffer
@@ -541,15 +666,26 @@ TEST_F(VPP_Convert, Compare) {
 		for (int j = startDstX; j < startDstX + windowSizeDst * 3; j+= 3) {
 			int valueCV = openCVBuffer[j + i * 3 * dstWidth];
 			int valueTensor = tensorStreamBuffer[j + i * 3 * dstWidth];
-			
-			fwrite(std::to_string(valueCV).c_str(), sizeof(char), strlen(std::to_string(valueCV).c_str()), openCVWrite.get());
-			fflush(openCVWrite.get());
+			int size = strlen(std::to_string(valueCV).c_str());
 			std::string space = " ";
+
+			fwrite(std::to_string(valueCV).c_str(), sizeof(char), size, openCVWrite.get());
+			fflush(openCVWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, openCVWrite.get());
+				fflush(openCVWrite.get());
+			}
+			
 			fwrite(space.c_str(), sizeof(char), 1, openCVWrite.get());
 			fflush(openCVWrite.get());
 
-			fwrite(std::to_string(valueTensor).c_str(), sizeof(char), strlen(std::to_string(valueTensor).c_str()), tensorWrite.get());
+			size = strlen(std::to_string(valueTensor).c_str());
+			fwrite(std::to_string(valueTensor).c_str(), sizeof(char), size, tensorWrite.get());
 			fflush(tensorWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
+				fflush(tensorWrite.get());
+			}
 			fwrite(space.c_str(), sizeof(char), 1, tensorWrite.get());
 			fflush(tensorWrite.get());
 		}
@@ -562,24 +698,32 @@ TEST_F(VPP_Convert, Compare) {
 		for (int j = startDstX * scale; j < startDstX * scale + windowSizeDst * scale * 3; j+= 3) {
 			int valueRef = referenceBuffer[j + i * 3 * srcWidth];
 			std::string space = " ";
-			fwrite(std::to_string(valueRef).c_str(), sizeof(char), strlen(std::to_string(valueRef).c_str()), referenceWrite.get());
+			int size = strlen(std::to_string(valueRef).c_str());
+			fwrite(std::to_string(valueRef).c_str(), sizeof(char), size, referenceWrite.get());
 			fflush(referenceWrite.get());
+			while (size++ < 3) {
+				fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
+				fflush(referenceWrite.get());
+			}
 			fwrite(space.c_str(), sizeof(char), 1, referenceWrite.get());
 			fflush(referenceWrite.get());
 		}
 		fwrite("\n", sizeof(char), 1, referenceWrite.get());
 		fflush(referenceWrite.get());
 	}
+
+	compareNV12();
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	//Test parameters
 	int dstWidth = 720;
 	int dstHeight = 480;
-	int resizeWidth = 480;
-	int resizeHeight = 360;
+	int resizeWidth = 360;
+	int resizeHeight = 240;
 	ResizeType resizeType = NEAREST;
-	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	//std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
