@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	::testing::GTEST_FLAG(filter) = "VPP_Convert.Compare";
+	::testing::GTEST_FLAG(filter) = "VPP_Convert.PSNRTVTemplateRGBDownscaledNearest";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);

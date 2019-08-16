@@ -623,8 +623,8 @@ TEST_F(VPP_Convert, Compare) {
 		return;
 	float scale = scaleX;
 	std::string reference = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_720x480.yuv";
-	std::string resizeOpenCV = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
-	std::string resizeTensorStream = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\notebooks\\Pure_RGB24_360x240.yuv";
+	std::string resizeOpenCV = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\notebooks\\Pure_RGB24_360x240.yuv";
+	std::string resizeTensorStream = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
 	int startDstX = 0;
 	int startDstY = 0;
 	int windowSizeDst = 18;
@@ -721,7 +721,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	int dstHeight = 480;
 	int resizeWidth = 360;
 	int resizeHeight = 240;
-	ResizeType resizeType = NEAREST;
+	ResizeType resizeType = BILINEAR;
 	//std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
