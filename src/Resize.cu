@@ -18,9 +18,33 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int D = data[startIndex + linesize * yDiff + xDiff];
 	if (D == 0)
 		C = D;
+	
+	//the most precise one
+	int value = (int)(
+		A * (1 - weightX) * (1 - weightY) +
+		B * (weightX) * (1 - weightY) +
+		C * (weightY) * (1 - weightX) +
+		D * (weightX  *      weightY)
+		);
+	
+	/*
+	int coefScale = (1 << 11);
+	
+	int castBits = (11 << 1);
+	float u = weightX * coefScale;
+	float v = weightY * coefScale;
 
-	int coefScale = 2048;
+	int U = rint(u);
+	int V = rint(v);
+	int U1 = rint(coefScale - u);
+	int V1 = rint(coefScale - v);
 
+	int value = mul24((int)mul24(U1, V1), A) + mul24((int)mul24(U, V1), B) +
+		mul24((int)mul24(U1, V), C) + mul24((int)mul24(U, V), D);
+
+	value = ((value + (1 << (castBits - 1))) >> castBits);
+	
+	
 	int coef1 = (1.f - weightX) * coefScale;
 	int coef2 = (weightX) * coefScale;
 	int coef3 = (1.f - weightY) * coefScale;
@@ -32,6 +56,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 		((((C * coef1 + D * coef2) >> 4) * coef4) >> 16);
 
 	value = (value + 2) >> 2;
+	*/
 
 	return value;
 }
