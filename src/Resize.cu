@@ -2,6 +2,10 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
+//#define convertToDT(value) (float)(value)
+//WT kind of int
+//
+
 __device__ int calculateBillinearInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
 	if (x + xDiff >= width)
@@ -14,13 +18,20 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int D = data[startIndex + linesize * yDiff + xDiff];
 	if (D == 0)
 		C = D;
+
+	int coefScale = 2048;
+
+	int coef1 = (1.f - weightX) * coefScale;
+	int coef2 = (weightX) * coefScale;
+	int coef3 = (1.f - weightY) * coefScale;
+	int coef4 = (weightY) * coefScale;
+
 	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-	int value = (int)(
-		A * (1 - weightX) * (1 - weightY) +
-		B * (weightX) * (1 - weightY) +
-		C * (weightY) * (1 - weightX) +
-		D * (weightX  *      weightY)
-		);
+	int value =
+		((((A * coef1 + B * coef2) >> 4) * coef3) >> 16) +
+		((((C * coef1 + D * coef2) >> 4) * coef4) >> 16);
+
+	value = (value + 2) >> 2;
 
 	return value;
 }
@@ -196,16 +207,40 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 
 	if (i < dstHeight && j < dstWidth) {
-		int y = (int)(yRatio * i); //it's coordinate of pixel in source image
-		int x = (int)(xRatio * j); //it's coordinate of pixel in source image
-		float xFloat = (xRatio * j) - x;
-		float yFloat = (yRatio * i) - y;
-		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
+		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
+		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		int x = floor(xF);
+		int y = floor(yF);
+		float weightX = xF - x;
+		float weightY = yF - y;
+
+		if (x < 0) {
+			x = 0;
+			weightX = 0;
+		}
+
+		if (y < 0) {
+			y = 0;
+			weightY = 0;
+		}
+
+		if (x >= srcWidth - 1) {
+			x = srcWidth - 1;
+			weightX = 0;
+		}
+
+		if (y >= srcHeight - 1) {
+			y = srcHeight - 1;
+			weightY = 0;
+		}
+
+		
+		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
 		}
 	}
 }
