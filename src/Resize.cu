@@ -2,10 +2,6 @@
 #include "cuda.h"
 #include "VideoProcessor.h"
 
-//#define convertToDT(value) (float)(value)
-//WT kind of int
-//
-
 __device__ int calculateBillinearInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
 	if (x + xDiff >= width)
@@ -18,19 +14,11 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int D = data[startIndex + linesize * yDiff + xDiff];
 	if (D == 0)
 		C = D;
-	
-	//the most precise one
-	int value = (int)(
-		A * (1 - weightX) * (1 - weightY) +
-		B * (weightX) * (1 - weightY) +
-		C * (weightY) * (1 - weightX) +
-		D * (weightX  *      weightY)
-		);
-	
-	/*
+
+	/* openCV resize via openCL
 	int coefScale = (1 << 11);
-	
 	int castBits = (11 << 1);
+
 	float u = weightX * coefScale;
 	float v = weightY * coefScale;
 
@@ -43,8 +31,10 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 		mul24((int)mul24(U1, V), C) + mul24((int)mul24(U, V), D);
 
 	value = ((value + (1 << (castBits - 1))) >> castBits);
-	
-	
+	*/
+
+	/* openCV resize via openCL for integer scale
+	int coefScale = (1 << 11);
 	int coef1 = (1.f - weightX) * coefScale;
 	int coef2 = (weightX) * coefScale;
 	int coef3 = (1.f - weightY) * coefScale;
@@ -57,6 +47,14 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 
 	value = (value + 2) >> 2;
 	*/
+
+	//the most precise one
+	int value = (int)(
+		A * (1 - weightX) * (1 - weightY) +
+		B * (weightX) * (1 - weightY) +
+		C * (weightY) * (1 - weightX) +
+		D * (weightX  *      weightY)
+		);
 
 	return value;
 }
@@ -98,7 +96,7 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	return value;
 }
 
-__device__ int calculateBicubicInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
+__device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
 	x = weightX;
 	y = weightY;
@@ -251,6 +249,13 @@ __global__ void resizeNV12NearestKernel(unsigned char* inputY, unsigned char* in
 	if (i < dstHeight && j < dstWidth) {
 		int y = (int)(yRatio * i); //it's coordinate of pixel in source image
 		int x = (int)(xRatio * j); //it's coordinate of pixel in source image
+		/*
+		Bit to bit with not biased approach
+		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
+		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		int x = floor(xF);
+		int y = floor(yF);
+		*/
 		int index = y * srcLinesizeY + x; //index in source image
 		outputY[i * dstWidth + j] = inputY[index];
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
@@ -314,16 +319,38 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 
 	if (i < dstHeight && j < dstWidth) {
-		int y = (int)(yRatio * i); //it's coordinate of pixel in source image
-		int x = (int)(xRatio * j); //it's coordinate of pixel in source image
-		float xFloat = (xRatio * j) - x;
-		float yFloat = (yRatio * i) - y;
-		outputY[i * dstWidth + j] = calculateBicubicInterpolation/*calculateBicubicSplineInterpolation*/(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
+		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
+		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		int x = floor(xF);
+		int y = floor(yF);
+		float weightX = xF - x;
+		float weightY = yF - y;
+
+		if (x < 0) {
+			x = 0;
+			weightX = 0;
+		}
+
+		if (y < 0) {
+			y = 0;
+			weightY = 0;
+		}
+
+		if (x >= srcWidth - 1) {
+			x = srcWidth - 1;
+			weightX = 0;
+		}
+
+		if (y >= srcHeight - 1) {
+			y = srcHeight - 1;
+			weightY = 0;
+		}
+		outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			outputUV[i * dstWidth + 2 * j] = calculateBicubicInterpolation/*calculateBicubicSplineInterpolation*/(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicInterpolation/*calculateBicubicSplineInterpolation*/(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j] = calculateBicubicSplineInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicSplineInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
 		}
 	}
 }
