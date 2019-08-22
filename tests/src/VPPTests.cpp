@@ -719,9 +719,9 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	//Test parameters
 	int dstWidth = 720;
 	int dstHeight = 480;
-	int resizeWidth = 360;
-	int resizeHeight = 240;
-	ResizeType resizeType = AREA;
+	int resizeWidth = 1080;
+	int resizeHeight = 720;
+	ResizeType resizeType = BICUBIC;
 	//std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;

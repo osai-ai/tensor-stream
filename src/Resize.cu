@@ -6,7 +6,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int startIndex = x + y * linesize;
 	if (x + xDiff >= width)
 		xDiff = 0;
-	if (y + linesize * yDiff >= height)
+	if (y + linesize * yDiff >= height * linesize)
 		linesize = 0;
 	int A = data[startIndex];
 	int B = data[startIndex + xDiff];
@@ -59,40 +59,51 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	return value;
 }
 
-__device__ int calculateOneDirectionValue(float weight, unsigned char v0, unsigned char v1, unsigned char v2, unsigned char v3) {
-	return 0.5f*(
-				 (-weight + 2 * pow(weight, 2) - pow(weight, 3)) * v0 +
-				 (2 - 5 * pow(weight, 2) + 3 * pow(weight, 3)) * v1 +
-				 (weight + 4 * pow(weight, 2) - 3 * pow(weight, 3)) * v2 +
-				 (-pow(weight, 2) + pow(weight, 3)) * v3
-				);
-}
+__device__ int calculateOneDirectionValueCommon(float a, float weight, unsigned char v0, unsigned char v1, unsigned char v2, unsigned char v3) {
+	float a0 = (a * weight - 2 * a * pow(weight, 2) + a * pow(weight, 3)) * v0;
+	float a1 = (1 - a * pow(weight, 2) - 3 * pow(weight, 2) + a * pow(weight, 3) + 2 * pow(weight, 3)) * v1;
+	float a2 = (-a * weight + 2 * a * pow(weight, 2) + 3 * pow(weight, 2) - a * pow(weight, 3) - 2 * pow(weight, 3)) * v2;
+	float a3 = (a * pow(weight, 2) - a * pow(weight, 3)) * v3;
+	float result = a0 + a1 + a2 + a3;
+				
+	if (result > 255)
+		result = 255;
+	if (result < 0)
+		result = 0;
 
+	return result;
+}
 
 __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
-
+	int linesizeUp = linesize;
+	int linesizeDown = linesize;
+	int xDiffRight = xDiff;
+	int xDiffLeft = xDiff;
 	if (x + xDiff >= width)
-		xDiff = 0;
+		xDiffRight = 0;
+	if (x + 2 * xDiff >= width)
+		xDiffRight = 0;
 	if (x - xDiff < 0)
-		xDiff = 0;
-	if (y + linesize * yDiff >= height)
-		linesize = 0;
+		xDiffLeft = 0;
+	if (y + linesize * yDiff >= height * linesize)
+		linesizeUp = 0;
+	if (y + 2 * linesize * yDiff >= height * linesize)
+		linesizeUp = 0;
 	if (y - linesize * yDiff < 0)
-		linesize = 0;
-		
-	int b0 = calculateOneDirectionValue(weightX, data[startIndex - xDiff - linesize * yDiff], data[startIndex - linesize * yDiff],
-												 data[startIndex + xDiff - linesize * yDiff], data[startIndex + 2 * xDiff - linesize * yDiff]);
+		linesizeDown = 0;
+	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft - linesizeDown * yDiff], data[startIndex - linesizeDown * yDiff],
+												 data[startIndex + xDiffRight - linesizeDown * yDiff], data[startIndex + 2 * xDiffRight - linesizeDown * yDiff]);
 
-	int b1 = calculateOneDirectionValue(weightX, data[startIndex - xDiff], data[startIndex], data[startIndex + xDiff],
-												 data[startIndex + 2 * xDiff]);
+	int b1 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft], data[startIndex], data[startIndex + xDiffRight],
+												 data[startIndex + 2 * xDiffRight]);
 
-	int b2 = calculateOneDirectionValue(weightX, data[startIndex - xDiff + linesize * yDiff], data[startIndex + linesize * yDiff], data[startIndex + xDiff + linesize * yDiff],
-												 data[startIndex + 2 * xDiff + linesize * yDiff]);
+	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + linesizeUp * yDiff], data[startIndex + linesizeUp * yDiff], data[startIndex + xDiffRight + linesizeUp * yDiff],
+												 data[startIndex + 2 * xDiffRight + linesizeUp * yDiff]);
 
-	int b3 = calculateOneDirectionValue(weightX, data[startIndex -xDiff + 2 * linesize * yDiff], data[startIndex + 2 * linesize * yDiff], data[startIndex + xDiff + 2 * linesize * yDiff],
-												 data[startIndex + 2 * xDiff + 2 * linesize * yDiff]);
-	int value = calculateOneDirectionValue(weightY, b0, b1, b2, b3);
+	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + 2 * linesizeUp * yDiff], data[startIndex + 2 * linesizeUp * yDiff], data[startIndex + xDiffRight + 2 * linesizeUp * yDiff],
+												 data[startIndex + 2 * xDiffRight + 2 * linesizeUp * yDiff]);
+	int value = calculateOneDirectionValueCommon(-0.75f, weightY, b0, b1, b2, b3);
 	return value;
 }
 
@@ -105,7 +116,7 @@ __device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x
 		xDiff = 0;
 	if (x - xDiff < 0)
 		xDiff = 0;
-	if (y + linesize * yDiff >= height)
+	if (y + linesize * yDiff >= height * linesize)
 		linesize = 0;
 	if (y - linesize * yDiff < 0)
 		linesize = 0;
@@ -276,6 +287,8 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 	if (i < dstHeight && j < dstWidth) {
 		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		//float yF = (float)((i) * yRatio); //it's coordinate of pixel in source image
+		//float xF = (float)((j) * xRatio); //it's coordinate of pixel in source image
 		int x = floor(xF);
 		int y = floor(yF);
 		float weightX = xF - x;
@@ -321,11 +334,14 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 	if (i < dstHeight && j < dstWidth) {
 		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		//float yF = (float)((i) * yRatio); //it's coordinate of pixel in source image
+		//float xF = (float)((j) * xRatio); //it's coordinate of pixel in source image
 		int x = floor(xF);
 		int y = floor(yF);
 		float weightX = xF - x;
 		float weightY = yF - y;
 
+		
 		if (x < 0) {
 			x = 0;
 			weightX = 0;
@@ -345,6 +361,7 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 			y = srcHeight - 1;
 			weightY = 0;
 		}
+		
 		outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
