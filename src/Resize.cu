@@ -12,9 +12,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int B = data[startIndex + xDiff];
 	int C = data[startIndex + linesize * yDiff];
 	int D = data[startIndex + linesize * yDiff + xDiff];
-	if (D == 0)
-		C = D;
-
+	
 	/* openCV resize via openCL
 	int coefScale = (1 << 11);
 	int castBits = (11 << 1);
@@ -55,6 +53,9 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 		C * (weightY) * (1 - weightX) +
 		D * (weightX  *      weightY)
 		);
+	
+	if (x < 10 && y < 10 && width == 720 && height == 480 && xDiff == 1)
+		printf("index: %d 0: %d +x: %d +y: %d +x+y: %d value: %d\n", startIndex, A, B, C, D, value);
 
 	return value;
 }
@@ -176,22 +177,22 @@ __device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x
 
 __device__ int calculateAreaInterpolation(unsigned char* data, int startIndex, float scaleX, float scaleY, int linesize, int stride, float* patternX, float* patternY) {
 	float colorSum = 0;
-	int rScaleX = round(scaleX);
-	int rScaleY = round(scaleY);
+	int rScaleX = ceil(scaleX);
+	int rScaleY = ceil(scaleY);
 	float divide = 0;
-	for (int i = 0; i < rScaleY + 1; i++) {
-		for (int j = 0; j < rScaleX + 1; j++) {
+	for (int i = 0; i < rScaleY; i++) {
+		for (int j = 0; j < rScaleX; j++) {
 			int index = startIndex + j * stride + i * linesize;
 			float weightX = patternX[j];
 			float weightY = patternY[i];
 			float weight = weightX * weightY;
 			divide += weight;
+			int dataTest = data[index];
 			colorSum += (float)data[index] * weight;
 		}
 	}
 
 	colorSum /= divide;
-
 	return colorSum;
 }
 
@@ -201,13 +202,23 @@ __global__ void resizeNV12DownscaleAreaKernel(unsigned char* inputY, unsigned ch
 	unsigned int i = blockIdx.y * blockDim.y + threadIdx.y; //coordinate of pixel (y) in destination image
 	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 	if (i < dstHeight && j < dstWidth) {
-		int y = (int)(yRatio * i); //it's coordinate of pixel in source image
-		int x = (int)(xRatio * j); //it's coordinate of pixel in source image
+		float yF = (int)(yRatio * i); //it's coordinate of pixel in source image
+		float xF = (int)(xRatio * j); //it's coordinate of pixel in source image
+		//bit to bit with above approach
+		//float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
+		//float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+
+		int x = floor(xF);
+		int y = floor(yF);
+		
 		int index = y * srcLinesizeY + x; //index in source image
 		int patternIndexX = index % patternXSize;
 		int patternIndexY = index % patternYSize;
 		float* rowPatternX = patternX[patternIndexX];
 		float* rowPatternY = patternY[patternIndexY];
+		if (j == 0 && i == 27) {
+			printf("here %d", j);
+		}
 		outputY[i * dstWidth + j] = calculateAreaInterpolation(inputY, index, xRatio, yRatio, srcLinesizeY, 1, rowPatternX, rowPatternY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height

@@ -380,7 +380,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	ResizeOptions resizeOptions;
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
-	resizeOptions.type = resizeType;
+	resizeOptions.type = NEAREST;
 	ColorOptions colorOptions;
 	colorOptions.dstFourCC = NV12;
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
@@ -394,6 +394,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
+	resizeOptions.type = NEAREST;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto converted = getFrame(imagePath, frameArgs);
@@ -407,6 +408,7 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 
 	resizeOptions.width = resizeWidth;
 	resizeOptions.height = resizeHeight;
+	resizeOptions.type = resizeType;
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
@@ -497,11 +499,14 @@ void compareNV12() {
 	if (scaleX != scaleY)
 		return;
 	float scale = scaleX;
-	std::string referenceNV12 = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_NV12_720x480.yuv";
-	std::string resizeTensorStreamNV12 = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_NV12_360x240.yuv";
+	std::string referenceNV12 = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\area_Dump_NV12_720x480.yuv";
+	std::string resizeTensorStreamNV12 = //"C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\bilinear_Dump_NV12_360x240.yuv";
+										 "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\area_Dump_NV12_360x240.yuv";
+	//std::string resizeTensorStream = ;
+
 	int startDstX = 0;
 	int startDstY = 0;
-	int windowSizeDst = 18;
+	int windowSizeDst = 100;
 
 	std::ifstream inputReference(referenceNV12, std::ios::binary);
 	// copies all data into buffer
@@ -622,10 +627,10 @@ TEST_F(VPP_Convert, Compare) {
 	if (scaleX != scaleY)
 		return;
 	float scale = scaleX;
-	std::string reference = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_720x480.yuv";
-	std::string resizeOpenCV = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\notebooks\\Pure_RGB24_360x240.yuv";
-	std::string resizeTensorStream = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
-	int startDstX = 0;
+	std::string reference = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
+	std::string resizeOpenCV = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_360x240.yuv";
+	std::string resizeTensorStream = "C:\\Users\\Home\\Desktop\\Work\\VideoReader_test\\argus-video-reader\\tests\\build\\Dump_RGB24_720x480.yuv";
+	int startDstX = 760;
 	int startDstY = 0;
 	int windowSizeDst = 18;
 
@@ -719,9 +724,9 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	//Test parameters
 	int dstWidth = 720;
 	int dstHeight = 480;
-	int resizeWidth = 1080;
-	int resizeHeight = 720;
-	ResizeType resizeType = BICUBIC;
+	int resizeWidth = 360;
+	int resizeHeight = 240;
+	ResizeType resizeType = AREA;
 	//std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
