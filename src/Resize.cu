@@ -54,9 +54,6 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 		D * (weightX  *      weightY)
 		);
 	
-	if (x < 10 && y < 10 && width == 720 && height == 480 && xDiff == 1)
-		printf("index: %d 0: %d +x: %d +y: %d +x+y: %d value: %d\n", startIndex, A, B, C, D, value);
-
 	return value;
 }
 
@@ -216,9 +213,6 @@ __global__ void resizeNV12DownscaleAreaKernel(unsigned char* inputY, unsigned ch
 		int patternIndexY = index % patternYSize;
 		float* rowPatternX = patternX[patternIndexX];
 		float* rowPatternY = patternY[patternIndexY];
-		if (j == 0 && i == 27) {
-			printf("here %d", j);
-		}
 		outputY[i * dstWidth + j] = calculateAreaInterpolation(inputY, index, xRatio, yRatio, srcLinesizeY, 1, rowPatternX, rowPatternY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height

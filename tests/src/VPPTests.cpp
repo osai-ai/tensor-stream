@@ -726,13 +726,24 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	int dstHeight = 480;
 	int resizeWidth = 360;
 	int resizeHeight = 240;
-	ResizeType resizeType = AREA;
+	ResizeType resizeType = BILINEAR;
 	//std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 20.59, 0.01);
+	dstWidth = 720;
+	dstHeight = 480;
+	resizeWidth = 480;
+	resizeHeight = 360;
+	psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	//EXPECT_NEAR(psnrNearest, 20.59, 0.01);
+
+	dstWidth = 720;
+	dstHeight = 480;
+	resizeWidth = 1920;
+	resizeHeight = 1080;
+	psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBicubic) {
