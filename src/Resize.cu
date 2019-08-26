@@ -392,11 +392,14 @@ void generateResizePattern(float scale, std::vector<std::vector<float> >& patter
 			pattern[currentID].push_back(1);
 			dynScale--;
 		}
-		//push rest to pattern
-		pattern[currentID].push_back(dynScale);
-		rest = 1 - dynScale;
 
-		while (pattern[currentID].size() < round(scale) + 1)
+		if (dynScale > std::numeric_limits<float>::epsilon()) {
+			//push rest to pattern
+			pattern[currentID].push_back(dynScale);
+			rest = 1 - dynScale;
+		}
+
+		while (pattern[currentID].size() < ceil(scale))
 			pattern[currentID].push_back(0);
 
 		currentID += 1;
