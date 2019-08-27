@@ -72,15 +72,15 @@ void fourCCTest(std::shared_ptr<AVFrame> output, int width, int height, FourCC d
 		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels), crc);
 	}
 
-	ASSERT_EQ(remove(dumpFileName.c_str()), 0);
+	//ASSERT_EQ(remove(dumpFileName.c_str()), 0);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24) {
-	fourCCTest(output, 1080, 608, RGB24, Planes::MERGED, 2816643056);
+	fourCCTest(output, 1080, 608, RGB24, Planes::MERGED, 2225932432);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Planar) {
-	fourCCTest(output, 1080, 608, RGB24, Planes::PLANAR, 1381178532);
+	fourCCTest(output, 1080, 608, RGB24, Planes::PLANAR, 3151499217);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {

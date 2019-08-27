@@ -40,7 +40,7 @@ std::string Python_Tests::setupCmdLine = "";
 
 void fourCCTest(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes, unsigned long crc) {
 	std::stringstream cmdLine;
-	std::string dumpFileName = "DumpFrame" + dstFourCC;
+	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_" + planes;
 	std::string normalizationString = "False";
 	float channels = channelsByFourCC(dstFourCC);
 #ifdef WIN32
@@ -65,7 +65,7 @@ void fourCCTest(std::string generalCmdLine, std::string input, int width, int he
 
 void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::string refName, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes) {
 	std::stringstream cmdLine;
-	std::string dumpFileName = std::string("DumpFrame") + dstFourCC;
+	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_normalized_" + planes;
 	std::string normalizationString = "True";
 	float channels = channelsByFourCC(dstFourCC);
 #ifdef WIN32
@@ -103,7 +103,7 @@ TEST_F(Python_Tests, FourCC_NV12) {
 }
 
 TEST_F(Python_Tests, FourCC_NV12_Downscale) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "NV12", "PLANAR", 2944725564);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "NV12", "PLANAR", 1200915282);
 }
 
 TEST_F(Python_Tests, FourCC_NV12_Normalize) {
@@ -119,15 +119,15 @@ TEST_F(Python_Tests, FourCC_Y800_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "MERGED", 2816643056);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "MERGED", 2225932432);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Planar) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "PLANAR", 1381178532);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "PLANAR", 3151499217);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Downscale) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, 1, "RGB24", "MERGED", 863907011);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, 1, "RGB24", "MERGED", 3545075074);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Normalize) {
@@ -135,15 +135,15 @@ TEST_F(Python_Tests, FourCC_RGB24_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_BGR24) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "MERGED", 3797413135);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "MERGED", 2467105116);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Planar) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "PLANAR", 1193620459);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "PLANAR", 3969775694);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Downscale) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "MERGED", 3797413135);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, 1, "BGR24", "MERGED", 201454032);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Normalize) {
@@ -155,7 +155,7 @@ TEST_F(Python_Tests, FourCC_UYVY) {
 }
 
 TEST_F(Python_Tests, FourCC_UYVY_Downscale) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "UYVY", "PLANAR", 971832452);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "UYVY", "PLANAR", 1564587937);
 }
 
 TEST_F(Python_Tests, FourCC_UYVY_Normalize) {
@@ -167,7 +167,7 @@ TEST_F(Python_Tests, FourCC_YUV444) {
 }
 
 TEST_F(Python_Tests, FourCC_YUV444_Downscale) {
-	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "YUV444", "PLANAR", 886180025);
+	fourCCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "YUV444", "PLANAR", 449974214);
 }
 
 TEST_F(Python_Tests, FourCC_YUV444_Normalize) {
