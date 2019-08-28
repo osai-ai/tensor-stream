@@ -324,8 +324,15 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
+			if (y > srcHeight / 2 - 1) {
+				y = srcHeight / 2 - 1;
+				weightY = 0;
+			}
+			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
+			if (i == dstHeight - 1) {
+				printf("%d %d\n", outputUV[i * dstWidth + 2 * j], outputUV[i * dstWidth + 2 * j]);
+			}
 		}
 	}
 }

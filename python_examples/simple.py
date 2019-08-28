@@ -52,7 +52,7 @@ def parse_arguments():
                         choices=["PLANAR", "MERGED"],
                         help="Possible planes order in RGB format")
     parser.add_argument("--resize_type", default="NEAREST",
-                        choices=["NEAREST", "BILINEAR"],
+                        choices=["NEAREST", "BILINEAR", "BICUBIC", "AREA"],
                         help="Algorithm used to do resize")
 
     return parser.parse_args()

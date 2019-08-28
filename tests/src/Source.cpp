@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	//::testing::GTEST_FLAG(filter) = "Wrapper_Init.SeveralInstances";
+	::testing::GTEST_FLAG(filter) = "Python_Tests.FourCC_RGB24_Bilinear_1920x1080";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);

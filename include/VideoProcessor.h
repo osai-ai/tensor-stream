@@ -52,6 +52,7 @@ struct ColorOptions {
 };
 
 /** Algorithm used to do resize
+@details Resize algorithms are applied to NV12 so b2b with another frameworks isn't guaranteed
 */
 enum ResizeType {
 	NEAREST = 0, /**< Simple algorithm without any interpolation */

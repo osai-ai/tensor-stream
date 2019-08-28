@@ -61,11 +61,16 @@ class FourCC(Enum):
     HSV = 6
 
 ## Algorithm used to do resize
+# @details Resize algorithms are applied to NV12 so b2b with another frameworks isn't guaranteed
 class ResizeType(Enum):
     ## Simple algorithm without any interpolation
     NEAREST = 0
     ## Algorithm that does simple linear interpolation
     BILINEAR = 1
+    ## Algorithm that does spline bicubic interpolation
+    BICUBIC = 2
+    ## Algorithm that does INTER_AREA OpenCV interpolation
+    AREA = 3
 
 ## Possible planes order in RGB format
 class Planes(Enum):

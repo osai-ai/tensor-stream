@@ -335,6 +335,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::enum_<ResizeType>(m, "ResizeType")
 		.value("NEAREST", ResizeType::NEAREST)
 		.value("BILINEAR", ResizeType::BILINEAR)
+		.value("BICUBIC", ResizeType::BICUBIC)
+		.value("AREA", ResizeType::AREA)
 		.export_values();
 
 	py::enum_<Planes>(m, "Planes")
