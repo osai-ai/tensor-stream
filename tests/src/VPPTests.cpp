@@ -543,6 +543,62 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
 	EXPECT_NEAR(psnrArea, 23.90, 0.01);
 }
 
+TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = BILINEAR;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrBilinear, 39.27, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledNearest) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = NEAREST;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 19.14, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = BICUBIC;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrBicubic, 25.73, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = AREA;
+	std::string imagePath = "../resources/test_resize/tv_template.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrArea, 23.90, 0.01);
+}
+
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
 	//Test parameters
 	int dstWidth = 720;
@@ -591,6 +647,62 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
 	int dstHeight = 480;
 	int resizeWidth = 480;
 	int resizeHeight = 360;
+	ResizeType resizeType = AREA;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 18.39, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledNearest) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = NEAREST;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 14.15, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = BILINEAR;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 19.51, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	ResizeType resizeType = BICUBIC;
+	std::string imagePath = "../resources/test_resize/forest.jpg";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	EXPECT_NEAR(psnrNearest, 20.64, 0.01);
+}
+
+TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
 	ResizeType resizeType = AREA;
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
