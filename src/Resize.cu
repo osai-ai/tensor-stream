@@ -6,7 +6,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int startIndex = x + y * linesize;
 	if (x + xDiff >= width)
 		xDiff = 0;
-	if (y + linesize * yDiff >= height * linesize)
+	if (y + yDiff >= height)
 		linesize = 0;
 	int A = data[startIndex];
 	int B = data[startIndex + xDiff];
@@ -74,33 +74,35 @@ __device__ int calculateOneDirectionValueCommon(float a, float weight, unsigned 
 
 __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
-	int linesizeUp = linesize;
-	int linesizeDown = linesize;
 	int xDiffRight = xDiff;
 	int xDiffLeft = xDiff;
+	int yDiffBot = yDiff;
+	int yDiffTwiceBot = yDiff;
+	int yDiffTop = yDiff;
 	if (x + xDiff >= width)
 		xDiffRight = 0;
 	if (x + 2 * xDiff >= width)
 		xDiffRight = 0;
 	if (x - xDiff < 0)
 		xDiffLeft = 0;
-	if (y + linesize * yDiff >= height * linesize)
-		linesizeUp = 0;
-	if (y + 2 * linesize * yDiff >= height * linesize)
-		linesizeUp = 0;
-	if (y - linesize * yDiff < 0)
-		linesizeDown = 0;
-	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft - linesizeDown * yDiff], data[startIndex - linesizeDown * yDiff],
-												 data[startIndex + xDiffRight - linesizeDown * yDiff], data[startIndex + 2 * xDiffRight - linesizeDown * yDiff]);
+	if (y + yDiff >= height)
+		yDiffBot = 0;
+	if (y + 2 * yDiff >= height)
+		yDiffTwiceBot = 0;
+	if (y - yDiff < 0)
+		yDiffTop = 0;
+
+	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft - linesize * yDiffTop], data[startIndex - linesize * yDiffTop],
+												 data[startIndex + xDiffRight - linesize * yDiffTop], data[startIndex + 2 * xDiffRight - linesize * yDiffTop]);
 
 	int b1 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft], data[startIndex], data[startIndex + xDiffRight],
 												 data[startIndex + 2 * xDiffRight]);
 
-	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + linesizeUp * yDiff], data[startIndex + linesizeUp * yDiff], data[startIndex + xDiffRight + linesizeUp * yDiff],
-												 data[startIndex + 2 * xDiffRight + linesizeUp * yDiff]);
+	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + linesize * yDiffBot], data[startIndex + linesize * yDiffBot], data[startIndex + xDiffRight + linesize * yDiffBot],
+												 data[startIndex + 2 * xDiffRight + linesize * yDiffBot]);
 
-	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + 2 * linesizeUp * yDiff], data[startIndex + 2 * linesizeUp * yDiff], data[startIndex + xDiffRight + 2 * linesizeUp * yDiff],
-												 data[startIndex + 2 * xDiffRight + 2 * linesizeUp * yDiff]);
+	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + 2 * linesize * yDiffTwiceBot], data[startIndex + 2 * linesize * yDiffTwiceBot], data[startIndex + xDiffRight + 2 * linesize * yDiffTwiceBot],
+												 data[startIndex + 2 * xDiffRight + 2 * linesize * yDiffTwiceBot]);
 	int value = calculateOneDirectionValueCommon(-0.75f, weightY, b0, b1, b2, b3);
 	return value;
 }
@@ -114,10 +116,10 @@ __device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x
 		xDiff = 0;
 	if (x - xDiff < 0)
 		xDiff = 0;
-	if (y + linesize * yDiff >= height * linesize)
-		linesize = 0;
-	if (y - linesize * yDiff < 0)
-		linesize = 0;
+	if (y + yDiff >= height)
+		yDiff = 0;
+	if (y - yDiff < 0)
+		yDiff = 0;
 
 	float value;
 	float p1  = data[startIndex                           ]; //f(y, x) = f1(0, 0)
@@ -250,8 +252,8 @@ __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char
 		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
 			int indexU, indexV;
-			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, xFloat, yFloat);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, xFloat, yFloat);
 		}
 	}
 }
@@ -298,7 +300,8 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 		int y = floor(yF);
 		float weightX = xF - x;
 		float weightY = yF - y;
-
+		
+		//need to avoid empty lines at the top and left corners
 		if (x < 0) {
 			x = 0;
 			weightX = 0;
@@ -309,30 +312,22 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 			weightY = 0;
 		}
 
-		if (x >= srcWidth - 1) {
+		if (x > srcWidth - 1) {
 			x = srcWidth - 1;
 			weightX = 0;
 		}
 
-		if (y >= srcHeight - 1) {
+		if (y > srcHeight - 1) {
 			y = srcHeight - 1;
 			weightY = 0;
 		}
 
-		
 		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			if (y > srcHeight / 2 - 1) {
-				y = srcHeight / 2 - 1;
-				weightY = 0;
-			}
 			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
-			if (i == dstHeight - 1) {
-				printf("%d %d\n", outputUV[i * dstWidth + 2 * j], outputUV[i * dstWidth + 2 * j]);
-			}
 		}
 	}
 }
@@ -353,7 +348,7 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 		float weightX = xF - x;
 		float weightY = yF - y;
 
-		
+		//need to avoid empty lines at the top and left corners
 		if (x < 0) {
 			x = 0;
 			weightX = 0;
@@ -364,12 +359,12 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 			weightY = 0;
 		}
 
-		if (x >= srcWidth - 1) {
+		if (x > srcWidth - 1) {
 			x = srcWidth - 1;
 			weightX = 0;
 		}
 
-		if (y >= srcHeight - 1) {
+		if (y > srcHeight - 1) {
 			y = srcHeight - 1;
 			weightY = 0;
 		}
@@ -378,8 +373,8 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			outputUV[i * dstWidth + 2 * j] = calculateBicubicSplineInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
-			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicSplineInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight, weightX, weightY);
+			outputUV[i * dstWidth + 2 * j] = calculateBicubicSplineInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
+			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicSplineInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 		}
 	}
 }

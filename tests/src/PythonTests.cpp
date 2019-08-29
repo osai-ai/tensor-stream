@@ -60,7 +60,7 @@ void CRCTest(std::string generalCmdLine, std::string input, int width, int heigh
 		fread(&fileNV12Processing[0], fileNV12Processing.size(), 1, readFile.get());
 		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels), crc);
 	}
-	//ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
+	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
 void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::string refName, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes) {
@@ -201,29 +201,29 @@ TEST_F(Python_Tests, FourCC_RGB24_Bilinear_540x304) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bilinear_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BILINEAR", 1292637112);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BILINEAR", 930427804);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 1772194314);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BICUBIC", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BICUBIC", 240232532);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 3759932769);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "AREA", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "AREA", 3197100366);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "AREA", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "AREA", 2257004891);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "AREA", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "AREA", 2026855);
 }

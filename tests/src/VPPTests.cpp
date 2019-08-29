@@ -402,64 +402,63 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
 	auto source = getFrame(imagePath, frameArgs);
+	/*
 	std::string dumpFileName = "Dump_NV12_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(source, frameArgs, writeFile), VREADER_OK);
 	}
-
+	*/
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	resizeOptions.type = NEAREST;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto converted = getFrame(imagePath, frameArgs);
-
+	/*
 	dumpFileName = "Dump_RGB24_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(converted, frameArgs, writeFile), VREADER_OK);
 	}
-
-
+	*/
 	resizeOptions.width = resizeWidth;
 	resizeOptions.height = resizeHeight;
 	resizeOptions.type = resizeType;
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
-
+	/*
 	dumpFileName = "Dump_NV12_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaled, frameArgs, writeFile), VREADER_OK);
 	}
-
+	*/
 	resizeOptions.width = resizeWidth;
 	resizeOptions.height = resizeHeight;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaledRGB = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
-
+	/*
 	dumpFileName = "Dump_RGB24_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";;
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaledRGB, frameArgs, writeFile), VREADER_OK);
 	}
-
-
+	*/
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	colorOptions.dstFourCC = dstFourCC;
 	frameArgs = { resizeOptions, colorOptions };
 	auto rescaled = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
-
+	/*
 	dumpFileName = "Dump_RGB24_Rescaled_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";;
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(rescaled, frameArgs, writeFile), VREADER_OK);
 	}
-
+	*/
 	uint8_t* sourceHost = new uint8_t[(int)(dstWidth * dstHeight * channelsByFourCC(dstFourCC))];
 	uint8_t* rescaledHost = new uint8_t[(int)(dstWidth * dstHeight * channelsByFourCC(dstFourCC))];;
 	auto err = cudaMemcpy(sourceHost, converted, dstWidth * dstHeight * channelsByFourCC(dstFourCC) * sizeof(uint8_t), cudaMemcpyDeviceToHost);
@@ -527,7 +526,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBicubic) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrBicubic, 25.47, 0.01);
+	EXPECT_NEAR(psnrBicubic, 25.73, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
@@ -583,7 +582,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBicubic) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 20.42, 0.01);
+	EXPECT_NEAR(psnrNearest, 20.64, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
