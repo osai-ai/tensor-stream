@@ -186,7 +186,6 @@ __device__ int calculateAreaInterpolation(unsigned char* data, int startIndex, f
 			float weightY = patternY[i];
 			float weight = weightX * weightY;
 			divide += weight;
-			int dataTest = data[index];
 			colorSum += (float)data[index] * weight;
 		}
 	}
@@ -251,7 +250,6 @@ __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char
 
 		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
-			int indexU, indexV;
 			outputUV[i * dstWidth + 2 * j] = calculateBillinearInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, xFloat, yFloat);
 			outputUV[i * dstWidth + 2 * j + 1] = calculateBillinearInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, xFloat, yFloat);
 		}

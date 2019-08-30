@@ -217,7 +217,7 @@ TEST_F(Python_Tests, FourCC_RGB24_Bicubic_1920x1080) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "AREA", 3197100366);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "AREA", 3175240744);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_540x304) {
