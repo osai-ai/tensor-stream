@@ -160,6 +160,7 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump.yuv
 ```
 > **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (OpenCV INTER_AREA) algorithms available.
+
 > **Warning:** Resize algorithms applied to NV12 so b2b with popular frameworks which perform resize to not NV12 aren't guranteed.
 * Number of frames to process can be limited by -n option:
 ```
