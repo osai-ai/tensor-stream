@@ -211,8 +211,8 @@ __global__ void resizeNV12DownscaleAreaKernel(unsigned char* inputY, unsigned ch
 		int y = floor(yF);
 		
 		int index = y * srcLinesizeY + x; //index in source image
-		int patternIndexX = index % patternXSize;
-		int patternIndexY = index % patternYSize;
+		int patternIndexX = j % patternXSize;
+		int patternIndexY = i % patternYSize;
 		float* rowPatternX = patternX[patternIndexX];
 		float* rowPatternY = patternY[patternIndexY];
 		outputY[i * dstWidth + j] = calculateAreaInterpolation(inputY, index, xRatio, yRatio, srcLinesizeY, 1, rowPatternX, rowPatternY);

@@ -540,7 +540,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrArea, 23.90, 0.01);
+	EXPECT_NEAR(psnrArea, 25.89, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBilinear) {
@@ -652,7 +652,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 18.39, 0.01);
+	EXPECT_NEAR(psnrNearest, 19.95, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledNearest) {
