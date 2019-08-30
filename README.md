@@ -1,4 +1,5 @@
 
+
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -158,6 +159,8 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump.yuv
 ```
+> **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (OpenCV INTER_AREA) algorithms available.
+> **Warning:** Resize algorithms applied to NV12 so b2b with popular frameworks which perform resize to not NV12 aren't guranteed.
 * Number of frames to process can be limited by -n option:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
