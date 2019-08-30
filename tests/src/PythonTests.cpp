@@ -43,13 +43,8 @@ void CRCTest(std::string generalCmdLine, std::string input, int width, int heigh
 	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_" + planes;
 	std::string normalizationString = "False";
 	float channels = channelsByFourCC(dstFourCC);
-#ifdef WIN32
 	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
 		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes << " --resize_type " << resize;
-#elif __unix__
-	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
-		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes << " --resize_type " << resize;
-#endif
 
 	std::string setupCmdLine = generalCmdLine + cmdLine.str();
 	setupCmdLine = setupCmdLine + " > nul 2>&1";
@@ -68,13 +63,8 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_normalized_" + planes;
 	std::string normalizationString = "True";
 	float channels = channelsByFourCC(dstFourCC);
-#ifdef WIN32
 	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
 		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes;
-#elif __unix__
-	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
-		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes;
-#endif
 
 	std::string setupCmdLine = generalCmdLine + cmdLine.str();
 	setupCmdLine = setupCmdLine + " > nul 2>&1";

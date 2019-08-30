@@ -75,8 +75,8 @@ if __name__ == '__main__':
     reader.start()
 
     if args.output:
-        if os.path.exists(args.output):
-            os.remove(args.output)
+        if os.path.exists(args.output + ".yuv"):
+            os.remove(args.output + ".yuv")
 
     print(f"Normalize {args.normalize}")
     tensor = None
