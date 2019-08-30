@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	::testing::GTEST_FLAG(filter) = "VPP_Convert.PSNRTVTemplateRGBUpscaledBilinear";
+	//::testing::GTEST_FLAG(filter) = "VPP_Convert.PSNRForestTemplateRGBUpscaledArea";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);
