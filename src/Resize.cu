@@ -74,35 +74,27 @@ __device__ int calculateOneDirectionValueCommon(float a, float weight, unsigned 
 
 __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
-	int xDiffRight = xDiff;
-	int xDiffLeft = xDiff;
-	int yDiffBot = yDiff;
-	int yDiffTwiceBot = yDiff;
-	int yDiffTop = yDiff;
+
 	if (x + xDiff >= width)
-		xDiffRight = 0;
-	if (x + 2 * xDiff >= width)
-		xDiffRight = 0;
+		xDiff = 0;
 	if (x - xDiff < 0)
-		xDiffLeft = 0;
+		xDiff = 0;
 	if (y + yDiff >= height)
-		yDiffBot = 0;
-	if (y + 2 * yDiff >= height)
-		yDiffTwiceBot = 0;
+		yDiff = 0;
 	if (y - yDiff < 0)
-		yDiffTop = 0;
+		yDiff = 0;
 
-	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft - linesize * yDiffTop], data[startIndex - linesize * yDiffTop],
-												 data[startIndex + xDiffRight - linesize * yDiffTop], data[startIndex + 2 * xDiffRight - linesize * yDiffTop]);
+	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff - linesize * yDiff], data[startIndex - linesize * yDiff],
+												 data[startIndex + xDiff - linesize * yDiff], data[startIndex + 2 * xDiff - linesize * yDiff]);
 
-	int b1 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft], data[startIndex], data[startIndex + xDiffRight],
-												 data[startIndex + 2 * xDiffRight]);
+	int b1 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff], data[startIndex], data[startIndex + xDiff],
+												 data[startIndex + 2 * xDiff]);
 
-	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + linesize * yDiffBot], data[startIndex + linesize * yDiffBot], data[startIndex + xDiffRight + linesize * yDiffBot],
-												 data[startIndex + 2 * xDiffRight + linesize * yDiffBot]);
+	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff + linesize * yDiff], data[startIndex + linesize * yDiff], data[startIndex + xDiff + linesize * yDiff],
+												 data[startIndex + 2 * xDiff + linesize * yDiff]);
 
-	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiffLeft + 2 * linesize * yDiffTwiceBot], data[startIndex + 2 * linesize * yDiffTwiceBot], data[startIndex + xDiffRight + 2 * linesize * yDiffTwiceBot],
-												 data[startIndex + 2 * xDiffRight + 2 * linesize * yDiffTwiceBot]);
+	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff + 2 * linesize * yDiff], data[startIndex + 2 * linesize * yDiff], data[startIndex + xDiff + 2 * linesize * yDiff],
+												 data[startIndex + 2 * xDiff + 2 * linesize * yDiff]);
 	int value = calculateOneDirectionValueCommon(-0.75f, weightY, b0, b1, b2, b3);
 	return value;
 }
