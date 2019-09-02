@@ -58,11 +58,11 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 }
 
 __device__ int calculateOneDirectionValueCommon(float a, float weight, unsigned char v0, unsigned char v1, unsigned char v2, unsigned char v3) {
-	float a0 = (a * weight - 2 * a * pow(weight, 2) + a * pow(weight, 3)) * v0;
-	float a1 = (1 - a * pow(weight, 2) - 3 * pow(weight, 2) + a * pow(weight, 3) + 2 * pow(weight, 3)) * v1;
-	float a2 = (-a * weight + 2 * a * pow(weight, 2) + 3 * pow(weight, 2) - a * pow(weight, 3) - 2 * pow(weight, 3)) * v2;
-	float a3 = (a * pow(weight, 2) - a * pow(weight, 3)) * v3;
-	float result = a0 + a1 + a2 + a3;
+	float result =
+	(a * weight - 2 * a * pow(weight, 2) + a * pow(weight, 3)) * v0 +
+	(1 - a * pow(weight, 2) - 3 * pow(weight, 2) + a * pow(weight, 3) + 2 * pow(weight, 3)) * v1 +
+	(-a * weight + 2 * a * pow(weight, 2) + 3 * pow(weight, 2) - a * pow(weight, 3) - 2 * pow(weight, 3)) * v2 +
+	(a * pow(weight, 2) - a * pow(weight, 3)) * v3;
 				
 	if (result > 255)
 		result = 255;
