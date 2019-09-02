@@ -195,15 +195,15 @@ TEST_F(Python_Tests, FourCC_RGB24_Bilinear_1920x1080) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 3173561947);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 4261607874);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BICUBIC", 2056475847);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BICUBIC", 4169518778);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 3561446254);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 1128666333);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_480x360) {
