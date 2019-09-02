@@ -57,21 +57,6 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	return value;
 }
 
-__device__ int calculateOneDirectionValueCommon(float a, float weight, unsigned char v0, unsigned char v1, unsigned char v2, unsigned char v3) {
-	float result =
-	(a * weight - 2 * a * pow(weight, 2) + a * pow(weight, 3)) * v0 +
-	(1 - a * pow(weight, 2) - 3 * pow(weight, 2) + a * pow(weight, 3) + 2 * pow(weight, 3)) * v1 +
-	(-a * weight + 2 * a * pow(weight, 2) + 3 * pow(weight, 2) - a * pow(weight, 3) - 2 * pow(weight, 3)) * v2 +
-	(a * pow(weight, 2) - a * pow(weight, 3)) * v3;
-				
-	if (result > 255)
-		result = 255;
-	if (result < 0)
-		result = 0;
-
-	return result;
-}
-
 __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
 
@@ -84,18 +69,48 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	if (y - yDiff < 0)
 		yDiff = 0;
 
-	int b0 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff - linesize * yDiff], data[startIndex - linesize * yDiff],
-												 data[startIndex + xDiff - linesize * yDiff], data[startIndex + 2 * xDiff - linesize * yDiff]);
+	float a = -0.75f;
 
-	int b1 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff], data[startIndex], data[startIndex + xDiff],
-												 data[startIndex + 2 * xDiff]);
+	int b0 = 
+		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiff - linesize * yDiff] +
+		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex - linesize * yDiff] +
+		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff - linesize * yDiff] +
+		(a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff - linesize * yDiff];
+	b0 = min(b0, 255);
+	b0 = max(b0, 0);
 
-	int b2 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff + linesize * yDiff], data[startIndex + linesize * yDiff], data[startIndex + xDiff + linesize * yDiff],
-												 data[startIndex + 2 * xDiff + linesize * yDiff]);
+	int b1 = 
+		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiff] +
+		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex] +
+		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff] +
+		(a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff];
+	b1 = min(b1, 255);
+	b1 = max(b1, 0);
 
-	int b3 = calculateOneDirectionValueCommon(-0.75f, weightX, data[startIndex - xDiff + 2 * linesize * yDiff], data[startIndex + 2 * linesize * yDiff], data[startIndex + xDiff + 2 * linesize * yDiff],
-												 data[startIndex + 2 * xDiff + 2 * linesize * yDiff]);
-	int value = calculateOneDirectionValueCommon(-0.75f, weightY, b0, b1, b2, b3);
+	int b2 = 
+		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiff + linesize * yDiff] +
+		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + linesize * yDiff] +
+		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + linesize * yDiff] +
+		(a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + linesize * yDiff];
+	b2 = min(b2, 255);
+	b2 = max(b2, 0);
+
+	int b3 = 
+		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiff + 2 * linesize * yDiff] +
+		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + 2 * linesize * yDiff] +
+		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + 2 * linesize * yDiff] +
+		(a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + 2 * linesize * yDiff];
+	b3 = min(b3, 255);
+	b3 = max(b3, 0);
+
+	int value = 
+		(a * weightY - 2 * a * pow(weightY, 2) + a * pow(weightY, 3)) * b0 +
+		(1 - a * pow(weightY, 2) - 3 * pow(weightY, 2) + a * pow(weightY, 3) + 2 * pow(weightY, 3)) * b1 +
+		(-a * weightY + 2 * a * pow(weightY, 2) + 3 * pow(weightY, 2) - a * pow(weightY, 3) - 2 * pow(weightY, 3)) * b2 +
+		(a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
+	value = min(value, 255);
+	value = max(value, 0);
+
 	return value;
 }
 
