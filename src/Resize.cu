@@ -76,47 +76,54 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 		yDiffTop = 0;
 
 	float a = -0.75f;
+	float a0, a1, a2, a3;
+	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop - linesize * yDiffTop];
+	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex - linesize * yDiffTop];
+	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff - linesize * yDiffTop];
+	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff - linesize * yDiffTop];
+	int b0 = a0 + a1 + a2 + a3;
 
-	int b0 = 
-		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * (float) data[startIndex - xDiffTop - linesize * yDiffTop] +
-		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * (float) data[startIndex - linesize * yDiffTop] +
-		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * (float) data[startIndex + xDiff - linesize * yDiffTop] +
-		(a * pow(weightX, 2) - a * pow(weightX, 3)) * (float) data[startIndex + 2 * xDiff - linesize * yDiffTop];
 	b0 = min(b0, 255);
 	b0 = max(b0, 0);
 
-	int b1 = 
-		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * (float) data[startIndex - xDiffTop] +
-		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * (float) data[startIndex] +
-		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * (float) data[startIndex + xDiff] +
-		(a * pow(weightX, 2) - a * pow(weightX, 3)) * (float) data[startIndex + 2 * xDiff];
+	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop];
+	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex];
+	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff];
+	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff];
+	int b1 = a0 + a1 + a2 + a3;
+
 	b1 = min(b1, 255);
 	b1 = max(b1, 0);
 
-	int b2 = 
-		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * (float) data[startIndex - xDiffTop + linesize * yDiff] +
-		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * (float) data[startIndex + linesize * yDiff] +
-		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * (float) data[startIndex + xDiff + linesize * yDiff] +
-		(a * pow(weightX, 2) - a * pow(weightX, 3)) * (float) data[startIndex + 2 * xDiff + linesize * yDiff];
+	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop + linesize * yDiff];
+	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + linesize * yDiff];
+	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + linesize * yDiff];
+	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + linesize * yDiff];
+	int b2 = a0 + a1 + a2 + a3;
+
 	b2 = min(b2, 255);
 	b2 = max(b2, 0);
 
-	int b3 = 
-		(a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * (float) data[startIndex - xDiffTop + 2 * linesize * yDiff] +
-		(1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * (float) data[startIndex + 2 * linesize * yDiff] +
-		(-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * (float) data[startIndex + xDiff + 2 * linesize * yDiff] +
-		(a * pow(weightX, 2) - a * pow(weightX, 3)) * (float) data[startIndex + 2 * xDiff + 2 * linesize * yDiff];
+	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop + 2 * linesize * yDiff];
+	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + 2 * linesize * yDiff];
+	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + 2 * linesize * yDiff];
+	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + 2 * linesize * yDiff];
+	int b3 = a0 + a1 + a2 + a3;
+
 	b3 = min(b3, 255);
 	b3 = max(b3, 0);
 
-	int value = 
-		(a * weightY - 2 * a * pow(weightY, 2) + a * pow(weightY, 3)) * (float) b0 +
-		(1 - a * pow(weightY, 2) - 3 * pow(weightY, 2) + a * pow(weightY, 3) + 2 * pow(weightY, 3)) * (float) b1 +
-		(-a * weightY + 2 * a * pow(weightY, 2) + 3 * pow(weightY, 2) - a * pow(weightY, 3) - 2 * pow(weightY, 3)) * (float) b2 +
-		(a * pow(weightY, 2) - a * pow(weightY, 3)) * (float) b3;
+	a0 = (a * weightY - 2 * a * pow(weightY, 2) + a * pow(weightY, 3)) * b0;
+	a1 = (1 - a * pow(weightY, 2) - 3 * pow(weightY, 2) + a * pow(weightY, 3) + 2 * pow(weightY, 3)) * b1;
+	a2 = (-a * weightY + 2 * a * pow(weightY, 2) + 3 * pow(weightY, 2) - a * pow(weightY, 3) - 2 * pow(weightY, 3)) * b2;
+	a3 = (a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
+	int value = a0 + a1 + a2 + a3;
+
 	value = min(value, 255);
 	value = max(value, 0);
-
+	if (y == height - 1 && x == 40) {
+		printf("%d %d %d %d %d \n", b0, b1, b2, b3, value);
+	}
 	return value;
 }
 
