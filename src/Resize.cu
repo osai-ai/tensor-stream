@@ -118,9 +118,7 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	a2 = (-a * weightY + 2 * a * pow(weightY, 2) + 3 * pow(weightY, 2) - a * pow(weightY, 3) - 2 * pow(weightY, 3)) * b2;
 	a3 = (a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
 	int value = round(a0 + a1 + a2 + a3);
-	if (y == height - 1 && x == 40) {
-		printf("%f %f %f %f %d\n", a0, a1, a2, a3, value);
-	}
+
 	value = min(value, 255);
 	value = max(value, 0);
 
