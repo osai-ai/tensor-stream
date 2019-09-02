@@ -526,7 +526,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBicubic) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrBicubic, 25.73, 0.01);
+	EXPECT_NEAR(psnrBicubic, 25.70, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
@@ -582,7 +582,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBicubic) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrBicubic, 30.17, 0.01);
+	EXPECT_NEAR(psnrBicubic, 30.01, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledArea) {
@@ -694,7 +694,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledBicubic) {
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 34.41, 0.01);
+	EXPECT_NEAR(psnrNearest, 34.35, 0.01);
 }
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledArea) {

@@ -49,8 +49,8 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		//sts = reader.initPipeline("rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4");
- 		sts = reader.initPipeline("..\\..\\tests\\resources\\test_resize\\forest.jpg");
+		sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+ 		//sts = reader.initPipeline("..\\..\\tests\\resources\\test_resize\\forest.jpg");
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
@@ -66,7 +66,7 @@ int main()
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
-	resizeOptions.type = ResizeType::BILINEAR;
+	resizeOptions.type = ResizeType::BICUBIC;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
 	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "1"}, {"dumpName", "sample_output.yuv"} };
