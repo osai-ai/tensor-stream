@@ -57,7 +57,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	return value;
 }
 
-__device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, int y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
+__device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, int y, int xDiff, int yDiff, int linesize, int width, int height, double weightX, double weightY) {
 	int startIndex = x + y * linesize;
 	int xDiffTop = xDiff;
 	int yDiffTop = yDiff;
@@ -75,8 +75,8 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, i
 	if (y - yDiffTop < 0)
 		yDiffTop = 0;
 
-	float a = -0.75f;
-	float a0, a1, a2, a3;
+	double a = -0.75;
+	double a0, a1, a2, a3;
 	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop - linesize * yDiffTop];
 	a1 = (1 - (a + 3) * pow(weightX, 2) + (a + 2) * pow(weightX, 3)) * data[startIndex - linesize * yDiffTop];
 	a2 = (-a * weightX + (2 * a + 3) * pow(weightX, 2) - (a + 2) * pow(weightX, 3)) * data[startIndex + xDiff - linesize * yDiffTop];
@@ -117,6 +117,7 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, i
 	a2 = (-a * weightY + (2 * a + 3) * pow(weightY, 2) - (a + 2) * pow(weightY, 3)) * b2;
 	a3 = (a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
 	int value = round(a0 + a1 + a2 + a3);
+	printf("%f %f %f %f %d\n", a0, a1, a2, a3, value);
 	value = min(value, 255);
 	value = max(value, 0);
 
@@ -137,54 +138,54 @@ __device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x
 	if (y - yDiff < 0)
 		yDiff = 0;
 
-	float value;
-	float p1  = data[startIndex                           ]; //f(y, x) = f1(0, 0)
-	float b1 = (float)(x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 4;
+	double value;
+	double p1  = data[startIndex                           ]; //f(y, x) = f1(0, 0)
+	double b1 = (double)(x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 4;
 	value += p1 * b1;
 	p1  = data[startIndex + xDiff                           ]; //f(y, x) = f2(0, 1)
-	b1 = (float)-x * (x + 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 4;
+	b1 = (double)-x * (x + 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 4;
 	value += p1 * b1;
 	p1  = data[startIndex              + linesize * yDiff   ]; //f(y, x) = f3(1, 0)
-	b1 = (float)-y * (x - 1) * (x - 2) * (x + 1) * (y + 1) * (y - 2) / 4;
+	b1 = (double)-y * (x - 1) * (x - 2) * (x + 1) * (y + 1) * (y - 2) / 4;
 	value += p1 * b1;
 	p1  = data[startIndex + xDiff      + linesize * yDiff   ]; //f(y, x) = f4(1, 1)
-	b1 = (float)x * y * (x + 1) * (x - 2) * (y + 1) * (y - 2) / 4;
+	b1 = (double)x * y * (x + 1) * (x - 2) * (y + 1) * (y - 2) / 4;
 	value += p1 * b1;
 	p1  = data[startIndex - xDiff                           ]; //f(y, x) = f5(0, -1)
-	b1 = (float)-x * (x - 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 12;
+	b1 = (double)-x * (x - 1) * (x - 2) * (y - 1) * (y - 2) * (y + 1) / 12;
 	value += p1 * b1;
 	p1  = data[startIndex             - linesize * yDiff    ]; //f(y, x) = f6(-1, 0)
-	b1 = (float)-y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) / 12;
+	b1 = (double)-y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y - 2) / 12;
 	value += p1 * b1;
 	p1  = data[startIndex - xDiff     + linesize * yDiff    ]; //f(y, x) = f7(1, -1)
-	b1 = (float)x * y * (x - 1) * (x - 2) * (y + 1) * (y - 2) / 12;
+	b1 = (double)x * y * (x - 1) * (x - 2) * (y + 1) * (y - 2) / 12;
 	value += p1 * b1;
 	p1  = data[startIndex + xDiff     - linesize * yDiff    ]; //f(y, x) = f8(-1, 1)
-	b1 = (float)x * y * (x + 1) * (x - 2) * (y - 1) * (y - 2) / 12;
+	b1 = (double)x * y * (x + 1) * (x - 2) * (y - 1) * (y - 2) / 12;
 	value += p1 * b1;
 	p1  = data[startIndex + 2 * xDiff                       ]; //f(y, x) = f9(0, 2)
-	b1 = (float)x * (x - 1) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 12;
+	b1 = (double)x * (x - 1) * (x + 1) * (y - 1) * (y - 2) * (y + 1) / 12;
 	value += p1 * b1;
 	p1 = data[startIndex              + 2 * linesize * yDiff]; //f(y, x) = f10(2, 0)
-	b1 = (float)y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y + 1) / 12;
+	b1 = (double)y * (x - 1) * (x - 2) * (x + 1) * (y - 1) * (y + 1) / 12;
 	value += p1 * b1;
 	p1 = data[startIndex - xDiff      - linesize * yDiff    ]; //f(y, x) = f11(-1, -1)
-	b1 = (float)x * y * (x - 1) * (x - 2) * (y - 1) * (y - 2) / 36;
+	b1 = (double)x * y * (x - 1) * (x - 2) * (y - 1) * (y - 2) / 36;
 	value += p1 * b1;
 	p1 = data[startIndex + 2 * xDiff  + linesize * yDiff    ]; //f(y, x) = f12(1, 2)
-	b1 = (float)-x * y * (x - 1) * (x + 1) * (y + 1) * (y - 2) / 12;
+	b1 = (double)-x * y * (x - 1) * (x + 1) * (y + 1) * (y - 2) / 12;
 	value += p1 * b1;
 	p1 = data[startIndex + xDiff      + 2 * linesize * yDiff]; //f(y, x) = f13(2, 1)
-	b1 = (float)-x * y * (x + 1) * (x - 2) * (y - 1) * (y + 1) / 12;
+	b1 = (double)-x * y * (x + 1) * (x - 2) * (y - 1) * (y + 1) / 12;
 	value += p1 * b1;
 	p1 = data[startIndex + 2 * xDiff  - linesize * yDiff    ]; //f(y, x) = f14(-1, 2)
-	b1 = (float)-x * y * (x - 1) * (x + 1) * (y - 1) * (y - 2) / 36;
+	b1 = (double)-x * y * (x - 1) * (x + 1) * (y - 1) * (y - 2) / 36;
 	value += p1 * b1;
 	p1 = data[startIndex - xDiff     + 2 * linesize * yDiff]; //f(y, x) = f15(2, -1)
-	b1 = (float)-x * y * (x - 1) * (x - 2) * (y - 1) * (y + 1) / 36;
+	b1 = (double)-x * y * (x - 1) * (x - 2) * (y - 1) * (y + 1) / 36;
 	value += p1 * b1;
 	p1 = data[startIndex + 2 * xDiff + 2 * linesize * yDiff]; //f(y, x) = f16(2, 2)
-	b1 = (float)  x * y * (x - 1) * (x + 1) * (y - 1) * (y + 1) / 36;
+	b1 = (double)  x * y * (x - 1) * (x + 1) * (y - 1) * (y + 1) / 36;
 	value += p1 * b1;
 
 	return value;
@@ -353,14 +354,14 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 
 	if (i < dstHeight && j < dstWidth) {
-		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
-		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
+		double yF = (double)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
+		double xF = (double)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
 		//float yF = (float)((i) * yRatio); //it's coordinate of pixel in source image
 		//float xF = (float)((j) * xRatio); //it's coordinate of pixel in source image
 		int x = floor(xF);
 		int y = floor(yF);
-		float weightX = xF - x;
-		float weightY = yF - y;
+		double weightX = xF - x;
+		double weightY = yF - y;
 
 		//need to avoid empty lines at the top and left corners
 		if (x < 0) {
@@ -382,14 +383,17 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 			y = srcHeight - 1;
 			weightY = 0;
 		}
-		
-		outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
+
+		if (i == 824 && j == 1358)
+			outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
+		/*
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
 			outputUV[i * dstWidth + 2 * j] = calculateBicubicSplineInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicSplineInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 		}
+		*/
 	}
 }
 
