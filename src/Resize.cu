@@ -57,7 +57,7 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	return value;
 }
 
-__device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x, float y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
+__device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, int y, int xDiff, int yDiff, int linesize, int width, int height, float weightX, float weightY) {
 	int startIndex = x + y * linesize;
 	int xDiffTop = xDiff;
 	int yDiffTop = yDiff;
@@ -78,17 +78,16 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	float a = -0.75f;
 	float a0, a1, a2, a3;
 	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop - linesize * yDiffTop];
-	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex - linesize * yDiffTop];
-	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff - linesize * yDiffTop];
+	a1 = (1 - (a + 3) * pow(weightX, 2) + (a + 2) * pow(weightX, 3)) * data[startIndex - linesize * yDiffTop];
+	a2 = (-a * weightX + (2 * a + 3) * pow(weightX, 2) - (a + 2) * pow(weightX, 3)) * data[startIndex + xDiff - linesize * yDiffTop];
 	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff - linesize * yDiffTop];
 	int b0 = round(a0 + a1 + a2 + a3);
-
 	b0 = min(b0, 255);
 	b0 = max(b0, 0);
 
 	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop];
-	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex];
-	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff];
+	a1 = (1 - (a + 3) * pow(weightX, 2) + (a + 2) * pow(weightX, 3)) * data[startIndex];
+	a2 = (-a * weightX + (2 * a + 3) * pow(weightX, 2) - (a + 2) * pow(weightX, 3)) * data[startIndex + xDiff];
 	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff];
 	int b1 = round(a0 + a1 + a2 + a3);
 
@@ -96,8 +95,8 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	b1 = max(b1, 0);
 
 	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop + linesize * yDiff];
-	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + linesize * yDiff];
-	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + linesize * yDiff];
+	a1 = (1 - (a + 3) * pow(weightX, 2) + (a + 2) * pow(weightX, 3)) * data[startIndex + linesize * yDiff];
+	a2 = (-a * weightX + (2 * a + 3) * pow(weightX, 2) - (a + 2) * pow(weightX, 3)) * data[startIndex + xDiff + linesize * yDiff];
 	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + linesize * yDiff];
 	int b2 = round(a0 + a1 + a2 + a3);
 
@@ -105,8 +104,8 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	b2 = max(b2, 0);
 
 	a0 = (a * weightX - 2 * a * pow(weightX, 2) + a * pow(weightX, 3)) * data[startIndex - xDiffTop + 2 * linesize * yDiff];
-	a1 = (1 - a * pow(weightX, 2) - 3 * pow(weightX, 2) + a * pow(weightX, 3) + 2 * pow(weightX, 3)) * data[startIndex + 2 * linesize * yDiff];
-	a2 = (-a * weightX + 2 * a * pow(weightX, 2) + 3 * pow(weightX, 2) - a * pow(weightX, 3) - 2 * pow(weightX, 3)) * data[startIndex + xDiff + 2 * linesize * yDiff];
+	a1 = (1 - (a + 3) * pow(weightX, 2) + (a + 2) * pow(weightX, 3)) * data[startIndex + 2 * linesize * yDiff];
+	a2 = (-a * weightX + (2 * a + 3) * pow(weightX, 2) - (a + 2) * pow(weightX, 3)) * data[startIndex + xDiff + 2 * linesize * yDiff];
 	a3 = (a * pow(weightX, 2) - a * pow(weightX, 3)) * data[startIndex + 2 * xDiff + 2 * linesize * yDiff];
 	int b3 = round(a0 + a1 + a2 + a3);
 
@@ -114,11 +113,10 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, float x,
 	b3 = max(b3, 0);
 
 	a0 = (a * weightY - 2 * a * pow(weightY, 2) + a * pow(weightY, 3)) * b0;
-	a1 = (1 - a * pow(weightY, 2) - 3 * pow(weightY, 2) + a * pow(weightY, 3) + 2 * pow(weightY, 3)) * b1;
-	a2 = (-a * weightY + 2 * a * pow(weightY, 2) + 3 * pow(weightY, 2) - a * pow(weightY, 3) - 2 * pow(weightY, 3)) * b2;
+	a1 = (1 - (a + 3) * pow(weightY, 2) + (a + 2) * pow(weightY, 3)) * b1;
+	a2 = (-a * weightY + (2 * a + 3) * pow(weightY, 2) - (a + 2) * pow(weightY, 3)) * b2;
 	a3 = (a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
 	int value = round(a0 + a1 + a2 + a3);
-
 	value = min(value, 255);
 	value = max(value, 0);
 
