@@ -38,7 +38,7 @@ public:
 
 std::string Python_Tests::setupCmdLine = "";
 
-void CRCTest(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes, std::string resize, unsigned long crc) {
+void CRCTest(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes, std::string resize, unsigned long crc, unsigned long crcLinux = 0) {
 	std::stringstream cmdLine;
 	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_" + planes;
 	std::string normalizationString = "False";
@@ -53,7 +53,15 @@ void CRCTest(std::string generalCmdLine, std::string input, int width, int heigh
 		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
 		std::vector<uint8_t> fileNV12Processing(width * height * channels);
 		fread(&fileNV12Processing[0], fileNV12Processing.size(), 1, readFile.get());
-		ASSERT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels), crc);
+		bool pass = false;
+		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels) == crc)
+			pass = true;
+		if (crcLinux != 0) {
+			if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels) == crcLinux)
+				pass = true;
+		}
+		ASSERT_EQ(pass, true);
+
 	}
 	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
@@ -195,7 +203,7 @@ TEST_F(Python_Tests, FourCC_RGB24_Bilinear_1920x1080) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 4261607874);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 4261607874, 1267073424);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_540x304) {
@@ -203,7 +211,7 @@ TEST_F(Python_Tests, FourCC_RGB24_Bicubic_540x304) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 1128666333);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 2402019758);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_480x360) {

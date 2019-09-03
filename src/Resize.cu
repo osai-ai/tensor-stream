@@ -117,7 +117,6 @@ __device__ int calculateBicubicSplineInterpolation(unsigned char* data, int x, i
 	a2 = (-a * weightY + (2 * a + 3) * pow(weightY, 2) - (a + 2) * pow(weightY, 3)) * b2;
 	a3 = (a * pow(weightY, 2) - a * pow(weightY, 3)) * b3;
 	int value = round(a0 + a1 + a2 + a3);
-	printf("%f %f %f %f %d\n", a0, a1, a2, a3, value);
 	value = min(value, 255);
 	value = max(value, 0);
 
@@ -384,16 +383,13 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 			weightY = 0;
 		}
 
-		if (i == 824 && j == 1358)
-			outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
+		outputY[i * dstWidth + j] = calculateBicubicSplineInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, weightX, weightY);
 		//we should take chroma for every 2 luma, also height of data[1] is twice less than data[0]
 		//there are no difference between x_ratio for Y and UV also as for y_ratio because (src_height / 2) / (dst_height / 2) = src_height / dst_height
-		/*
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
 			outputUV[i * dstWidth + 2 * j] = calculateBicubicSplineInterpolation(inputUV, 2 * x, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 			outputUV[i * dstWidth + 2 * j + 1] = calculateBicubicSplineInterpolation(inputUV, 2 * x + 1, y, 2, 1, srcLinesizeUV, srcWidth, srcHeight / 2, weightX, weightY);
 		}
-		*/
 	}
 }
 
