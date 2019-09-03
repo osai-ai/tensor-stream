@@ -402,13 +402,13 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
 	auto source = getFrame(imagePath, frameArgs);
-	
+	/*
 	std::string dumpFileName = "Dump_NV12_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(source, frameArgs, writeFile), VREADER_OK);
 	}
-	
+	*/
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	resizeOptions.type = NEAREST;
@@ -440,13 +440,13 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaledRGB = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
-	
+	/*
 	dumpFileName = "Dump_RGB24_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";;
 	{
 		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
 		EXPECT_EQ(VPP.DumpFrame(scaledRGB, frameArgs, writeFile), VREADER_OK);
 	}
-	
+	*/
 	resizeOptions.width = dstWidth;
 	resizeOptions.height = dstHeight;
 	colorOptions.dstFourCC = dstFourCC;
@@ -629,33 +629,17 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBilinear) {
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBicubic) {
 	//Test parameters
-	int dstWidth = 1080;
-	int dstHeight = 608;
+	int dstWidth = 720;
+	int dstHeight = 480;
 	int resizeWidth = 480;
 	int resizeHeight = 360;
 	ResizeType resizeType = BICUBIC;
-	//std::string imagePath = "../resources/test_resize/forest.jpg";
-	std::string imagePath = "../resources/bbb_1080x608_420_10.h264";
+	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
 	EXPECT_NEAR(psnrNearest, 20.81, 0.01);
 }
-
-TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBicubicAsPython) {
-	//Test parameters
-	int dstWidth = 1080;
-	int dstHeight = 608;
-	int resizeWidth = 480;
-	int resizeHeight = 360;
-	ResizeType resizeType = BICUBIC;
-	std::string imagePath = "../resources/bbb_1080x608_420_10.h264";
-	FourCC dstFourCC = RGB24;
-	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
-	EXPECT_NEAR(psnrNearest, 20.81, 0.01);
-}
-
 
 TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
 	//Test parameters
