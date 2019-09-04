@@ -11,10 +11,11 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	skipAnalyze = false;
+	this->frameRateMode = frameRateMode;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
@@ -120,17 +121,54 @@ int TensorStream::processingLoop() {
 		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		CHECK_STATUS(sts);
-		
-		START_LOG_BLOCK(std::string("sleep"));
-		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
-		//wait here
-		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-										std::chrono::high_resolution_clock::now() - waitTime).count();
-		if (sleepTime > 0) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+
+		if (frameRateMode == FrameRateMode::NATIVE) {
+			START_LOG_BLOCK(std::string("sleep"));
+			PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
+			//wait here
+			int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::high_resolution_clock::now() - waitTime).count();
+			if (sleepTime > 0) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+			}
+			LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
+			END_LOG_BLOCK(std::string("sleep"));
 		}
-		LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
-		END_LOG_BLOCK(std::string("sleep"));
+		if (frameRateMode == FrameRateMode::BLOCKING) {
+			START_LOG_BLOCK(std::string("blocking wait"));
+			PUSH_RANGE("TensorStream::Blocking", NVTXColors::PURPLE);
+			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+			/*
+			wait for end
+			*/
+			std::unique_lock<std::mutex> locker(blockingSync);
+			//Should check whether all threads completed their job or not
+			bool frameEnd = false;
+			while (!frameEnd) {
+				//wait call release mutex, once control returned back it automatically occupied
+				blockingCV.wait(locker);
+				//if woke up, need to check status
+				int numberReady = 0;
+				for (auto item : blockingStatuses) {
+					if (item.second) {
+						numberReady++;
+					}
+				}
+				if (numberReady == blockingStatuses.size()) {
+					frameEnd = true;
+					//return statuses back to unfinished
+					for (auto &item : blockingStatuses) {
+						item.second = false;
+					}
+				}
+			}
+			/*
+			*/
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			int blockingTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+			LOG_VALUE(std::string("Blocking time: ") + std::to_string(blockingTime), LogsLevel::HIGH);
+			END_LOG_BLOCK(std::string("blocking wait"));
+		}
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
 	return sts;
@@ -154,6 +192,14 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	AVFrame* decoded;
 	AVFrame* processedFrame;
 	std::tuple<T*, int> outputTuple;
+	if (frameRateMode == FrameRateMode::BLOCKING) {
+		//Critical section because we check map size in processingLoop()
+		std::unique_lock<std::mutex> locker(blockingSync);
+		//this will be executed only once at the start
+		if (!blockingStatuses[consumerName]) {
+			blockingStatuses[consumerName] = false;
+		}
+	}
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
@@ -188,6 +234,15 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	T* cudaFrame((T*)processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
+	if (frameRateMode == FrameRateMode::BLOCKING) {
+		blockingStatuses[consumerName] = true;
+		/*
+		send end message
+		*/
+		blockingCV.notify_all();
+		/*
+		*/
+	}
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
 }

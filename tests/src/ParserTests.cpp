@@ -11,15 +11,13 @@ TEST(Parser_Init, WrongInputPath) {
 
 TEST(Parser_Init, CorrectInputPath) {
 	Parser parser;
-	ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" };
+	ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", true };
 	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
-	parser.Close();
-	parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
-	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
-	EXPECT_EQ(parser.getWidth(), 1080);
-	EXPECT_EQ(parser.getHeight(), 608);
+	EXPECT_EQ(parser.getWidth(), 1280);
+	EXPECT_EQ(parser.getHeight(), 720);
 	auto codec = parser.getFormatContext()->streams[parser.getVideoIndex()]->codec;
-	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 25);
+	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 24);
+	parser.Close();
 }
 
 TEST(Parser_ReadGet, CheckFrame) {

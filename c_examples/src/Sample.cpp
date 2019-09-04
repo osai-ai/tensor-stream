@@ -49,7 +49,7 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://b.sportlevel.com/relay/pooltop");
+		sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4");
  		//sts = reader.initPipeline("..\\..\\tests\\resources\\test_resize\\forest.jpg");
 		if (sts != VREADER_OK)
 			reader.endProcessing();
@@ -69,7 +69,7 @@ int main()
 	resizeOptions.type = ResizeType::BICUBIC;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "1"}, {"dumpName", "sample_output.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "20"}, {"dumpName", "sample_output.yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

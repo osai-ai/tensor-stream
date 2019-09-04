@@ -23,7 +23,7 @@ enum Internal {
 	VREADER_OK = 0 /**< No errors */
 };
 
-/** Class with list of modes for logs output
+/** Enum with list of modes for logs output
  @details Used in @ref TensorStream::enableLogs() function
 */
 enum LogsLevel {
@@ -33,16 +33,27 @@ enum LogsLevel {
 	HIGH /**< Print also the detailed information about functions in callstack */
 };
 
-/** Class with possible C++ extension module close options
+/** Enum with possible C++ extension module close options
  @details Used in @ref TensorStream::endProcessing() function
 */
 enum CloseLevel {
 	HARD = 1, /**< Close all opened handlers, free resources */
 	SOFT /**< Close all opened handlers except logs file handler, free resources */
 };
+
+/** Enum with possible stream reading modes
+ @details Used in @ref TensorStream::initPipeline() function
+*/
+enum FrameRateMode {
+	NATIVE = 1, /**< Read at native stream/camera frame rate */
+	FAST,   /**< Read frames as fast as possible */
+	BLOCKING /**< Read frame by frame without skipping (only local files) */
+};
+
 /**
 @}
 */
+
 
 extern std::mutex logsMutex;
 
