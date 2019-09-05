@@ -12,7 +12,10 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
 		int frames = std::atoi(parameters["frames"].c_str());
 
-		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(parameters["dumpName"].c_str(), "ab"), std::fclose));
+		std::string fileName = parameters["dumpName"];
+		std::shared_ptr<FILE> dumpFile;
+		if (!fileName.empty())
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 		ResizeOptions resizeOptions;
 		resizeOptions.width = width;
 		resizeOptions.height = height;
@@ -21,9 +24,11 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		for (int i = 0; i < frames; i++) {
 			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-			int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-			if (status < 0)
-				return;
+			if (dumpFile) {
+				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+				if (status < 0)
+					return;
+			}
 
 		}
 	}
@@ -212,14 +217,14 @@ TEST(Wrapper_Init, OneThreadHang) {
 }
 
 //Avoiding any sleeps in stream processing
-//expect 1-2 ms latency in case of local file
 TEST(Wrapper_Init, FrameRateFastLocal) {
 	TensorStream reader;
-	//reader.enableLogs(-MEDIUM);
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
+	reader.skipAnalyzeStage();
+	//reader.enableLogs(-HIGH);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_720x480_RGB24_250.h264", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
-													  {"frames", "10"}, {"dumpName", "test.yuv"} };
+													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_10.yuv"}*/ };
 	std::thread getFirst(
 		[](std::map<std::string, std::string> parameters, TensorStream& reader) {
 			int width = std::atoi(parameters["width"].c_str());
@@ -227,13 +232,17 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 			FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
 			int frames = std::atoi(parameters["frames"].c_str());
 
-			std::shared_ptr<FILE> dumpFile(fopen(parameters["dumpName"].c_str(), "ab"));
+			std::string fileName = parameters["dumpName"];
+			std::shared_ptr<FILE> dumpFile;
+			if (!fileName.empty())
+				dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 			ResizeOptions resizeOptions;
 			resizeOptions.width = width;
 			resizeOptions.height = height;
 			ColorOptions colorOptions;
 			colorOptions.dstFourCC = format;
 			FrameParameters frameArgs = { resizeOptions, colorOptions };
+			int maxValue = 0;
 			for (int i = 0; i < frames; i++) {
 				std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
@@ -241,20 +250,18 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 				int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 				if (i > 0)
-					ASSERT_NEAR(latency, 2, 2);
+					maxValue = std::max(maxValue, latency);
 				if (dumpFile) {
 					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
 					if (status < 0)
 						return;
 				}
 			}
-			if (dumpFile) {
-				int status = fclose(dumpFile.get());
-				printf("%d ", status);
-			}
+			//frame rate = 24, latency = 41,6
+			EXPECT_LT(maxValue, 25);
 		}, 
-		parameters, 
-		std::ref(reader));
+			parameters, 
+			std::ref(reader));
 
 	getFirst.join();
 	reader.endProcessing();
@@ -263,18 +270,197 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 
 TEST(Wrapper_Init, FrameRateFastStream) {
 	TensorStream reader;
-	reader.enableLogs(MEDIUM);
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
+	reader.skipAnalyzeStage();
+	reader.enableLogs(-HIGH);
+	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
-													  {"frames", "10"} };
+													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_500.yuv"}*/ };
+	std::thread getFirst(
+		[](std::map<std::string, std::string> parameters, TensorStream& reader) {
+		int width = std::atoi(parameters["width"].c_str());
+		int height = std::atoi(parameters["height"].c_str());
+		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
+		int frames = std::atoi(parameters["frames"].c_str());
 
-	std::thread getFirst(getCycleLD, parameters, std::ref(reader));
+		std::string fileName = parameters["dumpName"];
+		std::shared_ptr<FILE> dumpFile;
+		if (!fileName.empty())
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+		ResizeOptions resizeOptions;
+		resizeOptions.width = width;
+		resizeOptions.height = height;
+		ColorOptions colorOptions;
+		colorOptions.dstFourCC = format;
+		FrameParameters frameArgs = { resizeOptions, colorOptions };
+		int maxValue = 0;
+		for (int i = 0; i < frames; i++) {
+			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+			//we don't mind about frames indexes but only about latency
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+			if (i > 0)
+				maxValue = std::max(maxValue, latency);
+			if (dumpFile) {
+				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+				if (status < 0)
+					return;
+			}
+		}
+		//frame rate = 24, latency = 41,6
+		EXPECT_GT(maxValue, 55);
+	},
+		parameters,
+		std::ref(reader));
+
 	getFirst.join();
 	reader.endProcessing();
 	pipeline.join();
 }
 
-TEST(Wrapper_Init, FrameRateBlocking) {
+TEST(Wrapper_Init, FrameRateBlockingLocal) {
+	TensorStream reader;
+	//reader.enableLogs(-HIGH);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_720x480_RGB24_250.h264", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_250.yuv"}*/ };
+	std::thread getFirst(
+		[](std::map<std::string, std::string> parameters, TensorStream& reader) {
+		int width = std::atoi(parameters["width"].c_str());
+		int height = std::atoi(parameters["height"].c_str());
+		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
+		int frames = std::atoi(parameters["frames"].c_str());
 
+		std::string fileName = parameters["dumpName"];
+		std::shared_ptr<FILE> dumpFile;
+		if (!fileName.empty())
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+		ResizeOptions resizeOptions;
+		resizeOptions.width = width;
+		resizeOptions.height = height;
+		ColorOptions colorOptions;
+		colorOptions.dstFourCC = format;
+		FrameParameters frameArgs = { resizeOptions, colorOptions };
+		int index = 0;
+		for (int i = 0; i < frames; i++) {
+			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+			EXPECT_EQ(std::get<1>(result) - index, 1);
+			index = std::get<1>(result);
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			if (dumpFile) {
+				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+				if (status < 0)
+					return;
+			}
+		}
+	},
+		parameters,
+		std::ref(reader));
+
+	getFirst.join();
+	reader.endProcessing();
+	pipeline.join();
+}
+
+TEST(Wrapper_Init, FrameRateBlockingLocalSeveralThreads) {
+	TensorStream reader;
+	//reader.enableLogs(-HIGH);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_720x480_RGB24_250.h264", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
+	std::map<std::string, std::string> parametersFirst = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"frames", "250"}/*, {"dumpName", "first_720x480_RGB24_250.yuv"}*/ };
+	std::map<std::string, std::string> parametersSecond = { {"name", "second"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"frames", "250"}/*, {"dumpName", "second_720x480_RGB24_250.yuv"}*/ };
+	
+	auto getFunc = [](std::map<std::string, std::string> parameters, TensorStream& reader) {
+		int width = std::atoi(parameters["width"].c_str());
+		int height = std::atoi(parameters["height"].c_str());
+		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
+		int frames = std::atoi(parameters["frames"].c_str());
+
+		std::string fileName = parameters["dumpName"];
+		std::shared_ptr<FILE> dumpFile;
+		if (!fileName.empty())
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+		ResizeOptions resizeOptions;
+		resizeOptions.width = width;
+		resizeOptions.height = height;
+		ColorOptions colorOptions;
+		colorOptions.dstFourCC = format;
+		FrameParameters frameArgs = { resizeOptions, colorOptions };
+		int index = 0;
+		for (int i = 0; i < frames; i++) {
+			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+			EXPECT_EQ(std::get<1>(result) - index, 1);
+			index = std::get<1>(result);
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			if (dumpFile) {
+				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+				if (status < 0)
+					return;
+			}
+		}
+	};
+	
+	std::thread getFirst(
+		getFunc,
+		parametersFirst,
+		std::ref(reader));
+	std::thread getSecond(
+		getFunc,
+		parametersSecond,
+		std::ref(reader));
+
+	getFirst.join();
+	getSecond.join();
+	reader.endProcessing();
+	pipeline.join();
+}
+
+//this test just check correctness of reading stream in blocking mode, but it doesn't have any sense to use blocking in case of RTMP stream
+TEST(Wrapper_Init, FrameRateBlockingStream) {
+	TensorStream reader;
+	//reader.enableLogs(-HIGH);
+	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
+	std::thread pipeline(&TensorStream::startProcessing, &reader);
+	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_250.yuv"}*/ };
+	std::thread getFirst(
+		[](std::map<std::string, std::string> parameters, TensorStream& reader) {
+		int width = std::atoi(parameters["width"].c_str());
+		int height = std::atoi(parameters["height"].c_str());
+		FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
+		int frames = std::atoi(parameters["frames"].c_str());
+
+		std::string fileName = parameters["dumpName"];
+		std::shared_ptr<FILE> dumpFile;
+		if (!fileName.empty())
+			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+		ResizeOptions resizeOptions;
+		resizeOptions.width = width;
+		resizeOptions.height = height;
+		ColorOptions colorOptions;
+		colorOptions.dstFourCC = format;
+		FrameParameters frameArgs = { resizeOptions, colorOptions };
+		int index = 0;
+		for (int i = 0; i < frames; i++) {
+			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+			EXPECT_EQ(std::get<1>(result) - index, 1);
+			index = std::get<1>(result);
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			if (dumpFile) {
+				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+				if (status < 0)
+					return;
+			}
+		}
+	},
+		parameters,
+		std::ref(reader));
+
+	getFirst.join();
+	reader.endProcessing();
+	pipeline.join();
 }

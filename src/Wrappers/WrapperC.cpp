@@ -90,6 +90,23 @@ void TensorStream::skipAnalyzeStage() {
 	skipAnalyze = true;
 }
 
+int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
+	int numberReady = 0;
+	for (auto item : blockingStatuses) {
+		if (item.second) {
+			numberReady++;
+		}
+	}
+	if (numberReady == blockingStatuses.size()) {
+		//return statuses back to unfinished
+		for (auto &item : blockingStatuses) {
+			item.second = false;
+		}
+		return true;
+	}
+	return false;
+}
+
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
@@ -135,32 +152,20 @@ int TensorStream::processingLoop() {
 			END_LOG_BLOCK(std::string("sleep"));
 		}
 		if (frameRateMode == FrameRateMode::BLOCKING) {
+			std::unique_lock<std::mutex> locker(blockingSync);
 			START_LOG_BLOCK(std::string("blocking wait"));
 			PUSH_RANGE("TensorStream::Blocking", NVTXColors::PURPLE);
 			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 			/*
 			wait for end
 			*/
-			std::unique_lock<std::mutex> locker(blockingSync);
 			//Should check whether all threads completed their job or not
-			bool frameEnd = false;
+			bool frameEnd = checkGetComplete(blockingStatuses);
 			while (!frameEnd) {
 				//wait call release mutex, once control returned back it automatically occupied
 				blockingCV.wait(locker);
 				//if woke up, need to check status
-				int numberReady = 0;
-				for (auto item : blockingStatuses) {
-					if (item.second) {
-						numberReady++;
-					}
-				}
-				if (numberReady == blockingStatuses.size()) {
-					frameEnd = true;
-					//return statuses back to unfinished
-					for (auto &item : blockingStatuses) {
-						item.second = false;
-					}
-				}
+				frameEnd = checkGetComplete(blockingStatuses);
 			}
 			/*
 			*/
@@ -235,6 +240,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	T* cudaFrame((T*)processedFrame->opaque);
 	outputTuple = std::make_tuple(cudaFrame, indexFrame);
 	if (frameRateMode == FrameRateMode::BLOCKING) {
+		std::unique_lock<std::mutex> locker(blockingSync);
 		blockingStatuses[consumerName] = true;
 		/*
 		send end message
@@ -259,6 +265,16 @@ Mode 1 - full close, mode 2 - soft close (for reset)
 void TensorStream::endProcessing() {
 	shouldWork = false;
 	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
+	{
+		//force processing thread to wake up and end work
+		if (frameRateMode == FrameRateMode::BLOCKING) {
+			std::unique_lock<std::mutex> locker(blockingSync);
+			for (auto &item : blockingStatuses) {
+				item.second = true;
+			}
+			blockingCV.notify_all();
+		}
+	}
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
 		SET_CUDA_DEVICE_THROW();
