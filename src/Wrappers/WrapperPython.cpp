@@ -6,9 +6,11 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
 	int sts = VREADER_OK;
 	shouldWork = true;
+	skipAnalyze = false;
+	this->frameRateMode = frameRateMode;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
@@ -83,6 +85,25 @@ std::map<std::string, int> TensorStream::getInitializedParams() {
 	return params;
 }
 
+void TensorStream::skipAnalyzeStage() {
+	skipAnalyze = true;
+}
+int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
+	int numberReady = 0;
+	for (auto item : blockingStatuses) {
+		if (item.second) {
+			numberReady++;
+		}
+	}
+	if (numberReady == blockingStatuses.size()) {
+		//return statuses back to unfinished
+		for (auto &item : blockingStatuses) {
+			item.second = false;
+		}
+		return true;
+	}
+	return false;
+}
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
@@ -101,10 +122,12 @@ int TensorStream::processingLoop() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
-		START_LOG_BLOCK(std::string("parser->Analyze"));
-		//Parse package to find some syntax issues, don't handle errors returned from this function
-		sts = parser->Analyze(parsed);
-		END_LOG_BLOCK(std::string("parser->Analyze"));
+		if (!skipAnalyze) {
+			START_LOG_BLOCK(std::string("parser->Analyze"));
+			//Parse package to find some syntax issues, don't handle errors returned from this function
+			sts = parser->Analyze(parsed);
+			END_LOG_BLOCK(std::string("parser->Analyze"));
+		}
 		START_LOG_BLOCK(std::string("decoder->Decode"));
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
@@ -122,27 +145,49 @@ int TensorStream::processingLoop() {
 				tensors.begin(),
 				tensors.end(),
 				[](at::Tensor & item) {
-			if (item.use_count() == 1) {
-				cudaFree(item.data_ptr());
-				return true;
-			}
-			return false;
-		}
-			),
-			tensors.end()
-			);
+					if (item.use_count() == 1) {
+						cudaFree(item.data_ptr());
+						return true;
+					}
+					return false;
+				}
+			), tensors.end());
 		END_LOG_BLOCK(std::string("check tensor to free"));
-
-		START_LOG_BLOCK(std::string("sleep"));
-		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
-		//wait here
-		int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-										std::chrono::high_resolution_clock::now() - waitTime).count();
-		if (sleepTime > 0) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+		if (frameRateMode == FrameRateMode::NATIVE) {
+			START_LOG_BLOCK(std::string("sleep"));
+			PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
+			//wait here
+			int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::high_resolution_clock::now() - waitTime).count();
+			if (sleepTime > 0) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+			}
+			LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
+			END_LOG_BLOCK(std::string("sleep"));
 		}
-		LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
-		END_LOG_BLOCK(std::string("sleep"));
+		if (frameRateMode == FrameRateMode::BLOCKING) {
+			std::unique_lock<std::mutex> locker(blockingSync);
+			START_LOG_BLOCK(std::string("blocking wait"));
+			PUSH_RANGE("TensorStream::Blocking", NVTXColors::PURPLE);
+			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+			/*
+			wait for end
+			*/
+			//Should check whether all threads completed their job or not
+			bool frameEnd = checkGetComplete(blockingStatuses);
+			while (!frameEnd) {
+				//wait call release mutex, once control returned back it automatically occupied
+				blockingCV.wait(locker);
+				//if woke up, need to check status
+				frameEnd = checkGetComplete(blockingStatuses);
+			}
+			/*
+			*/
+			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+			int blockingTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+			LOG_VALUE(std::string("Blocking time: ") + std::to_string(blockingTime), LogsLevel::HIGH);
+			END_LOG_BLOCK(std::string("blocking wait"));
+		}
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
 	return sts;
@@ -174,6 +219,14 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	AVFrame* processedFrame;
 	at::Tensor outputTensor;
 	std::tuple<at::Tensor, int> outputTuple;
+	if (frameRateMode == FrameRateMode::BLOCKING) {
+		//Critical section because we check map size in processingLoop()
+		std::unique_lock<std::mutex> locker(blockingSync);
+		//this will be executed only once at the start
+		if (!blockingStatuses[consumerName]) {
+			blockingStatuses[consumerName] = false;
+		}
+	}
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	START_LOG_FUNCTION(std::string("GetFrame()"));
 	START_LOG_BLOCK(std::string("findFree decoded frame"));
@@ -241,6 +294,16 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	std::unique_lock<std::mutex> locker(freeSync);
 	tensors.push_back(outputTensor);
 	END_LOG_BLOCK(std::string("add tensor"));
+	if (frameRateMode == FrameRateMode::BLOCKING) {
+		std::unique_lock<std::mutex> locker(blockingSync);
+		blockingStatuses[consumerName] = true;
+		/*
+		send end message
+		*/
+		blockingCV.notify_all();
+		/*
+		*/
+	}
 	END_LOG_FUNCTION(std::string("GetFrame() ") + std::to_string(indexFrame) + std::string(" frame"));
 	return outputTuple;
 }
@@ -251,6 +314,16 @@ Mode 1 - full close, mode 2 - soft close (for reset)
 void TensorStream::endProcessing() {
 	shouldWork = false;
 	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
+	{
+		//force processing thread to wake up and end work
+		if (frameRateMode == FrameRateMode::BLOCKING) {
+			std::unique_lock<std::mutex> locker(blockingSync);
+			for (auto &item : blockingStatuses) {
+				item.second = true;
+			}
+			blockingCV.notify_all();
+		}
+	}
 	{
 		std::unique_lock<std::mutex> locker(closeSync);
 		SET_CUDA_DEVICE_THROW();
