@@ -79,6 +79,14 @@ class Planes(Enum):
     ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
     MERGED = 1 
 
+## Enum with possible stream reading modes
+class FrameRate(Enum):
+    ## Read at native stream/camera frame rate
+    NATIVE = 0
+    ## Read frames as fast as possible
+    FAST = 1
+    ## Read frame by frame without skipping (only local files)
+    BLOCKING = 2
 
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
@@ -90,7 +98,7 @@ class TensorStreamConverter:
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @warning Size of buffer should be less or equal to DPB
-    def __init__(self, stream_url, max_consumers = 5, cuda_device = torch.cuda.current_device(), buffer_size = 10, repeat_number = 1):
+    def __init__(self, stream_url, max_consumers = 5, cuda_device = torch.cuda.current_device(), buffer_size = 10, framerate_mode = FrameRate.NATIVE, repeat_number = 1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -104,6 +112,7 @@ class TensorStreamConverter:
         self.cuda_device = cuda_device
         self.buffer_size = buffer_size
         self.stream_url = stream_url
+        self.framerate_mode = TensorStream.FrameRateMode(framerate_mode.value)
         self.repeat_number = repeat_number
 
     ## Initialization of C++ extension
@@ -113,7 +122,7 @@ class TensorStreamConverter:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = self.tensor_stream.init(self.stream_url, self.max_consumers, self.cuda_device, self.buffer_size)
+            status = self.tensor_stream.init(self.stream_url, self.max_consumers, self.cuda_device, self.buffer_size, self.framerate_mode)
             if status != StatusLevel.OK.value:
                 self.stop()
                 repeat = repeat - 1

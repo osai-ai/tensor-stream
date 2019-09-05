@@ -45,7 +45,7 @@ enum CloseLevel {
  @details Used in @ref TensorStream::initPipeline() function
 */
 enum FrameRateMode {
-	NATIVE = 1, /**< Read at native stream/camera frame rate */
+	NATIVE, /**< Read at native stream/camera frame rate */
 	FAST,   /**< Read frames as fast as possible */
 	BLOCKING /**< Read frame by frame without skipping (only local files) */
 };

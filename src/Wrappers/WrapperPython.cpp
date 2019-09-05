@@ -427,6 +427,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.value("HSV",    FourCC::HSV)
 		.export_values();
 
+	py::enum_<FrameRateMode>(m, "FrameRateMode")
+		.value("NATIVE", FrameRateMode::NATIVE)
+		.value("FAST", FrameRateMode::FAST)
+		.value("BLOCKING", FrameRateMode::BLOCKING)
+		.export_values();
+
 	py::class_<TensorStream>(m, "TensorStream")
 		.def(py::init<>())
 		.def("init", &TensorStream::initPipeline)

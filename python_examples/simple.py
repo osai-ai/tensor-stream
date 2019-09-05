@@ -54,6 +54,9 @@ def parse_arguments():
     parser.add_argument("--resize_type", default="NEAREST",
                         choices=["NEAREST", "BILINEAR", "BICUBIC", "AREA"],
                         help="Algorithm used to do resize")
+    parser.add_argument("--framerate_mode", default="NATIVE",
+                        choices=["NATIVE", "FAST", "BLOCKING"],
+                        help="Stream reading mode")
 
     return parser.parse_args()
 
@@ -65,7 +68,8 @@ if __name__ == '__main__':
                                    max_consumers=5,
                                    cuda_device=args.cuda_device,
                                    buffer_size=args.buffer_size,
-                                   repeat_number=20)
+                                   repeat_number=20,
+                                   framerate_mode=FrameRate[args.framerate_mode])
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 
     if args.nvtx:
