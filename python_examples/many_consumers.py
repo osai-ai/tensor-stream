@@ -2,7 +2,7 @@ import time
 import argparse
 from threading import Thread
 
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, FourCC, FrameRate
 
 
 def parse_arguments():
@@ -14,6 +14,9 @@ def parse_arguments():
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: 100)",
                         type=int, default=100)
+    parser.add_argument("--framerate_mode", default="NATIVE",
+                        choices=["NATIVE", "FAST", "BLOCKING"],
+                        help="Stream reading mode")
     return parser.parse_args()
 
 
@@ -55,7 +58,7 @@ def consumer2(reader, n_frames):
 if __name__ == "__main__":
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, repeat_number=20)
+    reader = TensorStreamConverter(args.input, repeat_number=20, framerate_mode=FrameRate[args.framerate_mode])
     reader.initialize()
 
     reader.start()

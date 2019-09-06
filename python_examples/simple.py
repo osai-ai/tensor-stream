@@ -1,5 +1,5 @@
 from tensor_stream import TensorStreamConverter
-from tensor_stream import LogsLevel, LogsType, FourCC, Planes, ResizeType
+from tensor_stream import LogsLevel, LogsType, FourCC, Planes, FrameRate, ResizeType
 
 import argparse
 import os
@@ -57,6 +57,9 @@ def parse_arguments():
     parser.add_argument("--framerate_mode", default="NATIVE",
                         choices=["NATIVE", "FAST", "BLOCKING"],
                         help="Stream reading mode")
+    parser.add_argument("--skip_analyze",
+                        help="Skip bitstream frames reordering / loss analyze stage",
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -70,12 +73,17 @@ if __name__ == '__main__':
                                    buffer_size=args.buffer_size,
                                    repeat_number=20,
                                    framerate_mode=FrameRate[args.framerate_mode])
+    #To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 
     if args.nvtx:
         reader.enable_nvtx()
     
     reader.initialize()
+
+    if args.skip_analyze:
+        reader.skip_analyze()
+
     reader.start()
 
     if args.output:

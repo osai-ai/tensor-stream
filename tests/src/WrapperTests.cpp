@@ -258,7 +258,12 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 				}
 			}
 			//frame rate = 24, latency = 41,6
+#if defined (WIN32) && defined(_DEBUG)
+			//in case of Debug latency is much higher than in Release mode
 			EXPECT_LT(maxValue, 25);
+#else
+			EXPECT_NEAR(maxValue, 3, 3);
+#endif
 		}, 
 			parameters, 
 			std::ref(reader));

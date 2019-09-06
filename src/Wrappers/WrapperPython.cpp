@@ -436,11 +436,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::class_<TensorStream>(m, "TensorStream")
 		.def(py::init<>())
 		.def("init", &TensorStream::initPipeline)
-		.def("getPars", &TensorStream::getInitializedParams)		
+		.def("getPars", &TensorStream::getInitializedParams)
 		.def("start", &TensorStream::startProcessing, py::arg("cudaDevice") = defaultCUDADevice, py::call_guard<py::gil_scoped_release>())
 		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
 		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
 		.def("enableNVTX", &TensorStream::enableNVTX)
 		.def("enableLogs", &TensorStream::enableLogs)
-		.def("close", &TensorStream::endProcessing);
+		.def("close", &TensorStream::endProcessing)
+		.def("skipAnalyze", &TensorStream::skipAnalyzeStage);
 }

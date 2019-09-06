@@ -51,13 +51,13 @@ void CRCTest(std::string generalCmdLine, std::string input, int width, int heigh
 	system(setupCmdLine.c_str());
 	{
 		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
-		std::vector<uint8_t> fileNV12Processing(width * height * channels);
-		fread(&fileNV12Processing[0], fileNV12Processing.size(), 1, readFile.get());
+		std::vector<uint8_t> fileProcessing(width * height * channels);
+		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
 		bool pass = false;
-		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels) == crc)
+		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crc)
 			pass = true;
 		if (crcLinux != 0) {
-			if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileNV12Processing[0], width * height * channels) == crcLinux)
+			if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crcLinux)
 				pass = true;
 		}
 		ASSERT_EQ(pass, true);
@@ -79,17 +79,17 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 	system(setupCmdLine.c_str());
 	{
 		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
-		std::vector<uint8_t> fileRGBProcessing(width * height * channels);
-		fread(&fileRGBProcessing[0], fileRGBProcessing.size(), 1, readFile.get());
+		std::vector<uint8_t> fileProcessing(width * height * channels);
+		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
 
 		std::string refFileName = refPath + refName;
 		std::shared_ptr<FILE> readFileRef(fopen(refFileName.c_str(), "rb"), fclose);
-		std::vector<uint8_t> fileRGBProcessingRef(width * height * channels);
-		fread(&fileRGBProcessingRef[0], fileRGBProcessingRef.size(), 1, readFileRef.get());
+		std::vector<uint8_t> fileProcessingRef(width * height * channels);
+		fread(&fileProcessingRef[0], fileProcessingRef.size(), 1, readFileRef.get());
 
-		ASSERT_EQ(fileRGBProcessing.size(), fileRGBProcessingRef.size());
-		for (int i = 0; i < fileRGBProcessing.size(); i++) {
-			ASSERT_EQ(fileRGBProcessing[i], fileRGBProcessingRef[i]);
+		ASSERT_EQ(fileProcessing.size(), fileProcessingRef.size());
+		for (int i = 0; i < fileProcessing.size(); i++) {
+			ASSERT_EQ(fileProcessing[i], fileProcessingRef[i]);
 		}
 	}
 
@@ -224,4 +224,46 @@ TEST_F(Python_Tests, FourCC_RGB24_Area_540x304) {
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_1920x1080) {
 	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "AREA", 2026855);
+}
+
+void CRCTestFrameRate(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string frameRate, unsigned long crc, unsigned long crcLinux = 0) {
+	std::stringstream cmdLine;
+	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height);
+	std::string normalizationString = "False";
+	float channels = channelsByFourCC(dstFourCC);
+	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
+		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --framerate_mode " << frameRate << " -v HIGH";
+
+	std::string setupCmdLine = generalCmdLine + cmdLine.str();
+	setupCmdLine = setupCmdLine +" > nul 2>&1";
+	system(setupCmdLine.c_str());
+	{
+		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileProcessing(width * height * channels);
+		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
+		bool pass = false;
+		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crc)
+			pass = true;
+		if (crcLinux != 0) {
+			if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crcLinux)
+				pass = true;
+		}
+		ASSERT_EQ(pass, true);
+
+	}
+	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
+}
+
+//just test that frame rate option is passed to Python and output is valid
+//The correct way to check feature correctness is enable logs and find sleep/blocking sleep in case of Native and Blocking modes respectively
+TEST_F(Python_Tests, FrameRate_Native) {
+	CRCTestFrameRate(setupCmdLine, "tests/resources/bbb_720x480_RGB24_250.h264", 720, 480, 100, "RGB24", "NATIVE", 2018747012);
+}
+
+TEST_F(Python_Tests, FrameRate_Fast) {
+	CRCTestFrameRate(setupCmdLine, "tests/resources/bbb_720x480_RGB24_250.h264", 720, 480, 100, "RGB24", "FAST", 2018747012);
+}
+
+TEST_F(Python_Tests, FrameRate_Blocking) {
+	CRCTestFrameRate(setupCmdLine, "tests/resources/bbb_720x480_RGB24_250.h264", 720, 480, 100, "RGB24", "BLOCKING", 2018747012);
 }

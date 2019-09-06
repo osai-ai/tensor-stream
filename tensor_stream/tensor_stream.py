@@ -148,6 +148,10 @@ class TensorStreamConverter:
     def enable_nvtx(self):
         self.tensor_stream.enableNVTX()
 
+    ## Skip bitstream frames reordering / loss analyze stage
+    def skip_analyze(self):
+        self.tensor_stream.skipAnalyze()
+
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
     # @param[in] width Specify the width of decoded frame

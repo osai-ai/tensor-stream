@@ -188,6 +188,10 @@ python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB2
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --framerate_mode NATIVE
 ```
+* Bitstream analyze stage can be skipped to decrease latency with --skip_analyze flag:
+```
+python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --skip_analyze
+```
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```
 python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
