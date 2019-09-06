@@ -164,9 +164,9 @@ python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100
 ```
-* Output pixels format can be either torch.float32 or torch.uint8 depending on normalization flag is set or not:
+* Output pixels format can be either torch.float32 or torch.uint8 depending on normalization option which can be True, False or not set so TensorStream will decide which value should be used:
 ```
-python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --normalize
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --normalize True
 ```
 * Color planes in case of RGB can be either planar or merged and can be set via --planes option:
 ```

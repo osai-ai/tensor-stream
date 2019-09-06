@@ -37,10 +37,11 @@ def parse_arguments():
                         help="Number of frame to parse (default: unlimited)",
                         type=int, default=0)
     parser.add_argument("-bs", "--buffer_size",
-                        help="Size of internal buffer stores processed frames (default: 10)",
-                        type=int, default=10)
+                        help="Size of internal buffer stores processed frames (default: 5)",
+                        type=int, default=5)
     parser.add_argument("--normalize",
-                        help="Set if output pixel values should be normalized",
+                        help="Set if output pixel values should be normalized. Option takes True or False arguments. \
+                              If not set TensorStream will define value automatically",
                         type=string_bool)
     parser.add_argument("--nvtx",
                         help="Enable NVTX logs",

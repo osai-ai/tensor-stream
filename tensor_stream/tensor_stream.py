@@ -98,7 +98,7 @@ class TensorStreamConverter:
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @warning Size of buffer should be less or equal to DPB
-    def __init__(self, stream_url, max_consumers = 5, cuda_device = torch.cuda.current_device(), buffer_size = 10, framerate_mode = FrameRate.NATIVE, repeat_number = 1):
+    def __init__(self, stream_url, max_consumers = 5, cuda_device = torch.cuda.current_device(), buffer_size = 5, framerate_mode = FrameRate.NATIVE, repeat_number = 1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
