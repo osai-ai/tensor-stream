@@ -13,7 +13,7 @@ protected:
 	void SetUp()
 	{
 		ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
-		//ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" };
+		//ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4" };
 		parser = std::make_shared<Parser>();
 		parser->Init(parserArgs, std::make_shared<Logger>());
 	}

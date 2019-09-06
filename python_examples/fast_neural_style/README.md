@@ -1,4 +1,3 @@
-
 # Real-time video style transfer with TensorStream
 
 This example demonstrates how to use TensorStream with [fast-neural-style](https://github.com/pytorch/examples/tree/master/fast_neural_style) model.
@@ -33,7 +32,7 @@ python neural_style.py -m </path/to/saved-model.pth> -i </path/to/input-file-or-
 
  - You can stream result video to a local address and open it in VLC or another player:
 ```
-python neural_style.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth -w 808 -h 456
+python neural_style.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth -w 808 -h 456
 ```
 for example, you can use MPlayer to view the results:
 ```
@@ -41,7 +40,7 @@ mplayer -demuxer +mpegts -framedrop -benchmark udp://127.0.0.1:1234?buffer_size=
 ```
 ##
 Example tested at 24 fps on:
-* RTMP stream - 1080x608, 24 fps 
+* RTMP stream - 1280x720, 24 fps 
 * Model input resolution - 808x456 
 * CPU - i7 7700k
 * GPU - Nvidia GTX 1080ti

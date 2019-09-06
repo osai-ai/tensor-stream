@@ -17,7 +17,7 @@ def parse_arguments():
                         default="saved_models/mosaic.pth",
                         help="Path to model weight")
     parser.add_argument("-i", "--input",
-                        default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
+                        default="rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4",
                         help="Input stream (RTMP) or local video file")
     parser.add_argument("-o", "--output",
                         default="video.mp4",

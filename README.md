@@ -1,6 +1,3 @@
-
-
-
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -152,53 +149,53 @@ nvidia-docker run -ti tensorstream bash
 
 * Convert an RTMP bitstream to RGB24 PyTorch tensors and dump the result to a dump.yuv file: 
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -o dump.yuv
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -o dump.yuv
 ```
 > **Warning:** Dumps significantly affect performance
 
 * The same scenario with downscaling with nearest resize algorithm:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump.yuv
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump.yuv
 ```
 > **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (OpenCV INTER_AREA) algorithms available.
 
 > **Warning:** Resize algorithms applied to NV12 so b2b with popular frameworks which perform resize to not NV12 aren't guranteed.
 * Number of frames to process can be limited by -n option:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
 ```
 * Output pixels format can be either torch.float32 or torch.uint8 depending on normalization flag is set or not:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --normalize
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --normalize
 ```
 * Color planes in case of RGB can be either planar or merged and can be set via --planes option:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED
 ```
 * Buffer size of processed frames via -bs or --buffer_size option:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --buffer_size 5
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --buffer_size 5
 ```
 > **Warning:** Buffer size should be less or equal to decoded picture buffer (DPB)
 * GPU used for execution can be set via --cuda_device option:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --cuda_device 0
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --cuda_device 0
 ```
 * Input stream reading mode can be chosen with --framerate_mode option. Check help to find available values and description:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --framerate_mode NATIVE
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --framerate_mode NATIVE
 ```
 * Bitstream analyze stage can be skipped to decrease latency with --skip_analyze flag:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --skip_analyze
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED --skip_analyze
 ```
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
 ```
 2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
 ```
-python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
+python many_consumers.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -n 100
 ```
 3. [Example](python_examples/different_streams.py) demonstrates how to use TensorStream if several streams should be handled simultaneously:
 ```

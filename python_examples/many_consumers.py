@@ -9,7 +9,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
                                      description="Example with two consumers")
     parser.add_argument("-i", "--input",
-                        default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
+                        default="rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4",
                         help="Path to bitstream: RTMP, local file")
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: 100)",

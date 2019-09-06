@@ -14,7 +14,7 @@ def parse_arguments():
                                      description="Simple usage example")
     parser.add_argument('--help', action='help')
     parser.add_argument("-i", "--input",
-                        default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
+                        default="rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4",
                         help="Path to bitstream: RTMP, local file")
     parser.add_argument("-o", "--output",
                         help="Name of output raw stream", default="")
