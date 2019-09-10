@@ -5,6 +5,7 @@ from tensor_stream.tensor_stream import TensorStreamConverter,\
     FourCC,\
     Planes,\
     ResizeType, \
-    FrameRate
+    FrameRate, \
+    FrameParameters
 
 __version__ = '0.1.8'

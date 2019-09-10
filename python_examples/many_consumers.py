@@ -58,8 +58,8 @@ def consumer2(reader, n_frames):
 if __name__ == "__main__":
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, repeat_number=20, framerate_mode=FrameRate[args.framerate_mode])
-    reader.initialize()
+    reader = TensorStreamConverter(args.input, framerate_mode=FrameRate[args.framerate_mode])
+    reader.initialize(repeat_number=20)
 
     reader.start()
 

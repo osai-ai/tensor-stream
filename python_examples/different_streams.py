@@ -77,16 +77,14 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     reader1 = TensorStreamConverter(args.input1,
-                                    cuda_device=args.cuda_device1,
-                                    repeat_number=20)
+                                    cuda_device=args.cuda_device1)
     reader1.enable_logs(LogsLevel[args.verbose1], LogsType.CONSOLE)
-    reader1.initialize()
+    reader1.initialize(repeat_number=20)
 
     reader2 = TensorStreamConverter(args.input2,
-                                    cuda_device=args.cuda_device2,
-                                    repeat_number=20)
+                                    cuda_device=args.cuda_device2)
     reader2.enable_logs(LogsLevel[args.verbose2], LogsType.CONSOLE)
-    reader2.initialize()
+    reader2.initialize(repeat_number=20)
 
     reader1.start()
     reader2.start()

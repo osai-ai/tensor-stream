@@ -72,7 +72,6 @@ if __name__ == '__main__':
                                    max_consumers=5,
                                    cuda_device=args.cuda_device,
                                    buffer_size=args.buffer_size,
-                                   repeat_number=20,
                                    framerate_mode=FrameRate[args.framerate_mode])
     #To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
@@ -80,7 +79,7 @@ if __name__ == '__main__':
     if args.nvtx:
         reader.enable_nvtx()
     
-    reader.initialize()
+    reader.initialize(repeat_number=20)
 
     if args.skip_analyze:
         reader.skip_analyze()

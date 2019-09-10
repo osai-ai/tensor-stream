@@ -88,6 +88,42 @@ class FrameRate(Enum):
     ## Read frame by frame without skipping (only local files)
     BLOCKING = 2
 
+
+class FrameParameters:
+    def __init__(self,
+                 width=0,
+                 height=0,
+                 resize_type=ResizeType.NEAREST,
+                 pixel_format=FourCC.RGB24,
+                 planes_pos=Planes.MERGED,
+                 normalization=None):
+        parameters = TensorStream.FrameParameters()
+        color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
+        if normalization is not None:
+            color_options.normalization = normalization
+        color_options.planesPos = TensorStream.Planes(planes_pos.value)
+
+        resize_options = TensorStream.ResizeOptions()
+        resize_options.width = width
+        resize_options.height = height
+        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
+
+        parameters.color = color_options
+        parameters.resize = resize_options
+        self.parameters = parameters
+
+    def __repr__(self):
+        string = (f"FrameParameters(\n"
+                  f"    width={self.parameters.resize.height},\n"
+                  f"    height={self.parameters.resize.width},\n"
+                  f"    resize_type={self.parameters.resize.resizeType},\n"
+                  f"    pixel_format={self.parameters.color.dstFourCC},\n"
+                  f"    planes_pos={self.parameters.color.planesPos},\n"
+                  f"    normalization={self.parameters.color.normalization}\n"
+                  ")")
+        return string
+
+
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
     ## Constructor of TensorStreamConverter class
@@ -95,16 +131,13 @@ class TensorStreamConverter:
     # @param[in] max_consumers Allowed number of simultaneously working consumers
     # @param[in] cuda_device GPU used for execution
     # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
-    # @anchor repeat_number
-    # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @warning Size of buffer should be less or equal to DPB
     def __init__(self,
                  stream_url,
                  max_consumers=5,
                  cuda_device=torch.cuda.current_device(),
                  buffer_size=5,
-                 framerate_mode=FrameRate.NATIVE,
-                 repeat_number=1):
+                 framerate_mode=FrameRate.NATIVE):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -119,14 +152,14 @@ class TensorStreamConverter:
         self.buffer_size = buffer_size
         self.stream_url = stream_url
         self.framerate_mode = TensorStream.FrameRateMode(framerate_mode.value)
-        self.repeat_number = repeat_number
 
     ## Initialization of C++ extension
+    # @param[in] repeat_number Set how many times try to initialize pipeline in case of any issues
     # @warning if initialization attempts exceeded @ref repeat_number, RuntimeError is being thrown
-    def initialize(self):
+    def initialize(self, repeat_number=1):
         self.log.info("Initialize TensorStream")
         status = StatusLevel.REPEAT.value
-        repeat = self.repeat_number
+        repeat = repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
             status = self.tensor_stream.init(self.stream_url,
                                              self.max_consumers,
@@ -170,7 +203,7 @@ class TensorStreamConverter:
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
     # @param[in] normalization Should final colors be normalized or not
-    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-10, 0]
+    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
     # @param[in] return_index Specify whether need return index of decoded frame or not
     
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
@@ -184,21 +217,26 @@ class TensorStreamConverter:
              normalization=None,
              delay=0,
              return_index=False):
-        frame_parameters = TensorStream.FrameParameters()
-        color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
-        if normalization is not None:
-            color_options.normalization = normalization
-        color_options.planesPos = TensorStream.Planes(planes_pos.value)
-        
-        resize_options = TensorStream.ResizeOptions()
-        resize_options.width = width
-        resize_options.height = height
-        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
-        
-        frame_parameters.color = color_options
-        frame_parameters.resize = resize_options
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
+        result = self.param_read(frame_parameters,
+                                 name=name,
+                                 delay=delay,
+                                 return_index=return_index)
+        return result
 
-        tensor, index = self.tensor_stream.get(name, delay, frame_parameters)
+    def param_read(self,
+                   frame_parameters: FrameParameters,
+                   name="default",
+                   delay=0,
+                   return_index=False):
+        tensor, index = self.tensor_stream.get(name, delay, frame_parameters.parameters)
         if return_index:
             return tensor, index
         else:
@@ -222,21 +260,16 @@ class TensorStreamConverter:
              pixel_format=FourCC.RGB24,
              planes_pos=Planes.MERGED,
              normalization=None):
-        frame_parameters = TensorStream.FrameParameters()
-        color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
-        if normalization is not None:
-            color_options.normalization = normalization
-        color_options.planesPos = TensorStream.Planes(planes_pos.value)
-        
-        resize_options = TensorStream.ResizeOptions()
-        resize_options.width = width
-        resize_options.height = height
-        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
-        
-        frame_parameters.color = color_options
-        frame_parameters.resize = resize_options
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
 
-        self.tensor_stream.dump(tensor, name, frame_parameters)
+        self.tensor_stream.dump(tensor, name, frame_parameters.parameters)
 
     def _start(self):
         self.tensor_stream.start()
@@ -254,5 +287,5 @@ class TensorStreamConverter:
         self.tensor_stream.close()
         if self.thread is not None:
             self.thread.join()
-   
+
 ## @}

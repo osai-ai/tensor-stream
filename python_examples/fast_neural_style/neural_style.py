@@ -69,8 +69,8 @@ if __name__ == "__main__":
 
     style_model = load_model(args.model, device='cuda')
 
-    reader = TensorStreamConverter(args.input, repeat_number=20)
-    reader.initialize()
+    reader = TensorStreamConverter(args.input)
+    reader.initialize(repeat_number=20)
     print(f"Input video frame size: {reader.frame_size}, fps: {reader.fps}")
 
     width = args.width if args.width else reader.frame_size[0]
