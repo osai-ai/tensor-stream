@@ -98,7 +98,13 @@ class TensorStreamConverter:
     # @anchor repeat_number
     # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
     # @warning Size of buffer should be less or equal to DPB
-    def __init__(self, stream_url, max_consumers = 5, cuda_device = torch.cuda.current_device(), buffer_size = 5, framerate_mode = FrameRate.NATIVE, repeat_number = 1):
+    def __init__(self,
+                 stream_url,
+                 max_consumers=5,
+                 cuda_device=torch.cuda.current_device(),
+                 buffer_size=5,
+                 framerate_mode=FrameRate.NATIVE,
+                 repeat_number=1):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -122,7 +128,11 @@ class TensorStreamConverter:
         status = StatusLevel.REPEAT.value
         repeat = self.repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = self.tensor_stream.init(self.stream_url, self.max_consumers, self.cuda_device, self.buffer_size, self.framerate_mode)
+            status = self.tensor_stream.init(self.stream_url,
+                                             self.max_consumers,
+                                             self.cuda_device,
+                                             self.buffer_size,
+                                             self.framerate_mode)
             if status != StatusLevel.OK.value:
                 self.stop()
                 repeat = repeat - 1
@@ -165,16 +175,15 @@ class TensorStreamConverter:
     
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
-             name = "default",
-             width = 0,
-             height = 0,
-             resize_type = ResizeType.NEAREST,
-             pixel_format = FourCC.RGB24,
-             planes_pos = Planes.MERGED,
-             normalization = None,
-             delay = 0,
-             return_index = False
-             ):
+             name="default",
+             width=0,
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None,
+             delay=0,
+             return_index=False):
         frame_parameters = TensorStream.FrameParameters()
         color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
         if normalization is not None:
@@ -189,7 +198,6 @@ class TensorStreamConverter:
         frame_parameters.color = color_options
         frame_parameters.resize = resize_options
 
-        #print(f"Name {name} delay {delay} width {width} height {height} resizeType {resizeType} normalization {normalization} planesPos {planesPos} pixel_format {pixel_format} return_index {return_index}")
         tensor, index = self.tensor_stream.get(name, delay, frame_parameters)
         if return_index:
             return tensor, index
@@ -207,13 +215,13 @@ class TensorStreamConverter:
     # @param[in] normalization Should final colors be normalized or not
     def dump(self,
              tensor,
-             name = "default",
-             width = 0,
-             height = 0,
-             resize_type = ResizeType.NEAREST,
-             pixel_format = FourCC.RGB24,
-             planes_pos = Planes.MERGED,
-             normalization = None):
+             name="default",
+             width=0,
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None):
         frame_parameters = TensorStream.FrameParameters()
         color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
         if normalization is not None:
