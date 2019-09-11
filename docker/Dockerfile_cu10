@@ -12,12 +12,12 @@ RUN apt-get update &&\
     rm -rf /var/cache/apt/archives/*
 
 # Build nvidia codec headers
-RUN git clone --depth 1 -b sdk/8.1 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
+RUN git clone -b sdk/8.2 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
     cd nv-codec-headers && make install &&\
     cd .. && rm -rf nv-codec-headers
 
 # Build ffmpeg with nvenc support
-RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
+RUN git clone --depth 1 -b release/4.2 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
     cd FFmpeg &&\
     mkdir ffmpeg_build && cd ffmpeg_build &&\
     ../configure \
@@ -40,9 +40,9 @@ RUN pip3 install --no-cache-dir \
     numpy==1.16.4
 
 # Install PyTorch
-RUN pip3 install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp36-cp36m-linux_x86_64.whl &&\
-    pip3 install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl &&\
-    rm -rf ~/.cache/pip
+RUN pip3 install --no-cache-dir \
+    torch==1.2.0 \
+    torchvision==0.4.0
 
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\

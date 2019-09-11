@@ -22,7 +22,7 @@ stop:
 
 build-whl:
 	docker run --rm -it \
-	    $(GPUS_OPTION) \
+		$(GPUS_OPTION) \
 		-v $(shell pwd)/dist:/app/dist \
 		--name=$(DOCKER_NAME) \
 		$(DOCKER_NAME) \
@@ -30,7 +30,7 @@ build-whl:
 
 run-bash:
 	docker run --rm -it \
-	    $(GPUS_OPTION) \
+		$(GPUS_OPTION) \
 		--net=host \
 		-v $(shell pwd):/app \
 		--name=$(DOCKER_NAME) \
