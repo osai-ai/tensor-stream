@@ -42,6 +42,7 @@ class LogsType(Enum):
     ## Print all logs to console
     CONSOLE = 2
 
+
 ## Class with supported frame output color formats
 # @details Used in @ref TensorStreamConverter.read() function
 class FourCC(Enum):
@@ -60,6 +61,7 @@ class FourCC(Enum):
     ## HSV format, 24 bit for pixel
     HSV = 6
 
+
 ## Algorithm used to do resize
 # @details Resize algorithms are applied to NV12 so b2b with another frameworks isn't guaranteed
 class ResizeType(Enum):
@@ -72,12 +74,14 @@ class ResizeType(Enum):
     ## Algorithm that does INTER_AREA OpenCV interpolation
     AREA = 3
 
+
 ## Possible planes order in RGB format
 class Planes(Enum):
     ## Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB
     PLANAR = 0
     ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
     MERGED = 1 
+
 
 ## Enum with possible stream reading modes
 class FrameRate(Enum):
@@ -89,7 +93,15 @@ class FrameRate(Enum):
     BLOCKING = 2
 
 
+## Class that stores frame parameters
 class FrameParameters:
+    ## Constructor of FrameParameters class
+    # @param[in] width Specify the width of decoded frame
+    # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
+    # @param[in] normalization Should final colors be normalized or not
     def __init__(self,
                  width=0,
                  height=0,
@@ -231,6 +243,13 @@ class TensorStreamConverter:
                                  return_index=return_index)
         return result
 
+    ## Read the next decoded frame, should be invoked only after @ref start() call
+    # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
+    # @param[in] frame_parameters Frame parameters
+    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
+    # @param[in] return_index Specify whether need return index of decoded frame or not
+
+    # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def param_read(self,
                    frame_parameters: FrameParameters,
                    name="default",
