@@ -250,11 +250,16 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	int indexFrame = VREADER_REPEAT;
 	START_LOG_BLOCK(std::string("decoder->GetFrame"));
 	while (indexFrame == VREADER_REPEAT) {
+		if (decoder == nullptr)
+			throw std::runtime_error(std::to_string(VREADER_ERROR));
+
 		indexFrame = decoder->GetFrame(index, consumerName, decoded);
 	}
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));
 	int sts = VREADER_OK;
+	if (vpp == nullptr)
+		throw std::runtime_error(std::to_string(VREADER_ERROR));
 	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName); 
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
