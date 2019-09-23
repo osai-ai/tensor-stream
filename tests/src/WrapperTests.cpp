@@ -244,17 +244,22 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 			FrameParameters frameArgs = { resizeOptions, colorOptions };
 			int maxValue = 0;
 			for (int i = 0; i < frames; i++) {
-				std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-				//we don't mind about frames indexes but only about latency
-				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-				int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-				if (i > 0)
-					maxValue = std::max(maxValue, latency);
-				if (dumpFile) {
-					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-					if (status < 0)
-						return;
+				try {
+					std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+					auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+					//we don't mind about frames indexes but only about latency
+					std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+					int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+					if (i > 0)
+						maxValue = std::max(maxValue, latency);
+					if (dumpFile) {
+						int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+						if (status < 0)
+							return;
+					}
+				}
+				catch (std::runtime_error e) {
+					break;
 				}
 			}
 			//frame rate = 24, latency = 41,6
@@ -276,7 +281,7 @@ TEST(Wrapper_Init, FrameRateFastLocal) {
 TEST(Wrapper_Init, FrameRateFastStream) {
 	TensorStream reader;
 	reader.skipAnalyzeStage();
-	reader.enableLogs(-HIGH);
+	//reader.enableLogs(-HIGH);
 	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
@@ -300,17 +305,22 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		int maxValue = 0;
 		for (int i = 0; i < frames; i++) {
-			std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-			//we don't mind about frames indexes but only about latency
-			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-			int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-			if (i > 0)
-				maxValue = std::max(maxValue, latency);
-			if (dumpFile) {
-				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-				if (status < 0)
-					return;
+			try {
+				std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+				//we don't mind about frames indexes but only about latency
+				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+				int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+				if (i > 0)
+					maxValue = std::max(maxValue, latency);
+				if (dumpFile) {
+					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+					if (status < 0)
+						return;
+				}
+			}
+			catch (std::runtime_error e) {
+				break;
 			}
 		}
 		//frame rate = 24, latency = 41,6
@@ -350,14 +360,19 @@ TEST(Wrapper_Init, FrameRateBlockingLocal) {
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		int index = 0;
 		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-			EXPECT_EQ(std::get<1>(result) - index, 1);
-			index = std::get<1>(result);
-			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-			if (dumpFile) {
-				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-				if (status < 0)
-					return;
+			try {
+				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+				EXPECT_EQ(std::get<1>(result) - index, 1);
+				index = std::get<1>(result);
+				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+				if (dumpFile) {
+					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+					if (status < 0)
+						return;
+				}
+			}
+			catch (std::runtime_error e) {
+				break;
 			}
 		}
 	},
@@ -397,14 +412,19 @@ TEST(Wrapper_Init, FrameRateBlockingLocalSeveralThreads) {
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		int index = 0;
 		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-			EXPECT_EQ(std::get<1>(result) - index, 1);
-			index = std::get<1>(result);
-			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-			if (dumpFile) {
-				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-				if (status < 0)
-					return;
+			try {
+				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+				EXPECT_EQ(std::get<1>(result) - index, 1);
+				index = std::get<1>(result);
+				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+				if (dumpFile) {
+					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+					if (status < 0)
+						return;
+				}
+			}
+			catch (std::runtime_error e) {
+				break;
 			}
 		}
 	};
@@ -451,14 +471,19 @@ TEST(Wrapper_Init, FrameRateBlockingStream) {
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
 		int index = 0;
 		for (int i = 0; i < frames; i++) {
-			auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
-			EXPECT_EQ(std::get<1>(result) - index, 1);
-			index = std::get<1>(result);
-			std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
-			if (dumpFile) {
-				int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
-				if (status < 0)
-					return;
+			try {
+				auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), frameArgs);
+				EXPECT_EQ(std::get<1>(result) - index, 1);
+				index = std::get<1>(result);
+				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+				if (dumpFile) {
+					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
+					if (status < 0)
+						return;
+				}
+			}
+			catch (std::runtime_error e) {
+				break;
 			}
 		}
 	},
