@@ -140,7 +140,8 @@ Run with bash command line and follow [installation guide](#install-tensorstream
 ```
 nvidia-docker run -ti tensorstream bash
 ```
->**Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of nvidia-run command above need to execute:
+> **Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of nvidia-run command above need to execute:
+
 ```
 docker run --gpus=all -ti tensorstream bash
 ```
