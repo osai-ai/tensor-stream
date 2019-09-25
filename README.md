@@ -1,3 +1,4 @@
+
 # TensorStream
 TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
@@ -138,6 +139,10 @@ docker build -t tensorstream -f docker/Dockerfile_cu10 .
 Run with bash command line and follow [installation guide](#install-tensorstream)
 ```
 nvidia-docker run -ti tensorstream bash
+```
+>**Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of nvidia-run command above need to execute:
+```
+docker run --gpus=all -ti tensorstream bash
 ```
 
 ## Usage
