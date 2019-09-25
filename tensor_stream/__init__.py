@@ -8,4 +8,4 @@ from tensor_stream.tensor_stream import TensorStreamConverter,\
     FrameRate, \
     FrameParameters
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
