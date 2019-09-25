@@ -99,11 +99,11 @@ Extension for Python can be installed via pip:
 
 - **CUDA 9:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.2.0-cp36-cp36m-linux_x86_64.whl
 ```
 - **CUDA 10:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.2.0-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
