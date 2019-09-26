@@ -1,10 +1,9 @@
-
 # TensorStream
-TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
+TensorStream is a C++ library for real-time video streams (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
 * Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
-* Support Linux and Windows  
+The library supports Linux and Windows.
 
 Simple example how to use TensorStream for deep learning tasks:
 
@@ -16,9 +15,9 @@ reader.initialize()
 reader.start()
 
 while need_predictions:
-    # read latest available frame from the stream 
+    # read the latest available frame from the stream 
     tensor = reader.read(pixel_format=FourCC.BGR24,
-                         width=256,                 # resize to 256x256
+                         width=256,                 # resize to 256x256 px
                          height=256,
                          normalization=True,        # normalize to range [0, 1]
                          planes_pos=Planes.PLANAR)  # dimension order [C, H, W]
@@ -29,9 +28,9 @@ while need_predictions:
 
 * Initialize tensor stream with a video (e.g., a local file or a network video stream) and start reading it in a separate process.
 
-* Get latest available frame from the stream and make a prediction.
+* Get the latest available frame from the stream and make a prediction.
 
-> **Note:** All tasks inside TensorStream processed on a GPU, so output tensor also located on the GPU.
+> **Note:** All tasks inside TensorStream processed on a GPU, so the output tensor is also located on the GPU.
 
 
 ## Table of Contents
@@ -132,15 +131,15 @@ cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v
 ```
 
 ## Docker image
-Dockerfiles can be found in [docker](docker) folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+Dockerfiles can be found in [docker](docker) folder. Please note that different Dockerfiles are required for different CUDA versions. To distinguish them name suffix is used, i.e., for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
 ```
 docker build -t tensorstream -f docker/Dockerfile_cu10 .
 ```
-Run with bash command line and follow [installation guide](#install-tensorstream)
+Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
 nvidia-docker run -ti tensorstream bash
 ```
-> **Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of nvidia-run command above need to execute:
+> **Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of `nvidia-docker run` command above need to execute:
 
 ```
 docker run --gpus=all -ti tensorstream bash
@@ -157,15 +156,15 @@ docker run --gpus=all -ti tensorstream bash
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -o dump
 ```
-> **Warning:** Dumps significantly affect performance. To output filename .yuv suffix will be added.
+> **Warning:** Dumps significantly affect performance. Suffix .yuv will be added to the output filename.
 
 * The same scenario with downscaling with nearest resize algorithm:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump
 ```
-> **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (OpenCV INTER_AREA) algorithms available.
+> **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (similar to OpenCV INTER_AREA) algorithms are available.
 
-> **Warning:** Resize algorithms applied to NV12 so b2b with popular frameworks which perform resize to not NV12 aren't guranteed.
+> **Warning:** Resize algorithms applied to NV12, so b2b with popular frameworks, which perform resize on other than NV12 format, aren't guaranteed.
 * Number of frames to process can be limited by -n option:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100
