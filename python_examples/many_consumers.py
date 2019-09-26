@@ -2,53 +2,64 @@ import time
 import argparse
 from threading import Thread
 
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, FourCC, FrameRate
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
                                      description="Example with two consumers")
     parser.add_argument("-i", "--input",
-                        default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
+                        default="rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4",
                         help="Path to bitstream: RTMP, local file")
     parser.add_argument("-n", "--number",
                         help="Number of frame to parse (default: 100)",
                         type=int, default=100)
+    parser.add_argument("--framerate_mode", default="NATIVE",
+                        choices=["NATIVE", "FAST", "BLOCKING"],
+                        help="Stream reading mode")
     return parser.parse_args()
 
 
 def consumer1(reader, n_frames):
-    for i in range(n_frames):
-        tensor = reader.read(name="consumer1",
-                             pixel_format=FourCC.RGB24,
-                             width=540,
-                             height=304)
+    try:
+        for i in range(n_frames):
+            tensor = reader.read(name="consumer1",
+                                 pixel_format=FourCC.RGB24,
+                                 width=540,
+                                 height=304)
 
-    print()
-    print("consumer1 shape:", tensor.shape)
-    print("consumer1 dtype:", tensor.dtype, end='\n\n')
+        print()
+        print("consumer1 shape:", tensor.shape)
+        print("consumer1 dtype:", tensor.dtype, end='\n\n')
+
+    except RuntimeError as e:
+        print(f"Bad things happened: {e}")
 
 
 def consumer2(reader, n_frames):
-    for i in range(n_frames):
-        tensor, index = reader.read(name="consumer2",
-                                    pixel_format=FourCC.BGR24,
-                                    return_index=True)
+    try:
+        for i in range(n_frames):
+            tensor, index = reader.read(name="consumer2",
+                                        pixel_format=FourCC.BGR24,
+                                        return_index=True)
 
-        if index % int(reader.fps) == 0:
-            print("consumer2 frame index", index)
+            if index % int(reader.fps) == 0:
+                print("consumer2 frame index", index)
+  
+        time.sleep(1.0)  # prevent simultaneous print
+        print("consumer2 shape:", tensor.shape)
+        print("consumer2 dtype:", tensor.dtype)
+        print("consumer2 last frame index:", index)
 
-    time.sleep(1.0)  # prevent simultaneous print
-    print("consumer2 shape:", tensor.shape)
-    print("consumer2 dtype:", tensor.dtype)
-    print("consumer2 last frame index:", index)
+    except RuntimeError as e:
+        print(f"Bad things happened: {e}")
 
 
 if __name__ == "__main__":
     args = parse_arguments()
 
-    reader = TensorStreamConverter(args.input, repeat_number=20)
-    reader.initialize()
+    reader = TensorStreamConverter(args.input, framerate_mode=FrameRate[args.framerate_mode])
+    reader.initialize(repeat_number=20)
 
     reader.start()
 

@@ -31,7 +31,7 @@ public:
 	/*
 	Initialize decoder with corresponding parameters. Allocate all neccessary resources.
 	*/
-	int Init(DecoderParameters& input);
+	int Init(DecoderParameters& input, std::shared_ptr<Logger> logger);
 
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
@@ -90,4 +90,8 @@ private:
 	*/
 	bool isClosed = true;
 	bool isFinished = false;
+	/*
+	Instance of Logger class
+	*/
+	std::shared_ptr<Logger> logger;
 };

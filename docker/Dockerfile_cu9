@@ -36,13 +36,13 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
 
 RUN pip3 install --no-cache-dir \
     twine==1.13.0 \
-    awscli==1.16.135 \
-    numpy==1.16.2
+    awscli==1.16.194 \
+    numpy==1.16.4
 
 # Install PyTorch
 RUN pip3 install --no-cache-dir \
-    torch==1.0.1.post2 \
-    torchvision==0.2.2
+    torch==1.1.0 \
+    torchvision==0.3.0
 
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\

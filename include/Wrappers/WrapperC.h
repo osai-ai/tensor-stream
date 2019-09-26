@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include "Common.h"
 #include "Parser.h"
@@ -16,12 +17,14 @@ class TensorStream {
 public:
 /** Initialization of TensorStream pipeline
  @param[in] inputFile Path to stream should be decoded
+ @param[in] maxConsumers Allowed number of simultaneously working consumers
+ @param[in] cudaDevice GPU used for execution
  @anchor decoderBuffer
  @param[in] decoderBuffer How many decoded frames should be stored in internal buffer
  @warning decodedBuffer should be less than DPB
  @return Status of execution, one of @ref ::Internal values
 */
-	int initPipeline(std::string inputFile, uint8_t decoderBuffer = 10);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10, FrameRateMode frameRate = FrameRateMode::NATIVE);
 
 /** Get parameters from bitstream
  @return Map with "framerate_num", "framerate_den", "width", "height" values
@@ -33,32 +36,33 @@ public:
 */
 	int startProcessing();
 
-/** Get decoded and post-processed frame
+/** Get decoded and post-processed frame. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] consumerName Consumer unique ID
  @param[in] index Specify which frame should be read from decoded buffer. Can take values in range [-@ref decoderBuffer, 0]
- @param[in] pixelFormat Output FourCC of frame stored in tensor, see @ref ::FourCC for supported values
- @param[in] dstWidth Specify the width of decoded frame
- @param[in] dstHeight Specify the height of decoded frame
+ @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
  @return Decoded frame in CUDA memory and index of decoded frame
 */
-	std::tuple<std::shared_ptr<uint8_t>, int> getFrame(std::string consumerName, int index, FourCC pixelFormat, int dstWidth = 0, int dstHeight = 0);
+	template <class T>
+	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 /** Close TensorStream session
- @param[in] mode Value from @ref ::CloseLevel
 */
-	void endProcessing(int mode = HARD);
+	void endProcessing();
 /** Enable logs from TensorStream
  @param[in] level Specify output level of logs, see @ref ::LogsLevel for supported values
 */
 	void enableLogs(int level);
-/** Dump the frame in CUDA memory to hard driver
+/** Dump the frame in CUDA memory to hard driver. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] frame CUDA memory should be dumped
- @param[in] width Width of frame
- @param[in] height Height of frame
- @param[in] format FourCC of frame, see @ref ::FourCC for supported values
+ @param[in] frameParameters Parameters specific for passed frame, used in @ref TensorStream::getFrame() call
  @param[in] dumpFile File handler
  */
-	int dumpFrame(std::shared_ptr<uint8_t> frame, int width, int height, FourCC format, std::shared_ptr<FILE> dumpFile);
+	template <class T>
+	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+/** Enable NVTX logs from TensorStream
+*/
+	void enableNVTX();
 	int getDelay();
+	void skipAnalyzeStage();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
@@ -69,11 +73,20 @@ private:
 	AVPacket* parsed;
 	int realTimeDelay = 0;
 	std::pair<int, int> frameRate;
+	FrameRateMode frameRateMode;
 	bool shouldWork;
+	bool skipAnalyze;
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::mutex freeSync;
 	std::mutex closeSync;
+
+	std::map<std::string, bool> blockingStatuses;
+	std::mutex blockingSync;
+	std::condition_variable blockingCV;
+	
+	std::shared_ptr<Logger> logger;
+	uint8_t currentCUDADevice;
 };
 
 /** 

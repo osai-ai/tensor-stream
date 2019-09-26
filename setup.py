@@ -20,6 +20,7 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
+
 readme = read('README.md')
 
 VERSION = find_version('tensor_stream', '__init__.py')
@@ -28,19 +29,33 @@ include_path = torch.utils.cpp_extension.include_paths(cuda=True)
 include_path += ["include/"]
 include_path += ["include/Wrappers/"]
 ffmpeg_path = ""
-if (platform.system() == 'Windows'):
-    if (not os.getenv('FFMPEG_PATH')):
+nvtx_path = ""
+if platform.system() == 'Windows':
+    if not os.getenv('FFMPEG_PATH'):
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
 
     ffmpeg_path = os.getenv('FFMPEG_PATH')
     include_path += [ffmpeg_path + "/include"]
 
+    if not os.getenv('NVTOOLSEXT_PATH'):
+        raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
+
+    nvtx_path = os.getenv('NVTOOLSEXT_PATH')
+    include_path += [nvtx_path + "/include"]
+
+
 library_path = torch.utils.cpp_extension.library_paths(cuda=True)
-if (platform.system() == 'Windows'):
-    if (ffmpeg_path):
+if platform.system() == 'Windows':
+    if ffmpeg_path:
         library_path += [ffmpeg_path + "/bin"]
     else:
         raise RuntimeError("Please set FFmpeg root folder path to FFMPEG_PATH variable.")
+
+    if nvtx_path:
+        library_path += [nvtx_path + "/lib/x64"]
+    else:
+        raise RuntimeError("Please set NVToolsExt root folder path to NVTOOLSEXT_PATH variable.")
+
 
 library = ["cudart"]
 library += ["cuda"]
@@ -53,7 +68,7 @@ library += ["avformat"]
 library += ["avutil"]
 library += ["swresample"]
 library += ["swscale"]
-if (platform.system() == 'Windows'):
+if platform.system() == 'Windows':
     library += ["caffe2"]
     library += ["torch"]
     library += ["torch_python"]
@@ -61,10 +76,16 @@ if (platform.system() == 'Windows'):
     library += ["c10"]
     library += ["_C"]
 
+if platform.system() == 'Windows':
+    library += ["nvToolsExt64_1"]
+else:
+    library += ["nvToolsExt"]
+
 app_src_path = []
 app_src_path += ["src/Decoder.cpp"]
-app_src_path += ["src/General.cpp"]
-app_src_path += ["src/Kernels.cu"]
+app_src_path += ["src/Common.cpp"]
+app_src_path += ["src/ColorConversion.cu"]
+app_src_path += ["src/Resize.cu"]
 app_src_path += ["src/Parser.cpp"]
 app_src_path += ["src/VideoProcessor.cpp"]
 app_src_path += ["src/Wrappers/WrapperPython.cpp"]

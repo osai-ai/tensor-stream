@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-//	::testing::GTEST_FLAG(filter) = "Wrapper_Init.OneThreadHang";
+	//::testing::GTEST_FLAG(filter) = "Wrapper_Init.*";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);

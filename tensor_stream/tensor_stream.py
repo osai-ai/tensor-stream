@@ -43,15 +43,6 @@ class LogsType(Enum):
     CONSOLE = 2
 
 
-## Class with possible C++ extension module close options
-# @details Used in @ref TensorStreamConverter.stop() function
-class CloseLevel(Enum):
-    ## Close all opened handlers, free resources
-    HARD = 1
-    ## Close all opened handlers except logs file handler, free resources
-    SOFT = 2
-
-
 ## Class with supported frame output color formats
 # @details Used in @ref TensorStreamConverter.read() function
 class FourCC(Enum):
@@ -61,43 +52,140 @@ class FourCC(Enum):
     RGB24 = 1
     ## RGB format, 24 bit for pixel, color plane order: B, G, R
     BGR24 = 2
+    ## YUV semi-planar format, 12 bit for pixel
+    NV12 = 3
+    ## YUV merged format, 16 bit for pixel
+    UYVY = 4
+    ## YUV merged format, 24 bit for pixel
+    YUV444 = 5
+    ## HSV format, 24 bit for pixel
+    HSV = 6
+
+
+## Algorithm used to do resize
+# @details Resize algorithms are applied to NV12 so b2b with another frameworks isn't guaranteed
+class ResizeType(Enum):
+    ## Simple algorithm without any interpolation
+    NEAREST = 0
+    ## Algorithm that does simple linear interpolation
+    BILINEAR = 1
+    ## Algorithm that does spline bicubic interpolation
+    BICUBIC = 2
+    ## Algorithm that does INTER_AREA OpenCV interpolation
+    AREA = 3
+
+
+## Possible planes order in RGB format
+class Planes(Enum):
+    ## Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB
+    PLANAR = 0
+    ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
+    MERGED = 1 
+
+
+## Enum with possible stream reading modes
+class FrameRate(Enum):
+    ## Read at native stream/camera frame rate
+    NATIVE = 0
+    ## Read frames as fast as possible
+    FAST = 1
+    ## Read frame by frame without skipping (only local files)
+    BLOCKING = 2
+
+
+## Class that stores frame parameters
+class FrameParameters:
+    ## Constructor of FrameParameters class
+    # @param[in] width Specify the width of decoded frame
+    # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
+    # @param[in] normalization Should final colors be normalized or not
+    def __init__(self,
+                 width=0,
+                 height=0,
+                 resize_type=ResizeType.NEAREST,
+                 pixel_format=FourCC.RGB24,
+                 planes_pos=Planes.MERGED,
+                 normalization=None):
+        parameters = TensorStream.FrameParameters()
+        color_options = TensorStream.ColorOptions(TensorStream.FourCC(pixel_format.value))
+        if normalization is not None:
+            color_options.normalization = normalization
+        color_options.planesPos = TensorStream.Planes(planes_pos.value)
+
+        resize_options = TensorStream.ResizeOptions()
+        resize_options.width = width
+        resize_options.height = height
+        resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
+
+        parameters.color = color_options
+        parameters.resize = resize_options
+        self.parameters = parameters
+
+    def __repr__(self):
+        string = (f"FrameParameters(\n"
+                  f"    width={self.parameters.resize.height},\n"
+                  f"    height={self.parameters.resize.width},\n"
+                  f"    resize_type={self.parameters.resize.resizeType},\n"
+                  f"    pixel_format={self.parameters.color.dstFourCC},\n"
+                  f"    planes_pos={self.parameters.color.planesPos},\n"
+                  f"    normalization={self.parameters.color.normalization}\n"
+                  ")")
+        return string
 
 
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
     ## Constructor of TensorStreamConverter class
     # @param[in] stream_url Path to stream should be decoded
-    # @anchor repeat_number
-    # @param[in] repeat_number Set how many times @ref initialize() function will try to initialize pipeline in case of any issues
-    def __init__(self, stream_url, repeat_number=1):
+    # @param[in] max_consumers Allowed number of simultaneously working consumers
+    # @param[in] cuda_device GPU used for execution
+    # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
+    # @warning Size of buffer should be less or equal to DPB
+    def __init__(self,
+                 stream_url,
+                 max_consumers=5,
+                 cuda_device=torch.cuda.current_device(),
+                 buffer_size=5,
+                 framerate_mode=FrameRate.NATIVE):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
+        self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
         self.fps = None 
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
         self.frame_size = None 
 
+        self.max_consumers = max_consumers
+        self.cuda_device = cuda_device
+        self.buffer_size = buffer_size
         self.stream_url = stream_url
-        self.repeat_number = repeat_number
+        self.framerate_mode = TensorStream.FrameRateMode(framerate_mode.value)
 
     ## Initialization of C++ extension
+    # @param[in] repeat_number Set how many times try to initialize pipeline in case of any issues
     # @warning if initialization attempts exceeded @ref repeat_number, RuntimeError is being thrown
-    def initialize(self):
+    def initialize(self, repeat_number=1):
         self.log.info("Initialize TensorStream")
         status = StatusLevel.REPEAT.value
-        repeat = self.repeat_number
+        repeat = repeat_number
         while status != StatusLevel.OK.value and repeat > 0:
-            status = TensorStream.init(self.stream_url)
+            status = self.tensor_stream.init(self.stream_url,
+                                             self.max_consumers,
+                                             self.cuda_device,
+                                             self.buffer_size,
+                                             self.framerate_mode)
             if status != StatusLevel.OK.value:
-                # Mode 1 - full close, mode 2 - soft close (for reset)
-                self.stop(CloseLevel.SOFT)
-            repeat = repeat - 1
+                self.stop()
+                repeat = repeat - 1
 
         if repeat == 0:
             raise RuntimeError("Can't initialize TensorStream")
         else:
-            params = TensorStream.getPars()
+            params = self.tensor_stream.getPars()
             self.fps = params['framerate_num'] / params['framerate_den']
             self.frame_size = (params['width'], params['height'])
 
@@ -105,27 +193,69 @@ class TensorStreamConverter:
     # @param[in] level Specify output level of logs, see @ref LogsLevel for supported values
     # @param[in] log_type Specify where the logs should be printed, see @ref LogsType for supported values
     def enable_logs(self, level, log_type):
-        if log_type == LogsType.FILE:
-            TensorStream.enableLogs(level.value)
-        else:
-            TensorStream.enableLogs(-level.value)
+        if level != LogsLevel.NONE:
+            if log_type == LogsType.FILE:
+                self.tensor_stream.enableLogs(level.value)
+            else:
+                self.tensor_stream.enableLogs(-level.value)
+
+    ## Enable NVTX from TensorStream C++ extension
+    def enable_nvtx(self):
+        self.tensor_stream.enableNVTX()
+
+    ## Skip bitstream frames reordering / loss analyze stage
+    def skip_analyze(self):
+        self.tensor_stream.skipAnalyze()
 
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
-    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-10, 0]
-    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
-    # @param[in] return_index Specify whether need return index of decoded frame or not
     # @param[in] width Specify the width of decoded frame
     # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
+    # @param[in] normalization Should final colors be normalized or not
+    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
+    # @param[in] return_index Specify whether need return index of decoded frame or not
+    
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
              name="default",
-             delay=0,
-             pixel_format=FourCC.RGB24,
-             return_index=False,
              width=0,
-             height=0):
-        tensor, index = TensorStream.get(name, delay, pixel_format.value, width, height)
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None,
+             delay=0,
+             return_index=False):
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
+        result = self.param_read(frame_parameters,
+                                 name=name,
+                                 delay=delay,
+                                 return_index=return_index)
+        return result
+
+    ## Read the next decoded frame, should be invoked only after @ref start() call
+    # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
+    # @param[in] frame_parameters Frame parameters
+    # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
+    # @param[in] return_index Specify whether need return index of decoded frame or not
+
+    # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
+    def param_read(self,
+                   frame_parameters: FrameParameters,
+                   name="default",
+                   delay=0,
+                   return_index=False):
+        tensor, index = self.tensor_stream.get(name, delay, frame_parameters.parameters)
         if return_index:
             return tensor, index
         else:
@@ -134,11 +264,34 @@ class TensorStreamConverter:
     ## Dump the tensor to hard driver
     # @param[in] tensor Tensor which should be dumped
     # @param[in] name The name of file with dumps
-    def dump(self, tensor, name):
-        TensorStream.dump(tensor, name)
+    # @param[in] width Specify the width of decoded frame
+    # @param[in] height Specify the height of decoded frame
+    # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
+    # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
+    # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
+    # @param[in] normalization Should final colors be normalized or not
+    def dump(self,
+             tensor,
+             name="default",
+             width=0,
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None):
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
+
+        self.tensor_stream.dump(tensor, name, frame_parameters.parameters)
 
     def _start(self):
-        TensorStream.start()
+        self.tensor_stream.start()
 
     ## Start processing with parameters set via @ref initialize() function
     # This functions is being executed in separate thread
@@ -148,13 +301,10 @@ class TensorStreamConverter:
 
     ## Close TensorStream session
     # @param[in] level Value from @ref CloseLevel
-    def stop(self, level=CloseLevel.HARD):
+    def stop(self):
         self.log.info("Stop TensorStream")
-        TensorStream.close(level.value)
+        self.tensor_stream.close()
         if self.thread is not None:
             self.thread.join()
 
-    def __del__(self):
-        self.stop()
-    
 ## @}

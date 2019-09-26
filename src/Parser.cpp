@@ -144,6 +144,7 @@ bool BitReader::SkipGolomb() {
 }
 
 int Parser::Analyze(AVPacket* package) {
+	PUSH_RANGE("Parser::Analyze", NVTXColors::AQUA);
 	enum NALTypes {
 		UNKNOWN = 0,
 		SPS = 7,
@@ -195,6 +196,9 @@ int Parser::Analyze(AVPacket* package) {
 						bitReader.SkipBits(1); //seq_scaling_list_present_flag[i]
 				}
 			}
+			else {
+				LOG_VALUE(std::string("[PARSING] Bitstream doesn't conform to the Main profile ") + std::to_string(profile_idc), LogsLevel::LOW);
+			}
 			log2_max_frame_num_minus4 = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 			pic_order_cnt_type = bitReader.Convert(bitReader.ReadGolomb(), BitReader::Type::GOLOMB, BitReader::Base::DEC);
 			if (pic_order_cnt_type == 0) {
@@ -212,7 +216,7 @@ int Parser::Analyze(AVPacket* package) {
 			gaps_in_frame_num_value_allowed_flag = bitReader.Convert(bitReader.ReadBits(1), BitReader::Type::RAW, BitReader::Base::DEC);
 			//it's very rare scenario with pretty tricky handling logic, so for now message with warning is throwing
 			if (gaps_in_frame_num_value_allowed_flag) {
-				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"));
+				LOG_VALUE(std::string("[PARSING] Field gaps_in_frame_num_value_allowed_flag is unexpected != 0"), LogsLevel::LOW);
 				errorBitstream = errorBitstream | AnalyzeErrors::GAPS_FRAME_NUM;
 			}
 			bitReader.SkipGolomb(); //pic_width_in_mbs_minus1
@@ -257,13 +261,13 @@ int Parser::Analyze(AVPacket* package) {
 			if (frame_num == frameNumValue) {
 				if (pic_order_cnt_lsb <= POC) {
 					LOG_VALUE(std::string("[PARSING] B-slice incorrect POC. Current POC: ") + std::to_string(pic_order_cnt_lsb)
-						+ std::string(" previous POC: ") + std::to_string(POC));
+						+ std::string(" previous POC: ") + std::to_string(POC), LogsLevel::LOW);
 					errorBitstream = errorBitstream | AnalyzeErrors::B_POC;
 				}
 			}
 			else if (frame_num != frameNumValue + 1) {
 				LOG_VALUE(std::string("[PARSING] frame_num is incorrect. Current frame_num: ") + std::to_string(frame_num)
-					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue));
+					+ std::string(" previous frame_num: ") + std::to_string(frameNumValue), LogsLevel::LOW);
 				errorBitstream = errorBitstream | AnalyzeErrors::FRAME_NUM;
 			}
 			
@@ -275,9 +279,11 @@ int Parser::Analyze(AVPacket* package) {
 	return errorBitstream;
 }
 
-int Parser::Init(ParserParameters& input) {
+int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Parser::Init", NVTXColors::AQUA);
 	state = input;
 	int sts = VREADER_OK;
+	this->logger = logger;
 	//packet_buffer - isn't empty
 	AVDictionary *opts = 0;
 	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
@@ -329,6 +335,7 @@ Parser::Parser() {
 
 //no need any sync due to executing in 1 thread only
 int Parser::Read() {
+	PUSH_RANGE("Parser::Read", NVTXColors::AQUA);
 	int sts = VREADER_OK;
 	bool videoFrame = false;
 	while (videoFrame == false) {
@@ -356,6 +363,7 @@ int Parser::Read() {
 
 //no need any sync due to executing in 1 thread only
 int Parser::Get(AVPacket* output) {
+	PUSH_RANGE("Parser::Get", NVTXColors::AQUA);
 	if (lastFrame.second == false && lastFrame.first->stream_index == videoIndex) {
 		//decoder is responsible for deallocating
 		av_packet_ref(output, lastFrame.first);
@@ -379,6 +387,7 @@ AVStream* Parser::getStreamHandle() {
 }
 
 void Parser::Close() {
+	PUSH_RANGE("Parser::Close", NVTXColors::AQUA);
 	if (isClosed)
 		return;
 	av_bitstream_filter_close(bitstreamFilter);

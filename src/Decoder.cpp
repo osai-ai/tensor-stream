@@ -9,10 +9,11 @@ Decoder::Decoder() {
 
 }
 
-int Decoder::Init(DecoderParameters& input) {
+int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;
 	int sts;
-
+	this->logger = logger;
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
@@ -44,6 +45,7 @@ int Decoder::Init(DecoderParameters& input) {
 }
 
 void Decoder::Close() {
+	PUSH_RANGE("Decoder::Close", NVTXColors::RED);
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
@@ -93,6 +95,7 @@ AVCodecContext* Decoder::getDecoderContext() {
 }
 
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
+	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
 	//element in map will be created after trying to call it
 	if (!consumerStatus[consumerName]) {
 		consumerStatus[consumerName] = false;
@@ -110,7 +113,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 		if (consumerStatus[consumerName] == true) {
 			consumerStatus[consumerName] = false;
 			if (index > 0) {
-				LOG_VALUE(std::string("WARNING: Frame number is greater than zero: ") + std::to_string(index));
+				LOG_VALUE(std::string("WARNING: Frame number is greater than zero: ") + std::to_string(index), LogsLevel::LOW);
 				index = 0;
 			}
 			int allignedIndex = (currentFrame - 1) % state.bufferDeep + index;
@@ -125,6 +128,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 }
 
 int Decoder::Decode(AVPacket* pkt) {
+	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
 	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
@@ -133,9 +137,6 @@ int Decoder::Decode(AVPacket* pkt) {
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
 	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-	//TensorStream parses only video and not audio so let's use audio variable for video frame channels number
-	//Number of channels for NV12 = 1
-	decodedFrame->channels = 1;
 
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);

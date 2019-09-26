@@ -1,44 +1,56 @@
 #include "VideoProcessor.h"
 #include "Common.h"
 
-void saveFrame(AVFrame *avFrame, FILE* dump) {
+float channelsByFourCC(FourCC fourCC) {
+	float channels = 3;
+	if (fourCC == Y800)
+		channels = 1;
+	if (fourCC == UYVY)
+		channels = 2;
+	if (fourCC == NV12)
+		channels = 1.5;
 	
-	uint8_t *frame = avFrame->data[0];
-	for (uint32_t i = 0; i < avFrame->height; i++) {
-		int sts = fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
-		if (avFrame->linesize[0])
-			frame += avFrame->channels * avFrame->linesize[0];
-		else
-			frame += avFrame->channels * avFrame->width;
-	}
+	return channels;
+}
+
+float channelsByFourCC(std::string fourCC) {
+	float channels = 3;
+	if (fourCC == "Y800")
+		channels = 1;
+	if (fourCC == "UYVY")
+		channels = 2;
+	if (fourCC == "NV12")
+		channels = 1.5;
+
+	return channels;
+}
+
+template <class T>
+void saveFrame(T* frame, FrameParameters options, FILE* dump) {
+	float channels = channelsByFourCC(options.color.dstFourCC);
 	
-	if (avFrame->format == AV_PIX_FMT_NV12) {
-		uint8_t *frame = avFrame->data[1];
-		for (uint32_t i = 0; i < avFrame->height / 2; i++) {
-			fwrite(frame, avFrame->width * avFrame->channels, 1, dump);
-			if (avFrame->linesize[1])
-				frame += avFrame->channels * avFrame->linesize[1];
-			else
-				frame += avFrame->channels * avFrame->width;
-		}
-	}
-	
+	//allow dump Y, RGB, BGR
+	fwrite(frame, (int) (options.resize.width * options.resize.height * channels), sizeof(T), dump);
+
 	fflush(dump);
 }
 
-int VideoProcessor::DumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile) {
+template <class T>
+int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
+	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
+	float channels = channelsByFourCC(options.color.dstFourCC);
 	//allocate buffers
-	std::shared_ptr<uint8_t> rawData(new uint8_t[output->channels * output->width * output->height], std::default_delete<uint8_t[]>());
-	output->data[0] = rawData.get();
-	cudaError err = cudaMemcpy(output->data[0], output->opaque, output->channels * output->width * output->height * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * options.resize.width * options.resize.height)], std::default_delete<T[]>());
+	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
-	saveFrame(output, dumpFile.get());
+	saveFrame(rawData.get(), options, dumpFile.get());
 	return VREADER_OK;
 }
 
-int VideoProcessor::Init(bool _enableDumps) {
+int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, bool _enableDumps) {
+	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
-
+	this->logger = logger;
 	cudaGetDeviceProperties(&prop, 0);
 	for (int i = 0; i < maxConsumers; i++) {
 		cudaStream_t stream;
@@ -50,7 +62,8 @@ int VideoProcessor::Init(bool _enableDumps) {
 	return VREADER_OK;
 }
 
-int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& format, std::string consumerName) {
+int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName) {
+	PUSH_RANGE("VideoProcessor::Convert", NVTXColors::YELLOW);
 	/*
 	Should decide which method call
 	*/
@@ -59,62 +72,28 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 	{
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
+		if (stream == nullptr) {
+			CHECK_STATUS(VREADER_ERROR);
+		}
 	}
 
-	output->width = format.width;
-	output->height = format.height;
+	output->width = options.resize.width;
+	output->height = options.resize.height;
 	bool resize = false;
 	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
 		resize = true;
-		resizeNV12Nearest(input, output, prop.maxThreadsPerBlock, &stream);
+		resizeKernel(input, output, options.resize.type, prop.maxThreadsPerBlock, &stream);
 	}
 	else if (output->width == 0 || output->height == 0) {
-		output->width = input->width;
-		output->height = input->height;
+		output->width = options.resize.width = input->width;
+		output->height = options.resize.height = input->height;
 	}
 
-	switch (format.dstFourCC) {
-	case (RGB24):
-		{
-			output->format = AV_PIX_FMT_RGB24;
-			//this field is used only for audio so let's write number of planes there
-			output->channels = 3;
-			if (resize)
-				sts = NV12ToRGB24(output, output, prop.maxThreadsPerBlock, &stream);
-			else
-				sts = NV12ToRGB24(input, output, prop.maxThreadsPerBlock, &stream);
-			CHECK_STATUS(sts);
-			break;
-		}
-	case (BGR24):
-		{
-			output->format = AV_PIX_FMT_BGR24;
-			//this field is used only for audio so let's write number of planes there
-			output->channels = 3;
-			if (resize)
-				sts = NV12ToBGR24(output, output, prop.maxThreadsPerBlock, &stream);
-			else
-				sts = NV12ToBGR24(input, output, prop.maxThreadsPerBlock, &stream);
-			CHECK_STATUS(sts);
-			break;
-		}
-	case (Y800):
-		{
-			output->format = AV_PIX_FMT_GRAY8;
-			output->channels = 1;
-			//NV12 has one plane with Y only component, so need just copy first plane
-			cudaError err = cudaMalloc(&output->opaque, output->width * output->height * sizeof(unsigned char));
-			CHECK_STATUS(err);
-			if (resize)
-				err = cudaMemcpy(output->opaque, output->data[0], output->width * output->height, cudaMemcpyDeviceToDevice);
-			else
-				err = cudaMemcpy2D(output->opaque, output->width, input->data[0], input->linesize[0], output->width, output->height, cudaMemcpyDeviceToDevice);
-			CHECK_STATUS(err);
-			break;
-		}
-	default:
-		return VREADER_UNSUPPORTED;
-	}
+	if (options.color.normalization)
+		sts = colorConversionKernel<float>(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
+	else
+		sts = colorConversionKernel<unsigned char>(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
+	
 	if (resize) {
 		//need to free allocated in resize memory for Y and UV
 		cudaError err = cudaFree(output->data[0]);
@@ -128,7 +107,10 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 		{
 			//avoid situations when several threads write to IO (some possible collisions can be observed)
 			std::unique_lock<std::mutex> locker(dumpSync);
-			DumpFrame(output, dumpFile);
+			if (options.color.normalization)
+				DumpFrame(static_cast<float*>(output->opaque), options, dumpFile);
+			else
+				DumpFrame(static_cast<unsigned char*>(output->opaque), options, dumpFile);
 		}
 	}
 	av_frame_unref(input);
@@ -136,6 +118,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, VPPParameters& form
 }
 
 void VideoProcessor::Close() {
+	PUSH_RANGE("VideoProcessor::Close", NVTXColors::YELLOW);
 	if (isClosed)
 		return;
 	isClosed = true;

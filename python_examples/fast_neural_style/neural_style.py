@@ -6,7 +6,7 @@ import numpy as np
 from transfromer_net import TransformerNet
 from ffmpeg_video_writer import FFmpegVideoWriter
 
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, Planes, FourCC
 
 
 def parse_arguments():
@@ -17,10 +17,10 @@ def parse_arguments():
                         default="saved_models/mosaic.pth",
                         help="Path to model weight")
     parser.add_argument("-i", "--input",
-                        default="rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4",
+                        default="rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4",
                         help="Input stream (RTMP) or local video file")
     parser.add_argument("-o", "--output",
-                         default="video.mp4",
+                        default="video.mp4",
                         help="Output stream or video file")
     parser.add_argument("--concat_orig", action='store_true',
                         help="Concatenate original frames to output video")
@@ -69,8 +69,8 @@ if __name__ == "__main__":
 
     style_model = load_model(args.model, device='cuda')
 
-    reader = TensorStreamConverter(args.input, repeat_number=20)
-    reader.initialize()
+    reader = TensorStreamConverter(args.input)
+    reader.initialize(repeat_number=20)
     print(f"Input video frame size: {reader.frame_size}, fps: {reader.fps}")
 
     width = args.width if args.width else reader.frame_size[0]
@@ -92,12 +92,10 @@ if __name__ == "__main__":
             tensor, index = reader.read(pixel_format=FourCC.RGB24,
                                         return_index=True,
                                         width=width,
-                                        height=height)
-
-            tensor = tensor.permute(2, 0, 1)
+                                        height=height,
+                                        planes_pos=Planes.PLANAR,
+                                        normalization=True)
             tensor = tensor.unsqueeze(0)
-            tensor = tensor.to(torch.float32)
-
             with torch.no_grad():
                 output = style_model(tensor)
                 output = torch.clamp(output, 0, 255)

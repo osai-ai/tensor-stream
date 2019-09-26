@@ -4,28 +4,26 @@
 TEST(Parser_Init, WrongInputPath) {
 	Parser parser;
 	ParserParameters parserArgs = { "wrong_path" };
-	EXPECT_NE(parser.Init(parserArgs), VREADER_OK);
+	EXPECT_NE(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
 	parserArgs = { };
-	EXPECT_NE(parser.Init(parserArgs), VREADER_OK);
+	EXPECT_NE(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
 }
 
 TEST(Parser_Init, CorrectInputPath) {
 	Parser parser;
-	ParserParameters parserArgs = { "rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4" };
-	EXPECT_EQ(parser.Init(parserArgs), VREADER_OK);
-	parser.Close();
-	parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
-	EXPECT_EQ(parser.Init(parserArgs), VREADER_OK);
-	EXPECT_EQ(parser.getWidth(), 1080);
-	EXPECT_EQ(parser.getHeight(), 608);
+	ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", true };
+	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
+	EXPECT_EQ(parser.getWidth(), 1280);
+	EXPECT_EQ(parser.getHeight(), 720);
 	auto codec = parser.getFormatContext()->streams[parser.getVideoIndex()]->codec;
-	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 25);
+	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 24);
+	parser.Close();
 }
 
 TEST(Parser_ReadGet, CheckFrame) {
 	Parser parser;
 	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
-	parser.Init(parserArgs);
+	parser.Init(parserArgs, std::make_shared<Logger>());
 	//Read SPS/PPS/SEI + IDR frame
 	EXPECT_EQ(parser.Read(), VREADER_OK);
 	AVPacket parsed;
@@ -51,7 +49,7 @@ TEST(Parser_ReadGet, CheckFrame) {
 TEST(Parser_ReadGet, BitstreamEnd) {
 	Parser parser;
 	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
-	parser.Init(parserArgs);
+	parser.Init(parserArgs, std::make_shared<Logger>());
 	AVPacket parsed;
 	//Read all frames except last
 	for (int i = 0; i < 9; i++) {
@@ -168,7 +166,7 @@ protected:
 TEST_F(Parser_Analyze_Broken, WithoutIDR) {
 	Parser parser;
 	ParserParameters parserArgs = { "../resources/broken_420/Without_IDR.h264" };
-	parser.Init(parserArgs);
+	parser.Init(parserArgs, std::make_shared<Logger>());
 	AVPacket parsed;
 	parser.Read();
 	parser.Get(&parsed);
@@ -179,7 +177,7 @@ TEST_F(Parser_Analyze_Broken, WithoutIDR) {
 TEST_F(Parser_Analyze_Broken, WithoutFirstNonIDR) {
 	Parser parser;
 	ParserParameters parserArgs = { "../resources/broken_420/Without_first_non-IDR.h264" };
-	parser.Init(parserArgs);
+	parser.Init(parserArgs, std::make_shared<Logger>());
 	AVPacket parsed;
 	//Read IDR
 	parser.Read();
@@ -195,7 +193,7 @@ TEST_F(Parser_Analyze_Broken, LastFrameRepeat) {
 	Parser parser;
 	//this stream contains gaps_in_frame_num_value_allowed_flag flag so don't check correctnes during first 9 frames (Analyze can't handle this flag and return warning)
 	ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
-	parser.Init(parserArgs);
+	parser.Init(parserArgs, std::make_shared<Logger>());
 	AVPacket parsed;
 	for (int i = 0; i < 10; i++) {
 		parser.Read();

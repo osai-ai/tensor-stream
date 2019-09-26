@@ -1,36 +1,36 @@
-
 # TensorStream
-TensorStream is a C++ library for real-time video stream (e.g., RTMP) decoding to CUDA memory which supports some additional features:
+TensorStream is a C++ library for real-time video streams (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
 * Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
-* Support Linux and Windows  
+The library supports Linux and Windows.
 
 Simple example how to use TensorStream for deep learning tasks:
 
 ```python
-from tensor_stream import TensorStreamConverter, FourCC
+from tensor_stream import TensorStreamConverter, FourCC, Planes
 
-reader = TensorStreamConverter("rtmp://127.0.0.1/live")
+reader = TensorStreamConverter("rtmp://127.0.0.1/live", cuda_device=0)
 reader.initialize()
 reader.start()
 
 while need_predictions:
-    # read latest available frame from the stream 
+    # read the latest available frame from the stream 
     tensor = reader.read(pixel_format=FourCC.BGR24,
-                         width=256,
-                         height=256)
+                         width=256,                 # resize to 256x256 px
+                         height=256,
+                         normalization=True,        # normalize to range [0, 1]
+                         planes_pos=Planes.PLANAR)  # dimension order [C, H, W]
                          
-    # tensor dtype is torch.uint8, device is cuda, shape is (256, 256, 3)
-    prediction = model(tensor)
-    ...
+    # tensor dtype is torch.float32, device is 'cuda:0', shape is (3, 256, 256)
+    prediction = model(tensor.unsqueeze(0))
 ```
 
 * Initialize tensor stream with a video (e.g., a local file or a network video stream) and start reading it in a separate process.
 
-* Get latest available frame from the stream and make a prediction.
+* Get the latest available frame from the stream and make a prediction.
 
-> **Note:** All tasks inside TensorStream processed on a GPU, so output tensor also located on the GPU.
+> **Note:** All tasks inside TensorStream processed on a GPU, so the output tensor is also located on the GPU.
 
 
 ## Table of Contents
@@ -46,7 +46,7 @@ while need_predictions:
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [PyTorch](https://github.com/pytorch/pytorch) 1.0.1.post2 or above to build C++ extension for Python
+* [PyTorch](https://github.com/pytorch/pytorch) 1.1.0 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 It is convenient to use TensorStream in Docker containers. The provided [Dockerfiles](#docker-image) is supplied to create an image with all the necessary dependencies.
@@ -95,13 +95,14 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 
 ### Binaries (Linux only)
 Extension for Python can be installed via pip:
- - **CUDA 9:**
+
+- **CUDA 9:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.2.0-cp36-cp36m-linux_x86_64.whl
 ```
 - **CUDA 10:**
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.1.8-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.2.0-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
@@ -118,7 +119,7 @@ On Linux
 cd c_examples  # tests
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_PREFIX_PATH=$PWD/../../cmake ..
 ```
 On Windows
 ```
@@ -126,17 +127,22 @@ set FFMPEG_PATH="Path to FFmpeg install folder"
 cd c_examples or tests
 mkdir build
 cd build
-cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
+cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ```
 
 ## Docker image
-Dockerfiles can be found in [docker](docker) folder. Please note that for different CUDAs different Dockerfiles are required. To distinguish them name suffix is used, i.e. for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+Dockerfiles can be found in [docker](docker) folder. Please note that different Dockerfiles are required for different CUDA versions. To distinguish them name suffix is used, i.e., for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
 ```
 docker build -t tensorstream -f docker/Dockerfile_cu10 .
 ```
-Run with bash command line and follow [installation guide](#install-tensorstream)
+Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
 nvidia-docker run -ti tensorstream bash
+```
+> **Note:** GPU support was added to new version of Docker (tested with Docker version 19.03.1), so instead of `nvidia-docker run` command above need to execute:
+
+```
+docker run --gpus=all -ti tensorstream bash
 ```
 
 ## Usage
@@ -148,25 +154,59 @@ nvidia-docker run -ti tensorstream bash
 
 * Convert an RTMP bitstream to RGB24 PyTorch tensors and dump the result to a dump.yuv file: 
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -o dump.yuv
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -o dump
 ```
-> **Warning:** Dumps significantly affect performance
+> **Warning:** Dumps significantly affect performance. Suffix .yuv will be added to the output filename.
 
-* The same scenario with downscaling:
+* The same scenario with downscaling with nearest resize algorithm:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 --resize_type NEAREST -o dump
 ```
+> **Note:** Besides nearest resize algorithm, bilinear, bicubic and area (similar to OpenCV INTER_AREA) algorithms are available.
+
+> **Warning:** Resize algorithms applied to NV12, so b2b with popular frameworks, which perform resize on other than NV12 format, aren't guaranteed.
 * Number of frames to process can be limited by -n option:
 ```
-python simple.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -fc RGB24 -w 720 -h 480 -o dump.yuv -n 100
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100
 ```
-
+* Output pixels format can be either torch.float32 or torch.uint8 depending on normalization option which can be True, False or not set so TensorStream will decide which value should be used:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --normalize True
+```
+* Color planes in case of RGB can be either planar or merged and can be set via --planes option:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED
+```
+* Buffer size of processed frames via -bs or --buffer_size option:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --buffer_size 5
+```
+> **Warning:** Buffer size should be less or equal to decoded picture buffer (DPB)
+* GPU used for execution can be set via --cuda_device option:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --cuda_device 0
+```
+* Input stream reading mode can be chosen with --framerate_mode option. Check help to find available values and description:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --framerate_mode NATIVE
+```
+* Bitstream analyze stage can be skipped to decrease latency with --skip_analyze flag:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --skip_analyze
+```
+* Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
+```
 2. [Example](python_examples/many_consumers.py) demonstrates how to use TensorStream in case of several stream consumers:
-
 ```
-python many_consumers.py -i rtmp://184.72.239.149/vod/mp4:bigbuckbunny_1500.mp4 -n 100
+python many_consumers.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -n 100
 ```
-
+3. [Example](python_examples/different_streams.py) demonstrates how to use TensorStream if several streams should be handled simultaneously:
+```
+python different_streams.py -i1 <path-to-first-stream> -i2 <path-to-second-stream> -n1 100 -n2 50 -v1 LOW -v2 HIGH --cuda_device1 0 --cuda_device2 1
+```
+> **Warning:** Default path to second stream is relative, so need to run different_streams.py from parent folder if no arguments are passing
 ### PyTorch example
 
 Real-time video style transfer example: [fast-neural-style](python_examples/fast_neural_style).

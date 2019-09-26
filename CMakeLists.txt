@@ -23,14 +23,29 @@ include_directories("include")
 include_directories("include/Wrappers")
 
 FILE(GLOB APP_SOURCE "src/*.c*")
-FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c*)
+FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c* src/Wrappers/WrapperCommon.c*)
 list(APPEND APP_SOURCE ${WRAPPER_SOURCE})
 source_group("src" FILES ${APP_SOURCE})
 
 FILE(GLOB APP_HEADERS "include/*.h*")
-FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h*)
+FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h* include/Wrappers/WrapperCommon.h*)
 list(APPEND APP_HEADERS ${WRAPPER_HEADER})
 source_group("include" FILES ${APP_HEADERS})
+
+#NVTX includes
+if (WIN32)
+    set(NVTOOLSEXT_PATH $ENV{NVTOOLSEXT_PATH})
+    if (${NVTOOLSEXT_PATH})
+        strip_quotes_slash(NVTOOLSEXT_PATH)
+    endif()
+    message(STATUS ${NVTOOLSEXT_PATH})
+    if (NOT "${NVTOOLSEXT_PATH}/include" STREQUAL "/include")
+        include_directories(${NVTOOLSEXT_PATH}/include)
+        message(STATUS "NVTX headers found ${NVTOOLSEXT_PATH}/include")
+    else()
+        MESSAGE(SEND_ERROR "Can't find NVTX headers")
+    endif()
+endif()
 
 #FFmpeg includes
 if (WIN32)
@@ -75,6 +90,9 @@ if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/include)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_directory ${FFMPEG_PATH}/include ${CMAKE_BINARY_DIR}/include
+        COMMENT "Copying external includes")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${NVTOOLSEXT_PATH}/include ${CMAKE_BINARY_DIR}/include
         COMMENT "Copying external includes")
 endif()
 
@@ -121,3 +139,30 @@ else()
 endif()
 ###############################
 
+#NVTX static libraries
+if (WIN32)
+    if (NOT "${NVTOOLSEXT_PATH}/lib/x64" STREQUAL "/lib/x64")
+        FILE(GLOB_RECURSE NVTX_LIBS ${NVTOOLSEXT_PATH}/lib/x64/*.lib)
+        message(STATUS "NVTX static libraries found ${NVTX_LIBS}")
+    else()
+        MESSAGE(SEND_ERROR "Can't find NVTX static libraries")
+    endif()
+else()
+    find_library(NVTX_LIBS nvToolsExt PATHS ${CMAKE_CUDA_HOST_IMPLICIT_LINK_DIRECTORIES})
+endif()
+target_link_libraries(${PROJECT_NAME} ${NVTX_LIBS})
+###############################
+
+#NVTX dynamic libraries
+if (WIN32)
+    if (NOT "${NVTOOLSEXT_PATH}/bin/x64" STREQUAL "/bin/x64")
+        FILE(GLOB_RECURSE NVTX_DLLS "${NVTOOLSEXT_PATH}/bin/x64/*.dll")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${NVTX_DLLS} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+            COMMENT "Copying dependent DLL")
+        message(STATUS "NVTX dynamic libraries found ${NVTX_DLLS}")
+    else()
+        MESSAGE(SEND_ERROR "Can't find NVTX dynamic libraries")
+    endif()
+endif()
+###############################

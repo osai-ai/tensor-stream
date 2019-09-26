@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #ifdef _DEBUG
 #undef _DEBUG
@@ -26,13 +27,15 @@
 
 class TensorStream {
 public:
-	int initPipeline(std::string inputFile);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRate);
 	std::map<std::string, int> getInitializedParams();
-	int startProcessing();
-	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, int pixelFormat, int dstWidth = 0, int dstHeight = 0);
-	void endProcessing(int mode = HARD);
-	void enableLogs(int _logsLevel);
-	int dumpFrame(AVFrame* output, std::shared_ptr<FILE> dumpFile);
+	int startProcessing(int cudaDevice = 0);
+	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
+	void endProcessing();
+	void enableLogs(int logsLevel);
+	void enableNVTX();
+	int dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters);
+	void skipAnalyzeStage();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
@@ -43,11 +46,18 @@ private:
 	AVPacket* parsed;
 	int realTimeDelay = 0;
 	std::pair<int, int> frameRate;
+	FrameRateMode frameRateMode;
 	bool shouldWork;
+	bool skipAnalyze;
 	std::vector<std::pair<std::string, AVFrame*> > decodedArr;
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::vector<at::Tensor> tensors;
 	std::vector<std::shared_ptr<uint8_t> > processedFrames;
 	std::mutex freeSync;
 	std::mutex closeSync;
+	std::map<std::string, bool> blockingStatuses;
+	std::mutex blockingSync;
+	std::condition_variable blockingCV;
+	std::shared_ptr<Logger> logger;
+	uint8_t currentCUDADevice;
 };
