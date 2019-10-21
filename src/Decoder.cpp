@@ -130,7 +130,6 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 int Decoder::Decode(AVPacket* pkt) {
 	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
-	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		return sts;
