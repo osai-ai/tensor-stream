@@ -146,7 +146,7 @@ int Decoder::Decode(AVPacket* pkt) {
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {
-			av_frame_unref(framesBuffer[(currentFrame) % state.bufferDeep]);
+			av_frame_free(&framesBuffer[(currentFrame) % state.bufferDeep]);
 		}
 		framesBuffer[(currentFrame) % state.bufferDeep] = decodedFrame;
 		//Frame changed, consumers can take it

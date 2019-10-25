@@ -341,8 +341,10 @@ int Parser::Read() {
 	while (videoFrame == false) {
 		sts = av_read_frame(formatContext, lastFrame.first);
 		CHECK_STATUS(sts);
-		if ((lastFrame.first)->stream_index != videoIndex)
+		if ((lastFrame.first)->stream_index != videoIndex) {
+			av_packet_unref(lastFrame.first);
 			continue;
+		}
 
 		videoFrame = true;
 		currentFrame++;
