@@ -152,7 +152,7 @@ private:
 	Bitstream filter for converting mp4->h264
 	*/
 	AVBitStreamFilterContext* bitstreamFilter;
-	std::shared_ptr<AVPacket> NALu;
+	AVPacket* NALu;
 	/*
 	Instance of Logger class
 	*/

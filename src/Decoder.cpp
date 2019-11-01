@@ -130,7 +130,6 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 int Decoder::Decode(AVPacket* pkt) {
 	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
-	clock_t start = clock();
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		return sts;
@@ -147,7 +146,7 @@ int Decoder::Decode(AVPacket* pkt) {
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {
-			av_frame_unref(framesBuffer[(currentFrame) % state.bufferDeep]);
+			av_frame_free(&framesBuffer[(currentFrame) % state.bufferDeep]);
 		}
 		framesBuffer[(currentFrame) % state.bufferDeep] = decodedFrame;
 		//Frame changed, consumers can take it

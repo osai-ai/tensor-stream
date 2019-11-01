@@ -5,7 +5,7 @@ import platform
 from setuptools import setup, find_packages, Extension
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import torch
-
+from packaging import version
 
 def read(*names, **kwargs):
     with io.open(os.path.join(os.path.dirname(__file__), *names),
@@ -69,10 +69,11 @@ library += ["avutil"]
 library += ["swresample"]
 library += ["swscale"]
 if platform.system() == 'Windows':
-    library += ["caffe2"]
+    if version.parse(torch.__version__) <= version.parse("1.1.0"):
+        library += ["caffe2"]
+        library += ["caffe2_gpu"]
     library += ["torch"]
     library += ["torch_python"]
-    library += ["caffe2_gpu"]
     library += ["c10"]
     library += ["_C"]
 

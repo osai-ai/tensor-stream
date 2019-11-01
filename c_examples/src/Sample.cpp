@@ -24,6 +24,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 					if (status < 0)
 						return;
 				}
+				cudaFree(std::get<0>(result));
 			}
 			else {
 				auto result = reader.getFrame<unsigned char>(executionParameters["name"], std::atoi(executionParameters["delay"].c_str()), frameParameters);
@@ -32,6 +33,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 					if (status < 0)
 						return;
 				}
+				cudaFree(std::get<0>(result));
 			}
 		}
 	}
@@ -49,7 +51,7 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4");
+		sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else

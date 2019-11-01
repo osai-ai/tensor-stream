@@ -276,6 +276,10 @@ int Parser::Analyze(AVPacket* package) {
 		frameNumValue = frame_num;
 		POC = pic_order_cnt_lsb;
 	}
+
+	av_freep(&NALu->data);
+	av_packet_free_side_data(NALu);
+	av_free_packet(NALu);
 	return errorBitstream;
 }
 
@@ -310,7 +314,9 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 		//Write file header
 		sts = avformat_write_header(dumpContext, NULL);
 	}
-	NALu = std::make_shared<AVPacket>();
+	NALu = new AVPacket();
+	av_init_packet(NALu);
+
 	bitstreamFilter = av_bitstream_filter_init("h264_mp4toannexb");
 
 	lastFrame = std::make_pair(new AVPacket(), false);
@@ -341,8 +347,10 @@ int Parser::Read() {
 	while (videoFrame == false) {
 		sts = av_read_frame(formatContext, lastFrame.first);
 		CHECK_STATUS(sts);
-		if ((lastFrame.first)->stream_index != videoIndex)
+		if ((lastFrame.first)->stream_index != videoIndex) {
+			av_packet_unref(lastFrame.first);
 			continue;
+		}
 
 		videoFrame = true;
 		currentFrame++;
@@ -400,5 +408,9 @@ void Parser::Close() {
 	}
 	av_packet_unref(lastFrame.first);
 	delete lastFrame.first;
+
+	av_packet_unref(NALu);
+	delete NALu;
+
 	isClosed = true;
 }

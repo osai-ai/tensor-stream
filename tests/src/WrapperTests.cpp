@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <algorithm>
 
 #include "WrapperC.h"
 extern "C" {
@@ -185,35 +186,6 @@ TEST(Wrapper_Init, DifferentGPUs) {
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, -cudaDevicesNumber, 5), VREADER_OK);
 	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, (int) (cudaDevicesNumber / 2), 5), VREADER_OK);
 	
-}
-
-
-//this test should be at the end
-TEST(Wrapper_Init, OneThreadHang) {
-	bool ended = false;
-	std::thread mainThread([&ended]() {
-		TensorStream reader;
-		reader.enableLogs(MEDIUM);
-		ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
-		std::thread pipeline(&TensorStream::startProcessing, &reader);
-		std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
-														  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
-		//Remove artifacts from previous runs
-		remove(parameters["dumpName"].c_str());
-		std::thread get(getCycle, parameters, std::ref(reader));
-		//wait for some processing happened
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		//Close Reader before joining any thread, expect no hangs at the end of program
-		reader.endProcessing();
-		get.join();
-		reader.endProcessing();
-		pipeline.join();
-		//let's compare output
-		ended = true;
-	});
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-	ASSERT_EQ(ended, true);
-	mainThread.join();
 }
 
 //Avoiding any sleeps in stream processing
@@ -493,4 +465,33 @@ TEST(Wrapper_Init, FrameRateBlockingStream) {
 	getFirst.join();
 	reader.endProcessing();
 	pipeline.join();
+}
+
+
+//this test should be at the end
+TEST(Wrapper_Init, OneThreadHang) {
+	bool ended = false;
+	std::thread mainThread([&ended]() {
+		TensorStream reader;
+		reader.enableLogs(MEDIUM);
+		ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
+		std::thread pipeline(&TensorStream::startProcessing, &reader);
+		std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														  {"frames", "10"}, {"dumpName", "bbb_dump.yuv"} };
+		//Remove artifacts from previous runs
+		remove(parameters["dumpName"].c_str());
+		std::thread get(getCycle, parameters, std::ref(reader));
+		//wait for some processing happened
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//Close Reader before joining any thread, expect no hangs at the end of program
+		reader.endProcessing();
+		get.join();
+		reader.endProcessing();
+		pipeline.join();
+		//let's compare output
+		ended = true;
+	});
+	std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+	ASSERT_EQ(ended, true);
+	mainThread.join();
 }

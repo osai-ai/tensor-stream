@@ -37,7 +37,8 @@ RUN git clone --depth 1 -b release/4.0 --single-branch https://github.com/FFmpeg
 RUN pip3 install --no-cache-dir \
     twine==1.13.0 \
     awscli==1.16.194 \
-    numpy==1.16.4
+    numpy==1.16.4 \
+    packaging
 
 # Install PyTorch
 RUN pip3 install --no-cache-dir \
