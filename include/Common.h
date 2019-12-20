@@ -218,6 +218,7 @@ public:
 
 const int defaultCUDADevice = 0;
 const int frameRateConstraints = 240;
+const int defaultTimeout = 10000;
 
 template <class T>
 T findFree(std::string consumerName, std::vector<std::pair<std::string, T> >& entities) {
