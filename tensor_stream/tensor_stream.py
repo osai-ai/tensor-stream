@@ -203,6 +203,10 @@ class TensorStreamConverter:
     def enable_nvtx(self):
         self.tensor_stream.enableNVTX()
 
+    ## Pass timeout for reading input frame
+    def set_timeout(self, timeout):
+        self.tensor_stream.setTimeout(timeout)
+
     ## Skip bitstream frames reordering / loss analyze stage
     def skip_analyze(self):
         self.tensor_stream.skipAnalyze()

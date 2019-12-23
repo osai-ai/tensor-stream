@@ -61,6 +61,9 @@ def parse_arguments():
     parser.add_argument("--skip_analyze",
                         help="Skip bitstream frames reordering / loss analyze stage",
                         action='store_true')
+    parser.add_argument("--timeout",
+                        help="set timeout(ms) for input frame reading (default: -1, means disabled)",
+                        type=int, default=-1)
 
     return parser.parse_args()
 
@@ -83,6 +86,8 @@ if __name__ == '__main__':
 
     if args.skip_analyze:
         reader.skip_analyze()
+
+    reader.set_timeout(args.timeout)
 
     reader.start()
 
