@@ -62,8 +62,8 @@ def parse_arguments():
                         help="Skip bitstream frames reordering / loss analyze stage",
                         action='store_true')
     parser.add_argument("--timeout",
-                        help="set timeout(ms) for input frame reading (default: -1, means disabled)",
-                        type=int, default=-1)
+                        help="Set timeout in seconds for input frame reading (default: None, means disabled)",
+                        type=float, default=None)
 
     return parser.parse_args()
 
@@ -75,8 +75,9 @@ if __name__ == '__main__':
                                    max_consumers=5,
                                    cuda_device=args.cuda_device,
                                    buffer_size=args.buffer_size,
-                                   framerate_mode=FrameRate[args.framerate_mode])
-    #To log initialize stage, logs should be defined before initialize call
+                                   framerate_mode=FrameRate[args.framerate_mode],
+                                   timeout=args.timeout)
+    # To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 
     if args.nvtx:
@@ -86,8 +87,6 @@ if __name__ == '__main__':
 
     if args.skip_analyze:
         reader.skip_analyze()
-
-    reader.set_timeout(args.timeout)
 
     reader.start()
 

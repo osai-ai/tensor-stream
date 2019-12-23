@@ -144,12 +144,14 @@ class TensorStreamConverter:
     # @param[in] cuda_device GPU used for execution
     # @param[in] buffer_size Set how many processed frames can be stored in internal buffer
     # @warning Size of buffer should be less or equal to DPB
+    # @param[in] timeout How many seconds to wait for the new frame
     def __init__(self,
                  stream_url,
                  max_consumers=5,
                  cuda_device=torch.cuda.current_device(),
                  buffer_size=5,
-                 framerate_mode=FrameRate.NATIVE):
+                 framerate_mode=FrameRate.NATIVE,
+                 timeout=None):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
@@ -164,6 +166,7 @@ class TensorStreamConverter:
         self.buffer_size = buffer_size
         self.stream_url = stream_url
         self.framerate_mode = TensorStream.FrameRateMode(framerate_mode.value)
+        self.set_timeout(timeout=timeout)
 
     ## Initialization of C++ extension
     # @param[in] repeat_number Set how many times try to initialize pipeline in case of any issues
@@ -204,8 +207,13 @@ class TensorStreamConverter:
         self.tensor_stream.enableNVTX()
 
     ## Pass timeout for reading input frame
+    # @param[in] timeout How many seconds to wait for the new frame
     def set_timeout(self, timeout):
-        self.tensor_stream.setTimeout(timeout)
+        if timeout is None:
+            self.tensor_stream.setTimeout(-1)
+        else:
+            ms_timeout = int(timeout * 1000)
+            self.tensor_stream.setTimeout(ms_timeout)
 
     ## Skip bitstream frames reordering / loss analyze stage
     def skip_analyze(self):
