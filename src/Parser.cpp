@@ -284,6 +284,8 @@ int Parser::Analyze(AVPacket* package) {
 }
 
 int interruptCallback(void *ctx) {
+	if (timeoutFrame < 0)
+		return 0;
 	AVFormatContext* formatContext = reinterpret_cast<AVFormatContext*>(ctx);
 	if (formatContext->opaque == nullptr)
 		return 0;
@@ -291,7 +293,7 @@ int interruptCallback(void *ctx) {
 	std::chrono::time_point<std::chrono::system_clock> frameTime = *(std::chrono::time_point<std::chrono::system_clock>*)formatContext->opaque;
 	std::chrono::time_point<std::chrono::system_clock> currentTime = std::chrono::system_clock::now();
 	int duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - frameTime).count();
-	if (duration > defaultTimeout)
+	if (duration > timeoutFrame)
 		return -1;
 	// do something
 	return 0;

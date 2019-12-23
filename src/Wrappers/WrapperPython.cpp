@@ -88,6 +88,11 @@ std::map<std::string, int> TensorStream::getInitializedParams() {
 void TensorStream::skipAnalyzeStage() {
 	skipAnalyze = true;
 }
+
+void TensorStream::setTimeout(int timeout) {
+	timeoutFrame = timeout;
+}
+
 int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 	int numberReady = 0;
 	for (auto item : blockingStatuses) {
@@ -448,5 +453,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("enableNVTX", &TensorStream::enableNVTX)
 		.def("enableLogs", &TensorStream::enableLogs)
 		.def("close", &TensorStream::endProcessing)
-		.def("skipAnalyze", &TensorStream::skipAnalyzeStage);
+		.def("skipAnalyze", &TensorStream::skipAnalyzeStage)
+		.def("setTimeout", &TensorStream::setTimeout);
 }

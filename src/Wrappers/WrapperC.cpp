@@ -90,6 +90,10 @@ void TensorStream::skipAnalyzeStage() {
 	skipAnalyze = true;
 }
 
+void TensorStream::setTimeout(int timeout) {
+	timeoutFrame = timeout;
+}
+
 int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 	int numberReady = 0;
 	for (auto item : blockingStatuses) {

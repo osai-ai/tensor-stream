@@ -45,13 +45,13 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 int main()
 {
-	//reader.enableLogs(-HIGH);
+	reader.enableLogs(-MEDIUM);
 	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5);
+		sts = reader.initPipeline("rtmp://streaming.sportlevel.com/relay/Efie7shoo3aeriexnhl", 5, 0, 5);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
@@ -70,7 +70,7 @@ int main()
 	resizeOptions.type = ResizeType::BICUBIC;
 	FrameParameters frameParameters = {resizeOptions, colorOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "20"}, {"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "200000"}, {"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();
