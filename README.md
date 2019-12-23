@@ -194,6 +194,10 @@ python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --skip_analyze
 ```
+* Timeout for input frame reading can be set via --timeout option (time in miliseconds):
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --timeout 2000
+```
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED -v HIGH -vd CONSOLE --nvtx
