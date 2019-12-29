@@ -64,6 +64,7 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
+	//if destination size == 0 so no resize will be applied
 	ResizeOptions(int width = 0, int height = 0, ResizeType resize = ResizeType::NEAREST) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
@@ -75,6 +76,19 @@ struct ResizeOptions {
 	ResizeType type; /**< Resize algorithm. See @ref ::ResizeType for more information */
 };
 
+/** Parameters specific for crop
+*/
+struct CropOptions {
+	//If size of crop == 0 so no crop will be applied
+	CropOptions(std::tuple<int, int> leftTopCorner = { 0, 0 }, std::tuple<int, int> rightBottomCorner = { 0, 0 }) {
+		this->leftTopCorner = leftTopCorner;
+		this->rightBottomCorner = rightBottomCorner;
+	}
+
+	std::tuple<int, int> leftTopCorner; /**< Coordinates of top-left corner of crop box */
+	std::tuple<int, int> rightBottomCorner; /**< Coordinates of right-bottom corner of crop box */
+};
+
 /** Parameters used to configure VPP
  @details These parameters can be passed via @ref TensorStream::getFrame() function
 */
@@ -83,12 +97,15 @@ struct FrameParameters {
 
 	}
 
-	FrameParameters(ResizeOptions resize, ColorOptions color) {
+	FrameParameters(ResizeOptions resize = ResizeOptions(), ColorOptions color = ColorOptions(), CropOptions crop = CropOptions()) {
 		this->resize = resize;
 		this->color = color;
+		this->crop = crop;
 	}
+
 	ResizeOptions resize; /**< Resize options, see @ref ::ResizeOptions for more information */
 	ColorOptions color; /**< Color conversion options, see @ref ::ColorParameters for more information*/
+	CropOptions crop; /**< Crop options, see @ref ::CropOptions for more information */
 };
 
 /**
@@ -98,6 +115,8 @@ template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
 int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+
+int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream);
 
 float channelsByFourCC(FourCC fourCC);
 float channelsByFourCC(std::string fourCC);

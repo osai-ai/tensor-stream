@@ -63,14 +63,17 @@ int main()
 	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 1920;
 	int dstHeight = 1080;
+	std::tuple<int, int> cropTopLeft = { 300, 300 };
+	std::tuple<int, int> cropBotRight = { 600, 600 };
 	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	resizeOptions.type = ResizeType::BICUBIC;
-	FrameParameters frameParameters = {resizeOptions, colorOptions};
+	CropOptions cropOptions = { cropTopLeft, cropBotRight };
+	FrameParameters frameParameters = {resizeOptions, colorOptions, cropOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "200000"}, {"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "5"}, {"dumpName", std::to_string(300) + "x" + std::to_string(300) + ".yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

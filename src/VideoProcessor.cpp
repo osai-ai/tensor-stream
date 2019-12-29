@@ -28,9 +28,12 @@ float channelsByFourCC(std::string fourCC) {
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	float channels = channelsByFourCC(options.color.dstFourCC);
-	
+	int cropWidth = (std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner));
+	int cropHeight = (std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner));
+	int dumpWidth = cropWidth ? cropWidth : options.resize.width;
+	int dumpHeight = cropHeight ? cropHeight : options.resize.height;
 	//allow dump Y, RGB, BGR
-	fwrite(frame, (int) (options.resize.width * options.resize.height * channels), sizeof(T), dump);
+	fwrite(frame, (int) (dumpWidth *dumpHeight * channels), sizeof(T), dump);
 
 	fflush(dump);
 }
@@ -39,9 +42,13 @@ template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
 	float channels = channelsByFourCC(options.color.dstFourCC);
+	int cropWidth = (std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner));
+	int cropHeight = (std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner));
+	int dumpWidth = cropWidth ? cropWidth : options.resize.width;
+	int dumpHeight = cropHeight ? cropHeight : options.resize.height;
 	//allocate buffers
-	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * options.resize.width * options.resize.height)], std::default_delete<T[]>());
-	cudaError err = cudaMemcpy(rawData.get(), output, channels * options.resize.width * options.resize.height * sizeof(T), cudaMemcpyDeviceToHost);
+	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * dumpWidth * dumpHeight)], std::default_delete<T[]>());
+	cudaError err = cudaMemcpy(rawData.get(), output, channels * dumpWidth * dumpHeight * sizeof(T), cudaMemcpyDeviceToHost);
 	CHECK_STATUS(err);
 	saveFrame(rawData.get(), options, dumpFile.get());
 	return VREADER_OK;
@@ -77,6 +84,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		}
 	}
 
+	//Resize
 	output->width = options.resize.width;
 	output->height = options.resize.height;
 	bool resize = false;
@@ -88,13 +96,30 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		output->width = options.resize.width = input->width;
 		output->height = options.resize.height = input->height;
 	}
+	//
 
+	//Crop (deallocate memory from resize)
+	output->width = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
+	output->height = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
+	bool crop = false;
+	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
+		crop = true;
+		cropHost(resize ? output : input, output, options.crop, prop.maxThreadsPerBlock, &stream);
+	}
+	else if (output->width == 0 || output->height == 0) {
+		output->width = input->width;
+		output->height = input->height;
+	}
+	//
+
+	//Color conversion
 	if (options.color.normalization)
-		sts = colorConversionKernel<float>(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
+		sts = colorConversionKernel<float>(resize || crop ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
 	else
-		sts = colorConversionKernel<unsigned char>(resize ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
-	
-	if (resize) {
+		sts = colorConversionKernel<unsigned char>(resize || crop ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
+	//
+
+	if (resize || crop) {
 		//need to free allocated in resize memory for Y and UV
 		cudaError err = cudaFree(output->data[0]);
 		CHECK_STATUS(err);
