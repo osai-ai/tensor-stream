@@ -63,17 +63,18 @@ int main()
 	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 1920;
 	int dstHeight = 1080;
-	std::tuple<int, int> cropTopLeft = { 300, 300 };
-	std::tuple<int, int> cropBotRight = { 600, 600 };
+	std::tuple<int, int> cropTopLeft = { 0, 0 };
+	std::tuple<int, int> cropBotRight = { 256, 256 };
 	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
-	ResizeOptions resizeOptions = { dstWidth, dstHeight };
+	ResizeOptions resizeOptions = { 1024, 768 };
 	resizeOptions.type = ResizeType::BICUBIC;
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = {resizeOptions, colorOptions, cropOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "5"}, {"dumpName", std::to_string(300) + "x" + std::to_string(300) + ".yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "50"}, 
+															   {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + ".yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

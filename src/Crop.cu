@@ -22,18 +22,22 @@ __global__ void cropKernel(unsigned char* inputY, unsigned char* inputUV, unsign
 
 int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream) {
 	cudaError err;
+	int cropWidth = std::get<0>(crop.rightBottomCorner) - std::get<0>(crop.leftTopCorner);
+	int cropHeight = std::get<1>(crop.rightBottomCorner) - std::get<1>(crop.leftTopCorner);
 	unsigned char* outputY = nullptr;
 	unsigned char* outputUV = nullptr;
-	err = cudaMalloc(&outputY, dst->width * dst->height * sizeof(unsigned char)); //in resize we don't change color format
-	err = cudaMalloc(&outputUV, dst->width * (dst->height / 2) * sizeof(unsigned char));
+	err = cudaMalloc(&outputY, cropWidth * cropHeight * sizeof(unsigned char)); //in resize we don't change color format
+	err = cudaMalloc(&outputUV, cropWidth * (cropHeight / 2) * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
-	int blockX = std::ceil(dst->width / (float)threadsPerBlock.x);
-	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
+	int blockX = std::ceil(cropWidth / (float)threadsPerBlock.x);
+	int blockY = std::ceil(cropHeight / (float)threadsPerBlock.y);
 	dim3 numBlocks(blockX, blockY);
 
+	int pitchNV12 = src->linesize[0] ? src->linesize[0] : src->width;
+
 	cropKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-		src->linesize[0], src->linesize[1], std::get<0>(crop.leftTopCorner), std::get<1>(crop.leftTopCorner),
+		pitchNV12, pitchNV12, std::get<0>(crop.leftTopCorner), std::get<1>(crop.leftTopCorner),
 											std::get<0>(crop.rightBottomCorner), std::get<1>(crop.rightBottomCorner));
 
 

@@ -99,14 +99,16 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	//
 
 	//Crop (deallocate memory from resize)
-	output->width = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
-	output->height = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
+	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
+	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
 	bool crop = false;
-	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
+	if (cropWidth && cropHeight && (cropWidth != output->width || cropHeight != output->height)) {
 		crop = true;
 		cropHost(resize ? output : input, output, options.crop, prop.maxThreadsPerBlock, &stream);
+		output->width = cropWidth;
+		output->height = cropHeight;
 	}
-	else if (output->width == 0 || output->height == 0) {
+	else if (cropWidth == 0 || cropHeight == 0) {
 		output->width = input->width;
 		output->height = input->height;
 	}
