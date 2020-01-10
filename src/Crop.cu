@@ -20,7 +20,7 @@ __global__ void cropKernel(unsigned char* inputY, unsigned char* inputUV, unsign
 	}
 }
 
-int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream) {
+int cropHost(AVFrame* src, AVFrame* dst, bool resize, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream) {
 	cudaError err;
 	int cropWidth = std::get<0>(crop.rightBottomCorner) - std::get<0>(crop.leftTopCorner);
 	int cropHeight = std::get<1>(crop.rightBottomCorner) - std::get<1>(crop.leftTopCorner);
@@ -41,11 +41,11 @@ int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBloc
 											std::get<0>(crop.rightBottomCorner), std::get<1>(crop.rightBottomCorner));
 
 
-/*	if (dst->data[0])
+	if (resize) {
 		err = cudaFree(dst->data[0]);
-	if (dst->data[1])
 		err = cudaFree(dst->data[1]);
-*/
+	}
+
 	dst->data[0] = outputY;
 	dst->data[1] = outputUV;
 

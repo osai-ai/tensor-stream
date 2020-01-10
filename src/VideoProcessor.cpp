@@ -104,7 +104,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 	bool crop = false;
 	if (cropWidth && cropHeight && (cropWidth != output->width || cropHeight != output->height)) {
 		crop = true;
-		cropHost(resize ? output : input, output, options.crop, prop.maxThreadsPerBlock, &stream);
+		cropHost(resize ? output : input, output, resize, options.crop, prop.maxThreadsPerBlock, &stream);
 		output->width = cropWidth;
 		output->height = cropHeight;
 	}
