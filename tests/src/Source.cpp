@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	//::testing::GTEST_FLAG(filter) = "Wrapper_Init.*";
+	::testing::GTEST_FLAG(filter) = "Python_Tests.FourCC_RGB24_Downscale";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);

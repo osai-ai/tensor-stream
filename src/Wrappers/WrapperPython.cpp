@@ -401,7 +401,13 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::class_<FrameParameters>(m, "FrameParameters")
 		.def(py::init<>())
 		.def_readwrite("resize", &FrameParameters::resize)
-		.def_readwrite("color", &FrameParameters::color);
+		.def_readwrite("color", &FrameParameters::color)
+		.def_readwrite("crop", &FrameParameters::crop);
+
+	py::class_<CropOptions>(m, "CropOptions")
+		.def(py::init<>())
+		.def_readwrite("leftTopCorner", &CropOptions::leftTopCorner)
+		.def_readwrite("rightBottomCorner", &CropOptions::rightBottomCorner);
 
 	py::class_<ResizeOptions>(m, "ResizeOptions")
 		.def(py::init<>())

@@ -105,6 +105,8 @@ class FrameParameters:
     def __init__(self,
                  width=0,
                  height=0,
+                 crop_left_top = (0, 0),
+                 crop_right_bottom = (0, 0),
                  resize_type=ResizeType.NEAREST,
                  pixel_format=FourCC.RGB24,
                  planes_pos=Planes.MERGED,
@@ -120,8 +122,13 @@ class FrameParameters:
         resize_options.height = height
         resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
 
+        crop_options = TensorStream.CropOptions()
+        crop_options.leftTopCorner = crop_left_top
+        crop_options.rightBottomCorner = crop_right_bottom
+
         parameters.color = color_options
         parameters.resize = resize_options
+        parameters.crop = crop_options
         self.parameters = parameters
 
     def __repr__(self):
