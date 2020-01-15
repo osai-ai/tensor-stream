@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
 	testing::InitGoogleTest(&argc, argv);
-	::testing::GTEST_FLAG(filter) = "Python_Tests.FourCC_RGB24_Downscale";
+	::testing::GTEST_FLAG(filter) = "VPP_Convert.NV12ToNV12CropCenter";
 
 	//Disable cout output from library
 	std::cout.setstate(std::ios_base::failbit);

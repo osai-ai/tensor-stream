@@ -65,10 +65,10 @@ enum ResizeType {
 */
 struct ResizeOptions {
 	//if destination size == 0 so no resize will be applied
-	ResizeOptions(int width = 0, int height = 0, ResizeType resize = ResizeType::NEAREST) {
+	ResizeOptions(int width = 0, int height = 0) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
-		this->type = resize;
+		this->type = ResizeType::NEAREST;
 	}
 
 	unsigned int width; /**< Width of destination image */

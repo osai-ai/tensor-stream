@@ -43,20 +43,59 @@ protected:
 	}
 };
 
-void fourCCTest(std::shared_ptr<AVFrame> output, int width, int height, FourCC dstFourCC, Planes planes, unsigned long crc) {
+bool checkCropCorrectness(std::shared_ptr<AVFrame> output, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
+	VideoProcessor VPP;
+	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
+	std::shared_ptr<AVFrame> resizeConverted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+
+	FrameParameters frameArgs = { resizeOptions, colorOptions};
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), resizeConverted.get(), frameArgs, "visualize"), VREADER_OK);
+
+	float channels = channelsByFourCC(colorOptions.dstFourCC);
+	int width = resizeConverted->width;
+	int height = resizeConverted->height;
+	std::vector<uint8_t> resized(width * height * channels);
+	EXPECT_EQ(cudaMemcpy(&resized[0], resizeConverted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	std::shared_ptr<AVFrame> cropConverted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	frameArgs = { resizeOptions, colorOptions, cropOptions };
+	//Convert function unreference output variable
+	EXPECT_EQ(VPP.Convert(output.get(), cropConverted.get(), frameArgs, "visualize"), VREADER_OK);
+
+	channels = channelsByFourCC(colorOptions.dstFourCC);
+	width = cropConverted->width;
+	height = cropConverted->height;
+
+	std::vector<uint8_t> crop(width * height * channels);
+	EXPECT_EQ(cudaMemcpy(&resized[0], cropConverted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
+
+	int cropWidth = std::get<0>(cropOptions.rightBottomCorner) - std::get<0>(cropOptions.leftTopCorner);
+	int cropHeight = std::get<1>(cropOptions.rightBottomCorner) - std::get<1>(cropOptions.leftTopCorner);
+	for (int i = 0; i < cropWidth; i++) {
+		for (int j = 0; j < cropHeight; j++) {
+			if (crop[j + i * cropWidth] != resized[std::get<0>(cropOptions.leftTopCorner) + j + (i + std::get<1>(cropOptions.leftTopCorner)) * resizeConverted->width])
+				return false;
+		}
+	}
+	return true;
+}
+
+void fourCCTest(std::shared_ptr<AVFrame> output, unsigned long crc, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 
-	ColorOptions colorOptions(dstFourCC);
-	colorOptions.normalization = false;
-	colorOptions.planesPos = planes;
-	FrameParameters frameArgs = { ResizeOptions(width, height), colorOptions };
+	FrameParameters frameArgs = { resizeOptions, colorOptions, cropOptions };
 
-	float channels = channelsByFourCC(colorOptions.dstFourCC);
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
-	std::vector<uint8_t> outputProcessing(frameArgs.resize.width * height * channels);
+	
+	float channels = channelsByFourCC(colorOptions.dstFourCC);
+	int width = converted->width;
+	int height = converted->height;
+	
+	std::vector<uint8_t> outputProcessing(width * height * channels);
 	EXPECT_EQ(cudaMemcpy(&outputProcessing[0], converted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 
 	std::string dumpFileName = "DumpFrame.yuv";
@@ -76,69 +115,142 @@ void fourCCTest(std::shared_ptr<AVFrame> output, int width, int height, FourCC d
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24) {
-	fourCCTest(output, 1080, 608, RGB24, Planes::MERGED, 2225932432);
+	ColorOptions colorOptions(RGB24);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 2225932432, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Planar) {
-	fourCCTest(output, 1080, 608, RGB24, Planes::PLANAR, 3151499217);
+	ColorOptions colorOptions(RGB24);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 3151499217, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
-	fourCCTest(output, 1080 / 2, 608 / 2, RGB24, Planes::MERGED, 3545075074);
+	ColorOptions colorOptions(RGB24);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080 / 2, 608 / 2);
+	fourCCTest(output, 3545075074, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
-	fourCCTest(output, 1080 * 2, 608 * 2, RGB24, Planes::MERGED, 97423732);
+	ColorOptions colorOptions(RGB24);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080 * 2, 608 * 2);
+	fourCCTest(output, 97423732, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24) {
-	fourCCTest(output, 1080, 608, BGR24, Planes::MERGED, 2467105116);
+	ColorOptions colorOptions(BGR24);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 2467105116, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24Planar) {
-	fourCCTest(output, 1080, 608, BGR24, Planes::PLANAR, 3969775694);
+	ColorOptions colorOptions(BGR24);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 3969775694, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToY800) {
-	fourCCTest(output, 1080, 608, Y800, Planes::MERGED, 3265466497);
+	ColorOptions colorOptions(Y800);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 3265466497, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToUYVY422) {
-	fourCCTest(output, 1080, 608, UYVY, Planes::MERGED, 1323730732);
+	ColorOptions colorOptions(UYVY);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 1323730732, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToUYVY422Downscale) {
-	fourCCTest(output, 720, 480, UYVY, Planes::MERGED, 1564587937);
+	ColorOptions colorOptions(UYVY);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(720, 480);
+	fourCCTest(output, 1564587937, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV444) {
-	fourCCTest(output, 1080, 608, YUV444, Planes::MERGED, 1110927649);
+	ColorOptions colorOptions(YUV444);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 1110927649, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV444Downscale) {
-	fourCCTest(output, 720, 480, YUV444, Planes::MERGED, 449974214);
+	ColorOptions colorOptions(YUV444);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(720, 480);
+	fourCCTest(output, 449974214, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12) {
-	fourCCTest(output, 1080, 608, NV12, Planes::PLANAR, 2957341121);
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1080, 608);
+	fourCCTest(output, 2957341121, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12Downscale) {
-	fourCCTest(output, 720, 480, NV12, Planes::PLANAR, 1200915282);
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(720, 480);
+	fourCCTest(output, 1200915282, colorOptions, resizeOptions);
 }
 
-void fourCCTestNormalized(std::string refPath, std::string refName, std::shared_ptr<AVFrame> output, int width, int height, FourCC dstFourCC, Planes planes) {
+TEST_F(VPP_Convert, NV12ToNV12CropLeft) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(720, 480);
+	CropOptions cropOptions({ 0, 0 }, {320, 240});
+	fourCCTest(output, 3808588242, colorOptions, resizeOptions, cropOptions);
+}
+
+TEST_F(VPP_Convert, NV12ToNV12CropCenter) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(720, 480);
+	CropOptions cropOptions({ 160, 120 }, { 480, 360 });
+	checkCropCorrectness(output, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(output, 3808588242, colorOptions, resizeOptions, cropOptions);
+}
+
+TEST_F(VPP_Convert, NV12ToNV12CropRight) {
+
+}
+
+TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscale) {
+
+}
+
+TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscale) {
+
+}
+
+TEST_F(VPP_Convert, NV12ToRGB24CropCenter) {
+
+}
+
+void fourCCTestNormalized(std::string refPath, std::string refName, std::shared_ptr<AVFrame> output, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> converted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
-	ColorOptions colorOptions(dstFourCC);
-	colorOptions.normalization = true;
-	colorOptions.planesPos = planes;
-	FrameParameters frameArgs = { ResizeOptions(width, height),  colorOptions };
+	FrameParameters frameArgs = { resizeOptions,  colorOptions, cropOptions };
 
-	float channels = channelsByFourCC(colorOptions.dstFourCC);
 	//Convert function unreference output variable
 	EXPECT_EQ(VPP.Convert(output.get(), converted.get(), frameArgs, "visualize"), VREADER_OK);
+
+	float channels = channelsByFourCC(colorOptions.dstFourCC);
+	int width = converted->width;
+	int height = converted->height;
+
 	std::vector<float> outputRGBProcessing(frameArgs.resize.width * height * channels);
 	//check correctness of device->host copy
 	EXPECT_EQ(cudaMemcpy(&outputRGBProcessing[0], converted->opaque, channels * width * height * sizeof(float), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
@@ -181,7 +293,11 @@ TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
 	plt.imshow(im)
 	plt.show()
 	*/
-	fourCCTestNormalized("../resources/test_references/", "RGB24Normalization_320x240.yuv", output, 320, 240, RGB24, Planes::MERGED);
+	ColorOptions colorOptions(RGB24);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "RGB24Normalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
@@ -201,7 +317,11 @@ TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
 	plt.imshow(im)
 	plt.show()
 	*/
-	fourCCTestNormalized("../resources/test_references/", "BGR24Normalization_320x240.yuv", output, 320, 240, BGR24, Planes::MERGED);
+	ColorOptions colorOptions(BGR24);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "BGR24Normalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
@@ -220,8 +340,11 @@ TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
 	plt.imshow(im, cmap='gray')
 	plt.show()
 	*/
-
-	fourCCTestNormalized("../resources/test_references/", "Y800Normalization_320x240.yuv", output, 320, 240, Y800, Planes::MERGED);
+	ColorOptions colorOptions(Y800);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "Y800Normalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 
@@ -243,8 +366,11 @@ TEST_F(VPP_Convert, NV12ToUYVY422Normalization) {
 	file.write(im)
 	file.close()
 	*/
-
-	fourCCTestNormalized("../resources/test_references/", "UYVYNormalization_320x240.yuv", output, 320, 240, UYVY, Planes::MERGED);
+	ColorOptions colorOptions(UYVY);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "UYVYNormalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 
@@ -266,7 +392,12 @@ TEST_F(VPP_Convert, NV12ToYUV444Normalization) {
 	file.write(im)
 	file.close()
 	*/
-	fourCCTestNormalized("../resources/test_references/", "YUV444Normalization_320x240.yuv", output, 320, 240, YUV444, Planes::MERGED);
+
+	ColorOptions colorOptions(YUV444);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "YUV444Normalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12Normalization) {
@@ -287,7 +418,12 @@ TEST_F(VPP_Convert, NV12ToNV12Normalization) {
 	file.write(im)
 	file.close()
 	*/
-	fourCCTestNormalized("../resources/test_references/", "NV12Normalization_320x240.yuv", output, 320, 240, NV12, Planes::MERGED);
+
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::MERGED;
+	colorOptions.normalization = true;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "NV12Normalization_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 
@@ -309,7 +445,10 @@ TEST_F(VPP_Convert, NV12ToHSV) {
 	plt.imshow(rgb)
 	plt.show()
 	*/
-	fourCCTestNormalized("../resources/test_references/", "HSV_320x240.yuv", output, 320, 240, HSV, Planes::MERGED);
+	ColorOptions colorOptions(HSV);
+	colorOptions.planesPos = Planes::MERGED;
+	ResizeOptions resizeOptions(320, 240);
+	fourCCTestNormalized("../resources/test_references/", "HSV_320x240.yuv", output, colorOptions, resizeOptions);
 }
 
 //monochrome reference and monochrome input (noisy approximation)

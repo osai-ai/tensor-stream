@@ -108,10 +108,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters opt
 		output->width = cropWidth;
 		output->height = cropHeight;
 	}
-	else if (cropWidth == 0 || cropHeight == 0) {
-		output->width = input->width;
-		output->height = input->height;
-	}
 	//
 
 	//Color conversion
