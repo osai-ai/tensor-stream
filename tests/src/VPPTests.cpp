@@ -43,7 +43,11 @@ protected:
 	}
 };
 
-bool checkCropCorrectness(std::shared_ptr<AVFrame> output, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
+void checkCropCorrectness(std::shared_ptr<AVFrame> output, uint32_t crc, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
+	//need to copy frame because output will be released in VPP.Convert
+	std::shared_ptr<AVFrame> outputDump = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	av_frame_ref(outputDump.get(), output.get());
+	
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 	std::shared_ptr<AVFrame> resizeConverted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
@@ -57,28 +61,58 @@ bool checkCropCorrectness(std::shared_ptr<AVFrame> output, ColorOptions colorOpt
 	int height = resizeConverted->height;
 	std::vector<uint8_t> resized(width * height * channels);
 	EXPECT_EQ(cudaMemcpy(&resized[0], resizeConverted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-
+	/*
+	{
+		std::string dumpFileName = "Resized_" + std::to_string(width) + "x" + std::to_string(height) + ".yuv";
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		frameArgs.resize.width = width;
+		frameArgs.resize.height = height;
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(resizeConverted->opaque), frameArgs, writeFile), VREADER_OK);
+	}
+	*/
 	std::shared_ptr<AVFrame> cropConverted = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 	frameArgs = { resizeOptions, colorOptions, cropOptions };
 	//Convert function unreference output variable
-	EXPECT_EQ(VPP.Convert(output.get(), cropConverted.get(), frameArgs, "visualize"), VREADER_OK);
+	EXPECT_EQ(VPP.Convert(outputDump.get(), cropConverted.get(), frameArgs, "visualize"), VREADER_OK);
 
 	channels = channelsByFourCC(colorOptions.dstFourCC);
 	width = cropConverted->width;
 	height = cropConverted->height;
 
 	std::vector<uint8_t> crop(width * height * channels);
-	EXPECT_EQ(cudaMemcpy(&resized[0], cropConverted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
-
+	EXPECT_EQ(cudaMemcpy(&crop[0], cropConverted->opaque, channels * width * height * sizeof(uint8_t), cudaMemcpyDeviceToHost), CUDA_SUCCESS);
 	int cropWidth = std::get<0>(cropOptions.rightBottomCorner) - std::get<0>(cropOptions.leftTopCorner);
 	int cropHeight = std::get<1>(cropOptions.rightBottomCorner) - std::get<1>(cropOptions.leftTopCorner);
-	for (int i = 0; i < cropWidth; i++) {
-		for (int j = 0; j < cropHeight; j++) {
-			if (crop[j + i * cropWidth] != resized[std::get<0>(cropOptions.leftTopCorner) + j + (i + std::get<1>(cropOptions.leftTopCorner)) * resizeConverted->width])
-				return false;
+	//check Y
+	for (int i = 0; i < cropHeight; i++) {
+		for (int j = 0; j < cropWidth; j++) {
+			EXPECT_EQ(crop[j + i * cropWidth], resized[std::get<0>(cropOptions.leftTopCorner) + j + (i + std::get<1>(cropOptions.leftTopCorner)) * resizeConverted->width]);
 		}
 	}
-	return true;
+	//check UV
+	int UVRow = std::get<1>(cropOptions.leftTopCorner) / 2;
+	int UVCol = std::get<0>(cropOptions.leftTopCorner) % 2 == 0 ? std::get<0>(cropOptions.leftTopCorner) : std::get<0>(cropOptions.leftTopCorner) - 1;
+	for (int i = 0; i < cropHeight / 2; i++) {
+		for (int j = 0; j < cropWidth; j++) {
+			EXPECT_EQ(crop[cropWidth * cropHeight + j + i * cropWidth], 
+				resized[resizeConverted->width * resizeConverted->height + UVCol + j + (i + UVRow) * resizeConverted->width]);
+		}
+	}
+
+	std::string dumpFileName = "Cropped_" + std::to_string(width) + "x" + std::to_string(height) + ".yuv";
+	EXPECT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &crop[0], width * height * channels), crc);
+	{
+		std::shared_ptr<FILE> writeFile(fopen(dumpFileName.c_str(), "wb"), fclose);
+		EXPECT_EQ(VPP.DumpFrame(static_cast<uint8_t*>(cropConverted->opaque), frameArgs, writeFile), VREADER_OK);
+	}
+	{
+		std::shared_ptr<FILE> readFile(fopen(dumpFileName.c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileProcessing(width * height * channels);
+		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
+		EXPECT_EQ(av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels), crc);
+	}
+
+	EXPECT_EQ(remove(dumpFileName.c_str()), 0);
 }
 
 void fourCCTest(std::shared_ptr<AVFrame> output, unsigned long crc, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
@@ -205,37 +239,61 @@ TEST_F(VPP_Convert, NV12ToNV12Downscale) {
 	fourCCTest(output, 1200915282, colorOptions, resizeOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12CropLeft) {
+TEST_F(VPP_Convert, NV12ToNV12CropWithoutResize) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	//force native stream width and height
+	ResizeOptions resizeOptions(0, 0);
+	CropOptions cropOptions({ 400, 240 }, { 720, 480 });
+	checkCropCorrectness(output, 655388614, colorOptions, resizeOptions, cropOptions);
+}
+
+TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleLeft) {
 	ColorOptions colorOptions(NV12);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
 	CropOptions cropOptions({ 0, 0 }, {320, 240});
-	fourCCTest(output, 3808588242, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(output, 3808588242, colorOptions, resizeOptions, cropOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12CropCenter) {
+TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleCenter) {
 	ColorOptions colorOptions(NV12);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
 	CropOptions cropOptions({ 160, 120 }, { 480, 360 });
-	checkCropCorrectness(output, colorOptions, resizeOptions, cropOptions);
-	fourCCTest(output, 3808588242, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(output, 1593955278, colorOptions, resizeOptions, cropOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12CropRight) {
-
+TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleRight) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(720, 480);
+	CropOptions cropOptions({ 400, 240 }, { 720, 480 });
+	checkCropCorrectness(output, 123804070, colorOptions, resizeOptions, cropOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscale) {
-
+TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleLeft) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1920, 1080);
+	CropOptions cropOptions({ 0, 0 }, { 720, 480 });
+	checkCropCorrectness(output, 1344698433, colorOptions, resizeOptions, cropOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscale) {
-
+TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleCenter) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1920, 1080);
+	CropOptions cropOptions({ 480, 340 }, { 1080, 608 });
+	checkCropCorrectness(output, 3155006685, colorOptions, resizeOptions, cropOptions);
 }
 
-TEST_F(VPP_Convert, NV12ToRGB24CropCenter) {
-
+TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleRight) {
+	ColorOptions colorOptions(NV12);
+	colorOptions.planesPos = Planes::PLANAR;
+	ResizeOptions resizeOptions(1920, 1080);
+	CropOptions cropOptions({ 1080, 608 }, { 1920, 1080 });
+	checkCropCorrectness(output, 3745573791, colorOptions, resizeOptions, cropOptions);
 }
 
 void fourCCTestNormalized(std::string refPath, std::string refName, std::shared_ptr<AVFrame> output, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {

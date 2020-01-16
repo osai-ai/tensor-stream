@@ -40,7 +40,6 @@ int cropHost(AVFrame* src, AVFrame* dst, bool resize, CropOptions crop, int maxT
 		pitchNV12, std::get<0>(crop.leftTopCorner), std::get<1>(crop.leftTopCorner),
 											std::get<0>(crop.rightBottomCorner), std::get<1>(crop.rightBottomCorner));
 
-
 	if (resize) {
 		err = cudaFree(dst->data[0]);
 		err = cudaFree(dst->data[1]);
