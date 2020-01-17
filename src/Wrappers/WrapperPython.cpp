@@ -379,11 +379,27 @@ int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FramePa
 	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
 	if (!frameParameters.resize.width) {
-		frameParameters.resize.width = stream.size(1);
+		if (channelsByFourCC(frameParameters.color.dstFourCC) == 3) {
+			//in this case size of Tensor is (height, width, channels)
+			frameParameters.resize.width = stream.size(1);
+		}
+		else {
+			//in this case size of Tensor is (1, height * channels, width)
+			frameParameters.resize.width = stream.size(2);
+		}
+		std::cout << frameParameters.resize.width << std::endl;
 	}
 
 	if (!frameParameters.resize.height) {
-		frameParameters.resize.height = stream.size(0);
+		if (channelsByFourCC(frameParameters.color.dstFourCC) == 3) {
+			//in this case size of Tensor is (height, width, channels)
+			frameParameters.resize.height = stream.size(0);
+		}
+		else {
+			//in this case size of Tensor is (1, height * channels, width)
+			frameParameters.resize.height = stream.size(1) / channelsByFourCC(frameParameters.color.dstFourCC);
+		}
+		std::cout << frameParameters.resize.height << std::endl;
 	}
 
 	//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)

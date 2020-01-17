@@ -9,6 +9,13 @@ def string_bool(s):
         raise ValueError('Not a valid boolean string')
     return s == 'True'
 
+def crop_coords(s):
+    try:
+        x1, y1, x2, y2 = map(int, s.split(','))
+        return x1, y1, x2, y2
+    except:
+        raise argparse.ArgumentTypeError("Coordinates must be x1,y1,x2,y2")
+
 def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
                                      description="Simple usage example")
@@ -64,6 +71,9 @@ def parse_arguments():
     parser.add_argument("--timeout",
                         help="set timeout(ms) for input frame reading (default: -1, means disabled)",
                         type=int, default=-1)
+    parser.add_argument("--crop", 
+                        help="set crop, left top corner and right bottom corner (default: disabled)",
+                        type=crop_coords, default=(0,0,0,0))
 
     return parser.parse_args()
 
@@ -95,13 +105,14 @@ if __name__ == '__main__':
         if os.path.exists(args.output + ".yuv"):
             os.remove(args.output + ".yuv")
 
-    print(f"Normalize {args.normalize}")
+    print(f"Normalize {args.crop}")
     tensor = None
     try:
         while True:
             parameters = {'pixel_format': FourCC[args.fourcc],
                           'width': args.width,
                           'height': args.height,
+                          'crop_coords' : args.crop,
                           'normalization': args.normalize,
                           'planes_pos': Planes[args.planes],
                           'resize_type': ResizeType[args.resize_type]}

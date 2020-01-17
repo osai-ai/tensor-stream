@@ -64,7 +64,7 @@ int main()
 	int dstWidth = 720;
 	int dstHeight = 480;
 	std::tuple<int, int> cropTopLeft = { 0, 0 };
-	std::tuple<int, int> cropBotRight = { 320, 240 };
+	std::tuple<int, int> cropBotRight = { 0, 0 };
 	ColorOptions colorOptions = { FourCC::NV12 };
 	colorOptions.planesPos = Planes::PLANAR;
 	colorOptions.normalization = false;
