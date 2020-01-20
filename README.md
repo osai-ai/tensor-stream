@@ -169,6 +169,11 @@ python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100
 ```
+* The result file can be cropped via --crop option which takes coordinates of left top and right bottom corners as parameters:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 --crop 0,0,320,240 -o dump -n 100
+```
+>**Warning:** Crop is applied after resize algorithm.
 * Output pixels format can be either torch.float32 or torch.uint8 depending on normalization option which can be True, False or not set so TensorStream will decide which value should be used:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --normalize True

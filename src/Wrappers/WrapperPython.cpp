@@ -93,6 +93,10 @@ void TensorStream::setTimeout(int timeout) {
 	timeoutFrame = timeout;
 }
 
+int TensorStream::getTimeout() {
+	return timeoutFrame;
+}
+
 int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 	int numberReady = 0;
 	for (auto item : blockingStatuses) {

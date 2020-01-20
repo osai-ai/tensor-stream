@@ -61,6 +61,15 @@ void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 	ASSERT_EQ(remove(parameters["dumpName"].c_str()), 0);
 }
 
+TEST(Wrapper_Init, SetTimeout) {
+	const int checkTimeout = 2000;
+	TensorStream reader;
+	reader.enableLogs(MEDIUM);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
+	reader.setTimeout(checkTimeout);
+	ASSERT_EQ(reader.getTimeout(), checkTimeout);
+}
+
 TEST(Wrapper_Init, OneThread) {
 	TensorStream reader;
 	reader.enableLogs(MEDIUM);
