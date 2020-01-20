@@ -38,13 +38,14 @@ public:
 
 std::string Python_Tests::setupCmdLine = "";
 
-void CRCTest(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string planes, std::string resize, unsigned long crc, unsigned long crcLinux = 0) {
+void CRCTest(std::string generalCmdLine, std::string input, int width, int height, std::string crop, int frameNumber, std::string dstFourCC, std::string planes, std::string resize, unsigned long crc, unsigned long crcLinux = 0) {
 	std::stringstream cmdLine;
 	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_" + planes;
 	std::string normalizationString = "False";
 	float channels = channelsByFourCC(dstFourCC);
 	cmdLine << " > nul 2>&1 && python python_examples/simple.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
-		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes << " --resize_type " << resize;
+		<< " --normalize " << normalizationString << " -n " << frameNumber << " -o " << dumpFileName << " -i " << input << " --planes " << planes << " --resize_type " << resize
+		<< " --crop " << crop;
 
 	std::string setupCmdLine = generalCmdLine + cmdLine.str();
 	setupCmdLine = setupCmdLine + " > nul 2>&1";
@@ -54,6 +55,7 @@ void CRCTest(std::string generalCmdLine, std::string input, int width, int heigh
 		std::vector<uint8_t> fileProcessing(width * height * channels);
 		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
 		bool pass = false;
+		auto crc_test = av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels);
 		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crc)
 			pass = true;
 		if (crcLinux != 0) {
@@ -98,11 +100,11 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 
 //FourCC tests
 TEST_F(Python_Tests, FourCC_NV12) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "NV12", "PLANAR", "NEAREST", 2957341121);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "NV12", "PLANAR", "NEAREST", 2957341121);
 }
 
 TEST_F(Python_Tests, FourCC_NV12_Downscale) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "NV12", "PLANAR", "NEAREST", 1200915282);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, "0,0,0,0", 1, "NV12", "PLANAR", "NEAREST", 1200915282);
 }
 
 TEST_F(Python_Tests, FourCC_NV12_Normalize) {
@@ -110,7 +112,7 @@ TEST_F(Python_Tests, FourCC_NV12_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_Y800) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "Y800", "PLANAR", "NEAREST", 3265466497);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "Y800", "PLANAR", "NEAREST", 3265466497);
 }
 
 TEST_F(Python_Tests, FourCC_Y800_Normalize) {
@@ -118,15 +120,15 @@ TEST_F(Python_Tests, FourCC_Y800_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_RGB24) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "MERGED", "NEAREST", 2225932432);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "RGB24", "MERGED", "NEAREST", 2225932432);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Planar) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "RGB24", "PLANAR", "NEAREST", 3151499217);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "RGB24", "PLANAR", "NEAREST", 3151499217);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Downscale) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, 1, "RGB24", "MERGED", "NEAREST", 3545075074);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, "0,0,0,0", 1, "RGB24", "MERGED", "NEAREST", 3545075074);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Normalize) {
@@ -134,15 +136,15 @@ TEST_F(Python_Tests, FourCC_RGB24_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_BGR24) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "MERGED", "NEAREST", 2467105116);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "BGR24", "MERGED", "NEAREST", 2467105116);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Planar) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "BGR24", "PLANAR", "NEAREST", 3969775694);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "BGR24", "PLANAR", "NEAREST", 3969775694);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Downscale) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, 1, "BGR24", "MERGED", "NEAREST", 201454032);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080 / 2, 608 / 2, "0,0,0,0", 1, "BGR24", "MERGED", "NEAREST", 201454032);
 }
 
 TEST_F(Python_Tests, FourCC_BGR24_Normalize) {
@@ -150,11 +152,11 @@ TEST_F(Python_Tests, FourCC_BGR24_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_UYVY) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "UYVY", "PLANAR", "NEAREST", 1323730732);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "UYVY", "PLANAR", "NEAREST", 1323730732);
 }
 
 TEST_F(Python_Tests, FourCC_UYVY_Downscale) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "UYVY", "PLANAR", "NEAREST", 1564587937);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, "0,0,0,0", 1, "UYVY", "PLANAR", "NEAREST", 1564587937);
 }
 
 TEST_F(Python_Tests, FourCC_UYVY_Normalize) {
@@ -162,11 +164,11 @@ TEST_F(Python_Tests, FourCC_UYVY_Normalize) {
 }
 
 TEST_F(Python_Tests, FourCC_YUV444) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, 1, "YUV444", "PLANAR", "NEAREST", 1110927649);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "YUV444", "PLANAR", "NEAREST", 1110927649);
 }
 
 TEST_F(Python_Tests, FourCC_YUV444_Downscale) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, 1, "YUV444", "PLANAR", "NEAREST", 449974214);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, "0,0,0,0", 1, "YUV444", "PLANAR", "NEAREST", 449974214);
 }
 
 TEST_F(Python_Tests, FourCC_YUV444_Normalize) {
@@ -179,51 +181,67 @@ TEST_F(Python_Tests, FourCC_HSV) {
 
 //Resize tests
 TEST_F(Python_Tests, FourCC_RGB24_Nearest_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "NEAREST", 3234932936);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, "0,0,0,0", 1, "RGB24", "MERGED", "NEAREST", 3234932936);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Nearest_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "NEAREST", 3545075074);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, "0,0,0,0", 1, "RGB24", "MERGED", "NEAREST", 3545075074);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Nearest_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "NEAREST", 867059050);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,0,0", 1, "RGB24", "MERGED", "NEAREST", 867059050);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bilinear_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BILINEAR", 1166179972);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, "0,0,0,0", 1, "RGB24", "MERGED", "BILINEAR", 1166179972);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bilinear_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BILINEAR", 2257004891);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, "0,0,0,0", 1, "RGB24", "MERGED", "BILINEAR", 2257004891);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bilinear_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BILINEAR", 930427804);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,0,0", 1, "RGB24", "MERGED", "BILINEAR", 930427804);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "BICUBIC", 4261607874, 1267073424);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, "0,0,0,0", 1, "RGB24", "MERGED", "BICUBIC", 4261607874, 1267073424);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "BICUBIC", 4169518778);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, "0,0,0,0", 1, "RGB24", "MERGED", "BICUBIC", 4169518778);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Bicubic_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "BICUBIC", 2402019758);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,0,0", 1, "RGB24", "MERGED", "BICUBIC", 2402019758);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_480x360) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, 1, "RGB24", "MERGED", "AREA", 3175240744);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 480, 360, "0,0,0,0", 1, "RGB24", "MERGED", "AREA", 3175240744);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_540x304) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, 1, "RGB24", "MERGED", "AREA", 2257004891);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 540, 304, "0,0,0,0", 1, "RGB24", "MERGED", "AREA", 2257004891);
 }
 
 TEST_F(Python_Tests, FourCC_RGB24_Area_1920x1080) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, 1, "RGB24", "MERGED", "AREA", 2026855);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,0,0", 1, "RGB24", "MERGED", "AREA", 2026855);
+}
+
+TEST_F(Python_Tests, Crop_NV12_Upscale_Left) {
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,320,240", 1, "RGB24", "MERGED", "AREA", 2906492022);
+}
+
+TEST_F(Python_Tests, Crop_NV12_Upscale_Center) {
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "320,240,1280,720", 1, "RGB24", "MERGED", "AREA", 2249142352);
+}
+
+TEST_F(Python_Tests, Crop_NV12_Upscale_Right) {
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "1280,720,1920,1080", 1, "RGB24", "MERGED", "AREA", 3628115381);
+}
+
+TEST_F(Python_Tests, Crop_NV12_Downscale_Center) {
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, "120,240,340,360", 1, "RGB24", "MERGED", "AREA", 3886114830);
 }
 
 void CRCTestFrameRate(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string frameRate, unsigned long crc, unsigned long crcLinux = 0) {

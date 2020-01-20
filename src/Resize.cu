@@ -12,39 +12,6 @@ __device__ int calculateBillinearInterpolation(unsigned char* data, float x, flo
 	int B = data[startIndex + xDiff];
 	int C = data[startIndex + linesize * yDiff];
 	int D = data[startIndex + linesize * yDiff + xDiff];
-	
-	/* openCV resize via openCL
-	int coefScale = (1 << 11);
-	int castBits = (11 << 1);
-
-	float u = weightX * coefScale;
-	float v = weightY * coefScale;
-
-	int U = rint(u);
-	int V = rint(v);
-	int U1 = rint(coefScale - u);
-	int V1 = rint(coefScale - v);
-
-	int value = mul24((int)mul24(U1, V1), A) + mul24((int)mul24(U, V1), B) +
-		mul24((int)mul24(U1, V), C) + mul24((int)mul24(U, V), D);
-
-	value = ((value + (1 << (castBits - 1))) >> castBits);
-	*/
-
-	/* openCV resize via openCL for integer scale
-	int coefScale = (1 << 11);
-	int coef1 = (1.f - weightX) * coefScale;
-	int coef2 = (weightX) * coefScale;
-	int coef3 = (1.f - weightY) * coefScale;
-	int coef4 = (weightY) * coefScale;
-
-	// value = A(1-w)(1-h) + B(w)(1-h) + C(h)(1-w) + Dwh
-	int value =
-		((((A * coef1 + B * coef2) >> 4) * coef3) >> 16) +
-		((((C * coef1 + D * coef2) >> 4) * coef4) >> 16);
-
-	value = (value + 2) >> 2;
-	*/
 
 	//the most precise one
 	int value = (int)(
@@ -308,8 +275,6 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 	if (i < dstHeight && j < dstWidth) {
 		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
-		//float yF = (float)((i) * yRatio); //it's coordinate of pixel in source image
-		//float xF = (float)((j) * xRatio); //it's coordinate of pixel in source image
 		int x = floor(xF);
 		int y = floor(yF);
 		float weightX = xF - x;
@@ -355,8 +320,6 @@ __global__ void resizeNV12BicubicKernel(unsigned char* inputY, unsigned char* in
 	if (i < dstHeight && j < dstWidth) {
 		double yF = (double)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		double xF = (double)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
-		//float yF = (float)((i) * yRatio); //it's coordinate of pixel in source image
-		//float xF = (float)((j) * xRatio); //it's coordinate of pixel in source image
 		int x = floor(xF);
 		int y = floor(yF);
 		double weightX = xF - x;

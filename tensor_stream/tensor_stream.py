@@ -105,6 +105,7 @@ class FrameParameters:
     def __init__(self,
                  width=0,
                  height=0,
+                 crop_coords=(0, 0, 0, 0),
                  resize_type=ResizeType.NEAREST,
                  pixel_format=FourCC.RGB24,
                  planes_pos=Planes.MERGED,
@@ -120,8 +121,13 @@ class FrameParameters:
         resize_options.height = height
         resize_options.resizeType = TensorStream.ResizeType(resize_type.value)
 
+        crop_options = TensorStream.CropOptions()
+        crop_options.leftTopCorner = crop_coords[0:2]
+        crop_options.rightBottomCorner = crop_coords[2:4]
+
         parameters.color = color_options
         parameters.resize = resize_options
+        parameters.crop = crop_options
         self.parameters = parameters
 
     def __repr__(self):
@@ -236,14 +242,17 @@ class TensorStreamConverter:
              width=0,
              height=0,
              resize_type=ResizeType.NEAREST,
+             crop_coords=(0,0,0,0),
              pixel_format=FourCC.RGB24,
              planes_pos=Planes.MERGED,
              normalization=None,
              delay=0,
              return_index=False):
+
         frame_parameters = FrameParameters(
             width=width,
             height=height,
+            crop_coords=crop_coords,
             resize_type=resize_type,
             pixel_format=pixel_format,
             planes_pos=planes_pos,
@@ -287,6 +296,7 @@ class TensorStreamConverter:
              name="default",
              width=0,
              height=0,
+             crop_coords=(0,0,0,0),
              resize_type=ResizeType.NEAREST,
              pixel_format=FourCC.RGB24,
              planes_pos=Planes.MERGED,
@@ -294,12 +304,12 @@ class TensorStreamConverter:
         frame_parameters = FrameParameters(
             width=width,
             height=height,
+            crop_coords=crop_coords,
             resize_type=resize_type,
             pixel_format=pixel_format,
             planes_pos=planes_pos,
             normalization=normalization
         )
-
         self.tensor_stream.dump(tensor, name, frame_parameters.parameters)
 
     def _start(self):

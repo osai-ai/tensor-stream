@@ -68,7 +68,8 @@ public:
 @param[in] value of timeout in ms
 */
 	void setTimeout(int timeout);
-
+	
+	int getTimeout();
 	int getDelay();
 private:
 	int processingLoop();

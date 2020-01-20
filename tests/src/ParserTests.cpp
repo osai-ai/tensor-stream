@@ -1,6 +1,21 @@
 #include <gtest/gtest.h>
 #include "Parser.h"
 
+TEST(Parser_Init, FrameStartParsingTime) {
+	ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
+	std::shared_ptr<Parser> parser = std::make_shared<Parser>();
+	parser->Init(parserArgs, std::make_shared<Logger>());
+	auto parsed = new AVPacket();
+	auto output = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+	auto sts = parser->Read();
+	EXPECT_EQ(sts, VREADER_OK);
+	AVFormatContext* formatContext = reinterpret_cast<AVFormatContext*>(parser->getFormatContext());
+	ASSERT_NE(formatContext->opaque, nullptr);
+	std::chrono::time_point<std::chrono::system_clock> frameTime = *(std::chrono::time_point<std::chrono::system_clock>*)formatContext->opaque;
+	std::chrono::time_point<std::chrono::system_clock> currentTime = std::chrono::system_clock::now();
+	ASSERT_LT(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - frameTime).count(), 1000); //expect that frame should be read faster than 1 ms
+}
+
 TEST(Parser_Init, WrongInputPath) {
 	Parser parser;
 	ParserParameters parserArgs = { "wrong_path" };
