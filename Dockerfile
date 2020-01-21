@@ -40,10 +40,9 @@ RUN pip3 install --no-cache-dir \
     numpy==1.16.4 \
     packaging
 
+ARG TORCH_VERSION
 # Install PyTorch
-RUN pip3 install --no-cache-dir \
-    torch==1.2.0 \
-    torchvision==0.4.0
+RUN pip3 install --no-cache-dir torch==$TORCH_VERSION
 
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\
