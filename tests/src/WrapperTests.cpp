@@ -305,7 +305,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 			}
 		}
 		//frame rate = 24, latency = 41,6
-		EXPECT_GT(maxValue, 55);
+		EXPECT_LT(maxValue, 55);
 	},
 		parameters,
 		std::ref(reader));
