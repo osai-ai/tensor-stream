@@ -1,5 +1,5 @@
 NAME?=argus-tensor-stream
-TORCH_VERSION?=1.3.1
+TORCH_VERSION?=1.4.0
 DOCKER_NAME="$(NAME)-$(TORCH_VERSION)"
 
 GPUS?=all

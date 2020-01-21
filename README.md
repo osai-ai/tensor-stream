@@ -97,12 +97,17 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 Extension for Python can be installed via pip:
 
 - **CUDA 9:**
+> **Warning:** CUDA 9 isn't supported by TensorStream anymore so new releases won't be built and distributed in binary format.
 ```
 pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.2.1-cp36-cp36m-linux_x86_64.whl
 ```
 - **CUDA 10:**
+TensorStream compiled with different versions of Pytorch:
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.2.1-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.3.1/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
+```
+```
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
@@ -131,9 +136,9 @@ cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v
 ```
 
 ## Docker image
-Dockerfiles can be found in [docker](docker) folder. Please note that different Dockerfiles are required for different CUDA versions. To distinguish them name suffix is used, i.e., for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+To build TensorStream need to pass Pytorch version via TORCH_VERSION argument:
 ```
-docker build -t tensorstream -f docker/Dockerfile_cu10 .
+docker build --build-arg TORCH_VERSION=1.4.0 -t tensorstream .
 ```
 Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
