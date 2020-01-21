@@ -284,7 +284,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 		ColorOptions colorOptions;
 		colorOptions.dstFourCC = format;
 		FrameParameters frameArgs = { resizeOptions, colorOptions };
-		int maxValue = 0;
+		int minValue = INT_MAX;
 		for (int i = 0; i < frames; i++) {
 			try {
 				std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
@@ -292,8 +292,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 				//we don't mind about frames indexes but only about latency
 				std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 				int latency = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-				if (i > 0)
-					maxValue = std::max(maxValue, latency);
+				minValue = std::min(minValue, latency);
 				if (dumpFile) {
 					int status = reader.dumpFrame<uint8_t>(std::get<0>(result), frameArgs, dumpFile);
 					if (status < 0)
@@ -305,7 +304,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 			}
 		}
 		//frame rate = 24, latency = 41,6
-		EXPECT_LT(maxValue, 55);
+		EXPECT_LT(minValue, 42);
 	},
 		parameters,
 		std::ref(reader));
