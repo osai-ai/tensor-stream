@@ -98,6 +98,7 @@ class FrameParameters:
     ## Constructor of FrameParameters class
     # @param[in] width Specify the width of decoded frame
     # @param[in] height Specify the height of decoded frame
+    # @param[in] crop_coords Left top and right bottom coordinates of crop
     # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
@@ -229,6 +230,7 @@ class TensorStreamConverter:
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
     # @param[in] width Specify the width of decoded frame
     # @param[in] height Specify the height of decoded frame
+    # @param[in] crop_coords Left top and right bottom coordinates of crop
     # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values
@@ -287,6 +289,7 @@ class TensorStreamConverter:
     # @param[in] name The name of file with dumps
     # @param[in] width Specify the width of decoded frame
     # @param[in] height Specify the height of decoded frame
+    # @param[in] crop_coords Left top and right bottom coordinates of crop
     # @param[in] resize_type Algorithm used to do resize, see @ref ResizeType for supported values
     # @param[in] pixel_format Output FourCC of frame stored in tensor, see @ref FourCC for supported values
     # @param[in] planes_pos Possible planes order in RGB format, see @ref Planes for supported values

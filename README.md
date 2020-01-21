@@ -98,9 +98,6 @@ Extension for Python can be installed via pip:
 
 - **CUDA 9:**
 > **Warning:** CUDA 9 isn't supported by TensorStream anymore so new releases won't be built and distributed in binary format.
-```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.2.1-cp36-cp36m-linux_x86_64.whl
-```
 - **CUDA 10:**
 TensorStream compiled with different versions of Pytorch:
 ```
