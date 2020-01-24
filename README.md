@@ -4,7 +4,7 @@ TensorStream is a C++ library for real-time video streams (e.g., RTMP) decoding 
 * Detecting basic video stream issues related to frames reordering/loss
 * Video Post Processing (VPP) operations: downscaling/upscaling, crops, color conversions, etc.
 
-The library supports Linux and Windows.
+The library supports both Linux and Windows.
 
 Simple example how to use TensorStream for deep learning tasks:
 
