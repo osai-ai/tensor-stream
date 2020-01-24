@@ -1,8 +1,9 @@
+
 # TensorStream
 TensorStream is a C++ library for real-time video streams (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
-* Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
+* Video Post Processing (VPP) operations: downscaling/upscaling, crops, color conversions, etc.  
 The library supports Linux and Windows.
 
 Simple example how to use TensorStream for deep learning tasks:
