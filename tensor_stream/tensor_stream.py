@@ -135,6 +135,8 @@ class FrameParameters:
         string = (f"FrameParameters(\n"
                   f"    width={self.parameters.resize.height},\n"
                   f"    height={self.parameters.resize.width},\n"
+                  f"    crop_left_top={self.parameters.crop.leftTopCorner},\n"
+                  f"    crop_right_bottom={self.parameters.crop.rightBottomCorner},\n"
                   f"    resize_type={self.parameters.resize.resizeType},\n"
                   f"    pixel_format={self.parameters.color.dstFourCC},\n"
                   f"    planes_pos={self.parameters.color.planesPos},\n"
