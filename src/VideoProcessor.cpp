@@ -28,14 +28,17 @@ float channelsByFourCC(std::string fourCC) {
 template <class T>
 void saveFrame(T* frame, FrameParameters options, FILE* dump) {
 	float channels = channelsByFourCC(options.color.dstFourCC);
-	int dumpWidth = options.resize.width;
-	int dumpHeight = options.resize.height;
-
+	int dumpWidth = 0;
+	int dumpHeight = 0;
 	int cropWidth = (std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner));
 	int cropHeight = (std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner));
-	if (cropWidth > 0 && cropHeight > 0 && cropWidth < options.resize.width && cropHeight < options.resize.height) {
+	if (cropWidth > 0 && cropHeight > 0) {
 		dumpWidth = cropWidth;
 		dumpHeight = cropHeight;
+	}
+	if (options.resize.width > 0 && options.resize.height > 0) {
+		dumpWidth = options.resize.width;
+		dumpHeight = options.resize.height;
 	}
 	//allow dump Y, RGB, BGR
 	fwrite(frame, (int) (dumpWidth * dumpHeight * channels), sizeof(T), dump);
@@ -47,14 +50,19 @@ template <class T>
 int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile) {
 	PUSH_RANGE("VideoProcessor::DumpFrame", NVTXColors::YELLOW);
 	float channels = channelsByFourCC(options.color.dstFourCC);
-	int dumpWidth = options.resize.width;
-	int dumpHeight = options.resize.height;
+	int dumpWidth = 0;
+	int dumpHeight = 0;
 	int cropWidth = (std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner));
 	int cropHeight = (std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner));
-	if (cropWidth > 0 && cropHeight > 0 && cropWidth < options.resize.width && cropHeight < options.resize.height) {
+	if (cropWidth > 0 && cropHeight > 0) {
 		dumpWidth = cropWidth;
 		dumpHeight = cropHeight;
 	}
+	if (options.resize.width > 0 && options.resize.height > 0) {
+		dumpWidth = options.resize.width;
+		dumpHeight = options.resize.height;
+	}
+
 	//allocate buffers
 	std::shared_ptr<T> rawData = std::shared_ptr<T>(new T[(int)(channels * dumpWidth * dumpHeight)], std::default_delete<T[]>());
 	cudaError err = cudaMemcpy(rawData.get(), output, channels * dumpWidth * dumpHeight * sizeof(T), cudaMemcpyDeviceToHost);
@@ -93,29 +101,35 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 		}
 	}
 
-	//Resize
-	output->width = options.resize.width;
-	output->height = options.resize.height;
-	bool resize = false;
-	if (output->width && output->height && (input->width != output->width || input->height != output->height)) {
-		resize = true;
-		resizeKernel(input, output, options.resize.type, prop.maxThreadsPerBlock, &stream);
-	}
-	else if (output->width == 0 || output->height == 0) {
-		output->width = options.resize.width = input->width;
-		output->height = options.resize.height = input->height;
-	}
-	//
-
-	//Crop (deallocate memory from resize)
 	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
 	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
 	bool crop = false;
-	if (cropWidth > 0 && cropHeight > 0 && cropWidth < output->width && cropHeight < output->height) {
+	if (cropWidth > 0 && cropHeight > 0 && cropWidth < input->width && cropHeight < input->height) {
 		crop = true;
-		cropHost(resize ? output : input, output, resize, options.crop, prop.maxThreadsPerBlock, &stream);
+		cropHost(input, output, options.crop, prop.maxThreadsPerBlock, &stream);
 		output->width = cropWidth;
 		output->height = cropHeight;
+	}
+	//
+
+	//Resize (deallocate memory from crop)
+	bool resize = false;
+	if (options.resize.width && options.resize.height) {
+		if (crop && (options.resize.width != output->width || options.resize.height != output->height))
+			resize = true;
+		if (!crop && (options.resize.width != input->width || options.resize.height != input->height))
+			resize = true;
+
+		if (resize) {
+			resizeKernel(crop ? output : input, output, crop, options.resize, prop.maxThreadsPerBlock, &stream);
+			output->width = options.resize.width;
+			output->height = options.resize.height;
+		}
+	}
+	
+	if (output->width == 0 || output->height == 0) {
+		output->width = options.resize.width = input->width;
+		output->height = options.resize.height = input->height;
 	}
 	//
 

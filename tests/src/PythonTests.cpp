@@ -229,19 +229,19 @@ TEST_F(Python_Tests, FourCC_RGB24_Area_1920x1080) {
 }
 
 TEST_F(Python_Tests, Crop_NV12_Upscale_Left) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,320,240", 1, "RGB24", "MERGED", "AREA", 2906492022);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "0,0,320,240", 1, "RGB24", "MERGED", "AREA", 2884432201);
 }
 
 TEST_F(Python_Tests, Crop_NV12_Upscale_Center) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "320,240,1280,720", 1, "RGB24", "MERGED", "AREA", 2249142352);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "320,240,720,480", 1, "RGB24", "MERGED", "AREA", 2674082046);
 }
 
 TEST_F(Python_Tests, Crop_NV12_Upscale_Right) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "1280,720,1920,1080", 1, "RGB24", "MERGED", "AREA", 3628115381);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1920, 1080, "720,480,1080,608", 1, "RGB24", "MERGED", "AREA", 4006833449);
 }
 
 TEST_F(Python_Tests, Crop_NV12_Downscale_Center) {
-	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 720, 480, "120,240,340,360", 1, "RGB24", "MERGED", "AREA", 3886114830);
+	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 320, 240, "120,60,960,540", 1, "RGB24", "MERGED", "AREA", 1183295093);
 }
 
 void CRCTestFrameRate(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string frameRate, unsigned long crc, unsigned long crcLinux = 0) {

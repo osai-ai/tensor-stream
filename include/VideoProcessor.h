@@ -110,9 +110,9 @@ struct FrameParameters {
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
-int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+int resizeKernel(AVFrame* src, AVFrame* dst, bool crop, ResizeOptions resize, int maxThreadsPerBlock, cudaStream_t * stream);
 
-int cropHost(AVFrame* src, AVFrame* dst, bool resize, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream);
+int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream);
 
 float channelsByFourCC(FourCC fourCC);
 float channelsByFourCC(std::string fourCC);

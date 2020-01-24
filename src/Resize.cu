@@ -405,28 +405,30 @@ cudaError free2DArray(float** pattern, int size, float ratio) {
 	return err;
 }
 
-int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream) {
+int resizeKernel(AVFrame* src, AVFrame* dst, bool crop, ResizeOptions resize, int maxThreadsPerBlock, cudaStream_t * stream) {
 	unsigned char* outputY = nullptr;
 	unsigned char* outputUV = nullptr;
-	cudaError err = cudaMalloc(&outputY, dst->width * dst->height * sizeof(unsigned char)); //in resize we don't change color format
-	err = cudaMalloc(&outputUV, dst->width * (dst->height / 2) * sizeof(unsigned char));
+	cudaError err = cudaMalloc(&outputY, resize.width * resize.height * sizeof(unsigned char)); //in resize we don't change color format
+	err = cudaMalloc(&outputUV, resize.width * (resize.height / 2) * sizeof(unsigned char));
 	//need to execute for width and height
 	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
-	int blockX = std::ceil(dst->width / (float)threadsPerBlock.x);
-	int blockY = std::ceil(dst->height / (float)threadsPerBlock.y);
+	int blockX = std::ceil(resize.width / (float)threadsPerBlock.x);
+	int blockY = std::ceil(resize.height / (float)threadsPerBlock.y);
 	dim3 numBlocks(blockX, blockY);
-	float xRatio = (float)(src->width) / dst->width; //if not -1 we should examine 2x2 square with top-left corner in the last pixel of src, so it's impossible
-	float yRatio = (float)(src->height) / dst->height;
-	switch (resize) {
+	float xRatio = (float)(src->width) / resize.width; //if not -1 we should examine 2x2 square with top-left corner in the last pixel of src, so it's impossible
+	float yRatio = (float)(src->height) / resize.height;
+	int pitchY = src->linesize[0] ? src->linesize[0] : src->width;
+	int pitchUV = src->linesize[1] ? src->linesize[1] : src->width;
+	switch (resize.type) {
 	case ResizeType::BILINEAR:
 		resizeNV12BilinearKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-			src->width, src->height, src->linesize[0], src->linesize[1],
-			dst->width, dst->height, xRatio, yRatio);
+			src->width, src->height, pitchY, pitchUV,
+			resize.width, resize.height, xRatio, yRatio);
 		break;
 	case ResizeType::NEAREST:
 		resizeNV12NearestKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-			src->width, src->height, src->linesize[0], src->linesize[1],
-			dst->width, dst->height, xRatio, yRatio);
+			src->width, src->height, pitchY, pitchUV,
+			resize.width, resize.height, xRatio, yRatio);
 		break;
 	case ResizeType::AREA:
 		//The smart "area" algorithm is used only in case of downscaling
@@ -441,7 +443,7 @@ int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPe
 
 			//Here we should decide which AREA algorithm to use
 			resizeNV12DownscaleAreaKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY,
-				outputUV, src->width, src->height, src->linesize[0], src->linesize[1], dst->width, dst->height, xRatio, yRatio,
+				outputUV, src->width, src->height, pitchY, pitchUV, resize.width, resize.height, xRatio, yRatio,
 				patternXCUDA, patternX.size(), patternYCUDA, patternY.size());
 
 			free2DArray(patternXCUDA, patternX.size(), xRatio);
@@ -450,15 +452,21 @@ int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPe
 		//otherwise bilinear algorithm with some weight adjustments is used
 		else {
 			resizeNV12UpscaleAreaKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY,
-				outputUV, src->width, src->height, src->linesize[0], src->linesize[1], dst->width, dst->height, xRatio, yRatio);
+				outputUV, src->width, src->height, pitchY, pitchUV, resize.width, resize.height, xRatio, yRatio);
 		}
 		break;
 	case ResizeType::BICUBIC:
 		resizeNV12BicubicKernel << <numBlocks, threadsPerBlock, 0, *stream >> > (src->data[0], src->data[1], outputY, outputUV,
-			src->width, src->height, src->linesize[0], src->linesize[1],
-			dst->width, dst->height, xRatio, yRatio);
+			src->width, src->height, pitchY, pitchUV,
+			resize.width, resize.height, xRatio, yRatio);
 		break;
 	}
+
+	if (crop) {
+		err = cudaFree(dst->data[0]);
+		err = cudaFree(dst->data[1]);
+	}
+
 	dst->data[0] = outputY;
 	dst->data[1] = outputUV;
 	return err;
