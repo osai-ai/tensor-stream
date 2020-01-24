@@ -64,10 +64,11 @@ enum ResizeType {
 /** Parameters specific for resize
 */
 struct ResizeOptions {
-	ResizeOptions(int width = 0, int height = 0, ResizeType resize = ResizeType::NEAREST) {
+	//if destination size == 0 so no resize will be applied
+	ResizeOptions(int width = 0, int height = 0) {
 		this->width = (unsigned int)width;
 		this->height = (unsigned int)height;
-		this->type = resize;
+		this->type = ResizeType::NEAREST;
 	}
 
 	unsigned int width; /**< Width of destination image */
@@ -75,20 +76,32 @@ struct ResizeOptions {
 	ResizeType type; /**< Resize algorithm. See @ref ::ResizeType for more information */
 };
 
+/** Parameters specific for crop
+*/
+struct CropOptions {
+	//If size of crop == 0 so no crop will be applied
+	CropOptions(std::tuple<int, int> leftTopCorner = { 0, 0 }, std::tuple<int, int> rightBottomCorner = { 0, 0 }) {
+		this->leftTopCorner = leftTopCorner;
+		this->rightBottomCorner = rightBottomCorner;
+	}
+
+	std::tuple<int, int> leftTopCorner; /**< Coordinates of top-left corner of crop box */
+	std::tuple<int, int> rightBottomCorner; /**< Coordinates of right-bottom corner of crop box */
+};
+
 /** Parameters used to configure VPP
  @details These parameters can be passed via @ref TensorStream::getFrame() function
 */
 struct FrameParameters {
-	FrameParameters() {
-
-	}
-
-	FrameParameters(ResizeOptions resize, ColorOptions color) {
+	FrameParameters(ResizeOptions resize = ResizeOptions(), ColorOptions color = ColorOptions(), CropOptions crop = CropOptions()) {
 		this->resize = resize;
 		this->color = color;
+		this->crop = crop;
 	}
+
 	ResizeOptions resize; /**< Resize options, see @ref ::ResizeOptions for more information */
 	ColorOptions color; /**< Color conversion options, see @ref ::ColorParameters for more information*/
+	CropOptions crop; /**< Crop options, see @ref ::CropOptions for more information */
 };
 
 /**
@@ -97,7 +110,9 @@ struct FrameParameters {
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream);
 
-int resizeKernel(AVFrame* src, AVFrame* dst, ResizeType resize, int maxThreadsPerBlock, cudaStream_t * stream);
+int resizeKernel(AVFrame* src, AVFrame* dst, bool crop, ResizeOptions resize, int maxThreadsPerBlock, cudaStream_t * stream);
+
+int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream);
 
 float channelsByFourCC(FourCC fourCC);
 float channelsByFourCC(std::string fourCC);
@@ -110,7 +125,7 @@ public:
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
-	int Convert(AVFrame* input, AVFrame* output, FrameParameters options, std::string consumerName);
+	int Convert(AVFrame* input, AVFrame* output, FrameParameters& options, std::string consumerName);
 	template <class T>
 	int DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
 	void Close();

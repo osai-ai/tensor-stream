@@ -1,6 +1,6 @@
 NAME?=argus-tensor-stream
-CUDA?=cu10
-DOCKER_NAME="$(NAME)-$(CUDA)"
+TORCH_VERSION?=1.4.0
+DOCKER_NAME="$(NAME)-$(TORCH_VERSION)"
 
 GPUS?=all
 ifeq ($(GPUS),none)
@@ -9,12 +9,14 @@ else
 	GPUS_OPTION=--gpus=$(GPUS)
 endif
 
-.PHONY: all build-docker stop build-whl
+.PHONY: all build stop build-whl
 
-all: stop build-docker build-whl
+all: stop build build-whl
 
-build-docker:
-	docker build -t $(DOCKER_NAME) -f docker/Dockerfile_$(CUDA) .
+build:
+	docker build \
+	--build-arg TORCH_VERSION=${TORCH_VERSION} \
+	-t $(DOCKER_NAME) .
 
 stop:
 	-docker stop $(DOCKER_NAME)
@@ -28,7 +30,7 @@ build-whl:
 		$(DOCKER_NAME) \
 		python3 setup.py sdist bdist_wheel
 
-run-bash:
+run-dev:
 	docker run --rm -it \
 		$(GPUS_OPTION) \
 		--net=host \

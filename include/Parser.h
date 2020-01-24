@@ -157,4 +157,6 @@ private:
 	Instance of Logger class
 	*/
 	std::shared_ptr<Logger> logger;
+
+	std::chrono::time_point<std::chrono::system_clock> latestFrameTimestamp;
 };

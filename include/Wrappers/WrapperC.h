@@ -61,8 +61,16 @@ public:
 /** Enable NVTX logs from TensorStream
 */
 	void enableNVTX();
-	int getDelay();
+/** Allow to skip stage with bitstream analyzing (skip frames, some bitstream conformance checks)
+*/
 	void skipAnalyzeStage();
+/** Set timeout for frame reading (default: -1, means no timeout)
+@param[in] value of timeout in ms
+*/
+	void setTimeout(int timeout);
+	
+	int getTimeout();
+	int getDelay();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;

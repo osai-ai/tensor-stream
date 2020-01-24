@@ -2,8 +2,9 @@
 TensorStream is a C++ library for real-time video streams (e.g., RTMP) decoding to CUDA memory which supports some additional features:
 * CUDA memory conversion to ATen Tensor for using it via Python in [PyTorch Deep Learning models](#pytorch-example)
 * Detecting basic video stream issues related to frames reordering/loss
-* Video Post Processing (VPP) operations: downscaling/upscaling, color conversion from NV12 to RGB24/BGR24/Y800  
-The library supports Linux and Windows.
+* Video Post Processing (VPP) operations: downscaling/upscaling, crops, color conversions, etc.
+
+The library supports both Linux and Windows.
 
 Simple example how to use TensorStream for deep learning tasks:
 
@@ -97,12 +98,14 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 Extension for Python can be installed via pip:
 
 - **CUDA 9:**
-```
-pip install https://tensorstream.argus-ai.com/wheel/cu9/linux/tensor_stream-0.2.1-cp36-cp36m-linux_x86_64.whl
-```
+> **Warning:** CUDA 9 isn't supported by TensorStream anymore so new releases won't be built and distributed in binary format.
 - **CUDA 10:**
+TensorStream compiled with different versions of Pytorch:
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/linux/tensor_stream-0.2.1-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.3.1/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
+```
+```
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
@@ -131,9 +134,9 @@ cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v
 ```
 
 ## Docker image
-Dockerfiles can be found in [docker](docker) folder. Please note that different Dockerfiles are required for different CUDA versions. To distinguish them name suffix is used, i.e., for **CUDA 9** Dockerfile name is Dockerfile_**cu9**, for **CUDA 10** Dockerfile_**cu10** and so on. 
+To build TensorStream need to pass Pytorch version via TORCH_VERSION argument:
 ```
-docker build -t tensorstream -f docker/Dockerfile_cu10 .
+docker build --build-arg TORCH_VERSION=1.4.0 -t tensorstream .
 ```
 Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
@@ -169,6 +172,11 @@ python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100
 ```
+* The result file can be cropped via --crop option which takes coordinates of left top and right bottom corners as parameters:
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 --crop 0,0,320,240 -o dump -n 100
+```
+>**Warning:** Crop is applied before resize algorithm.
 * Output pixels format can be either torch.float32 or torch.uint8 depending on normalization option which can be True, False or not set so TensorStream will decide which value should be used:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --normalize True
@@ -193,6 +201,10 @@ python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -
 * Bitstream analyze stage can be skipped to decrease latency with --skip_analyze flag:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --skip_analyze
+```
+* Timeout for input frame reading can be set via --timeout option (time in seconds):
+```
+python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -w 720 -h 480 -o dump -n 100 --planes MERGED --timeout 2
 ```
 * Logs types and levels can be configured with -v, -vd and --nvtx options. Check help to find available values and description:
 ```

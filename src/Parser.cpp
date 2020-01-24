@@ -283,6 +283,22 @@ int Parser::Analyze(AVPacket* package) {
 	return errorBitstream;
 }
 
+int interruptCallback(void *ctx) {
+	if (timeoutFrame < 0)
+		return 0;
+	AVFormatContext* formatContext = reinterpret_cast<AVFormatContext*>(ctx);
+	if (formatContext->opaque == nullptr)
+		return 0;
+
+	std::chrono::time_point<std::chrono::system_clock> frameTime = *(std::chrono::time_point<std::chrono::system_clock>*)formatContext->opaque;
+	std::chrono::time_point<std::chrono::system_clock> currentTime = std::chrono::system_clock::now();
+	int duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - frameTime).count();
+	if (duration > timeoutFrame)
+		return -1;
+	// do something
+	return 0;
+}
+
 int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	PUSH_RANGE("Parser::Init", NVTXColors::AQUA);
 	state = input;
@@ -291,6 +307,9 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	//packet_buffer - isn't empty
 	AVDictionary *opts = 0;
 	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+	formatContext = avformat_alloc_context();
+	const AVIOInterruptCB intCallback = { interruptCallback, formatContext };
+	formatContext->interrupt_callback = intCallback;
 	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &opts);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
@@ -346,6 +365,8 @@ int Parser::Read() {
 	bool videoFrame = false;
 	while (videoFrame == false) {
 		sts = av_read_frame(formatContext, lastFrame.first);
+		latestFrameTimestamp = std::chrono::system_clock::now();
+		formatContext->opaque = &latestFrameTimestamp;
 		CHECK_STATUS(sts);
 		if ((lastFrame.first)->stream_index != videoIndex) {
 			av_packet_unref(lastFrame.first);
@@ -354,7 +375,6 @@ int Parser::Read() {
 
 		videoFrame = true;
 		currentFrame++;
-
 		lastFrame.second = false;
 
 		if (state.enableDumps) {

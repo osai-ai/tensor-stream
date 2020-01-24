@@ -9,6 +9,13 @@ def string_bool(s):
         raise ValueError('Not a valid boolean string')
     return s == 'True'
 
+def crop_coords(s):
+    try:
+        x1, y1, x2, y2 = map(int, s.split(','))
+        return x1, y1, x2, y2
+    except:
+        raise argparse.ArgumentTypeError("Coordinates must be x1,y1,x2,y2")
+
 def parse_arguments():
     parser = argparse.ArgumentParser(add_help=False,
                                      description="Simple usage example")
@@ -61,6 +68,12 @@ def parse_arguments():
     parser.add_argument("--skip_analyze",
                         help="Skip bitstream frames reordering / loss analyze stage",
                         action='store_true')
+    parser.add_argument("--timeout",
+                        help="Set timeout in seconds for input frame reading (default: None, means disabled)",
+                        type=float, default=None)
+    parser.add_argument("--crop", 
+                        help="set crop, left top corner and right bottom corner (default: disabled)",
+                        type=crop_coords, default=(0,0,0,0))
 
     return parser.parse_args()
 
@@ -72,8 +85,9 @@ if __name__ == '__main__':
                                    max_consumers=5,
                                    cuda_device=args.cuda_device,
                                    buffer_size=args.buffer_size,
-                                   framerate_mode=FrameRate[args.framerate_mode])
-    #To log initialize stage, logs should be defined before initialize call
+                                   framerate_mode=FrameRate[args.framerate_mode],
+                                   timeout=args.timeout)
+    # To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 
     if args.nvtx:
@@ -90,13 +104,14 @@ if __name__ == '__main__':
         if os.path.exists(args.output + ".yuv"):
             os.remove(args.output + ".yuv")
 
-    print(f"Normalize {args.normalize}")
+    print(f"Normalize {args.crop}")
     tensor = None
     try:
         while True:
             parameters = {'pixel_format': FourCC[args.fourcc],
                           'width': args.width,
                           'height': args.height,
+                          'crop_coords' : args.crop,
                           'normalization': args.normalize,
                           'planes_pos': Planes[args.planes],
                           'resize_type': ResizeType[args.resize_type]}

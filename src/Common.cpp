@@ -1,6 +1,7 @@
 #include "Common.h"
 
 std::mutex logsMutex;
+int timeoutFrame = -1;
 
 void Logger::initialize(LogsLevel logsLevel, std::string logName) {
 	this->logsLevel = logsLevel;

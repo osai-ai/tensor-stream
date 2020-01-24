@@ -36,6 +36,8 @@ public:
 	void enableNVTX();
 	int dumpFrame(at::Tensor stream, std::string consumerName, FrameParameters frameParameters);
 	void skipAnalyzeStage();
+	void setTimeout(int timeout);
+	int getTimeout();
 private:
 	int processingLoop();
 	std::mutex syncDecoded;
