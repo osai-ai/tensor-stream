@@ -362,36 +362,46 @@ Parser::Parser() {
 
 }
 
+int Parser::readVideoFrame(std::pair<AVPacket*, bool>& dst) {
+	int sts = VREADER_OK;
+	bool videoFrame = false;
+	while (!videoFrame) {
+		sts = av_read_frame(formatContext, dst.first);
+		if (dst.first->stream_index != videoIndex) {
+			av_packet_unref(dst.first);
+			continue;
+		}
+		else {
+			videoFrame = true;
+		}
+	}
+	dst.second = false;
+	return sts;
+}
+
 //no need any sync due to executing in 1 thread only
 int Parser::Read() {
 	PUSH_RANGE("Parser::Read", NVTXColors::AQUA);
 	int sts = VREADER_OK;
-	bool videoFrame = false;
-	while (videoFrame == false) {
-		sts = av_read_frame(formatContext, lastFrame.first);
-		latestFrameTimestamp = std::chrono::system_clock::now();
-		formatContext->opaque = &latestFrameTimestamp;
+	//if no frames specified, just read the last one and add to begin of the buffer
+	sts = readVideoFrame(lastFrame);
+	latestFrameTimestamp = std::chrono::system_clock::now();
+	formatContext->opaque = &latestFrameTimestamp;
+	CHECK_STATUS(sts);
+	currentFrame++;
+
+	if (state.enableDumps) {
+		//we avoid frames which was read but haven't been used anymore later
+		//in our output file only 1 stream is available with index == 0 (it's video track)
+		lastFrame.first->stream_index = 0;
+		sts = av_write_frame(dumpContext, lastFrame.first);
 		CHECK_STATUS(sts);
-		if ((lastFrame.first)->stream_index != videoIndex) {
-			av_packet_unref(lastFrame.first);
-			continue;
-		}
-
-		videoFrame = true;
-		currentFrame++;
-		lastFrame.second = false;
-
-		if (state.enableDumps) {
-			//in our output file only 1 stream is available with index 0
-			lastFrame.first->stream_index = 0;
-			sts = av_write_frame(dumpContext, lastFrame.first);
-			CHECK_STATUS(sts);
-			lastFrame.first->stream_index = videoIndex;
-		}
-		
+		lastFrame.first->stream_index = videoIndex;
 	}
+
 	return sts;
 }
+
 
 //no need any sync due to executing in 1 thread only
 int Parser::Get(AVPacket* output) {
