@@ -73,6 +73,8 @@ public:
 	*/
 	int Read();
 	
+	int readVideoFrame(std::pair<AVPacket*, bool>& dst);
+
 	/*
 	Returns next parsed frame. Frames will be returned as their appeared in bitstream without any loss.
 	Arguments: Pointer to AVPacket structure where is demuxed frame will be stored.

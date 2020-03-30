@@ -44,6 +44,9 @@ public:
 */
 	template <class T>
 	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
+
+	template <class T>
+	std::vector<std::tuple<T*, int> > getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
 /** Close TensorStream session
 */
 	void endProcessing();
