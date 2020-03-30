@@ -234,3 +234,20 @@ T findFree(std::string consumerName, std::vector<std::pair<std::string, T> >& en
 	}
 	return nullptr;
 }
+
+template <class T>
+T findFreeExcept(std::string consumerName, std::vector<std::pair<std::string, T> >& entities, std::vector<T> except) {
+	for (auto& item : entities) {
+		if (std::find(except.begin(), except.end(), item.second) != except.end()) {
+			continue;
+		}
+		if (item.first == consumerName) {
+			return item.second;
+		}
+		else if (item.first == "empty") {
+			item.first = consumerName;
+			return item.second;
+		}
+	}
+	return nullptr;
+}
