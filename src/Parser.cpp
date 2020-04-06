@@ -367,6 +367,7 @@ int Parser::readVideoFrame(std::pair<AVPacket*, bool>& dst) {
 	bool videoFrame = false;
 	while (!videoFrame) {
 		sts = av_read_frame(formatContext, dst.first);
+		CHECK_STATUS(sts);
 		if (dst.first->stream_index != videoIndex) {
 			av_packet_unref(dst.first);
 			continue;
