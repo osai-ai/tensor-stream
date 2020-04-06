@@ -11,7 +11,7 @@ from enum import Enum
 # @{
 
 ## Class with list of possible error statuses can be returned from TensorStream extension
-# @warning These statuses are used only in Python wrapper that communicates with TensorStream C++ extension 
+# @warning These statuses are used only in Python wrapper that communicates with TensorStream C++ extension
 class StatusLevel(Enum):
     ## No errors
     OK = 0
@@ -80,7 +80,7 @@ class Planes(Enum):
     ## Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB
     PLANAR = 0
     ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
-    MERGED = 1 
+    MERGED = 1
 
 
 ## Enum with possible stream reading modes
@@ -166,9 +166,9 @@ class TensorStreamConverter:
         self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
-        self.fps = None 
+        self.fps = None
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
-        self.frame_size = None 
+        self.frame_size = None
 
         self.max_consumers = max_consumers
         self.cuda_device = cuda_device
@@ -228,6 +228,40 @@ class TensorStreamConverter:
     def skip_analyze(self):
         self.tensor_stream.skipAnalyze()
 
+    def read_absolute(self,
+             batch,
+             name="default",
+             width=0,
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             crop_coords=(0,0,0,0),
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None):
+
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            crop_coords=crop_coords,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
+        result = self.param_read_absolute(batch=batch,
+                                          frame_parameters=frame_parameters,
+                                          name=name)
+        return result
+
+    def param_read_absolute(self,
+                            batch,
+                            frame_parameters: FrameParameters,
+                            name="default"):
+
+        tensor = self.tensor_stream.getAbsolute(name, batch, frame_parameters.parameters)
+        return tensor
+
+
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
     # @param[in] width Specify the width of decoded frame
@@ -239,7 +273,7 @@ class TensorStreamConverter:
     # @param[in] normalization Should final colors be normalized or not
     # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
     # @param[in] return_index Specify whether need return index of decoded frame or not
-    
+
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
              name="default",

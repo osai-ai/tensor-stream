@@ -278,14 +278,30 @@ int64_t frameToPTS(AVStream* stream, int frame)
 }
 
 template <class T>
-std::vector<std::tuple<T*, int> > TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
+std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	std::vector<AVFrame*> decoded;
 	std::vector<AVFrame*> processedFrames;
-	std::vector<std::tuple<T*, int> > outputTuple;
+	std::vector<T*> outputTuple;
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
 
+	START_LOG_BLOCK(std::string("findFree decode frame"));
+	{
+		std::unique_lock<std::mutex> locker(syncRGB);
+		for (int i = 0; i < index.size(); i++) {
+			auto frame = findFreeExcept<AVFrame*>(consumerName, decodedArr, decoded);
+			if (frame)
+				decoded.push_back(frame);
+		}
+		while (decoded.size() < index.size()) {
+			//we should allocate more frames
+			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
+			decodedArr.push_back(frame);
+			decoded.push_back(frame.second);
+		}
+	}
+	END_LOG_BLOCK(std::string("findFree decode frame"));
 	START_LOG_BLOCK(std::string("findFree converted frame"));
 	{
 		std::unique_lock<std::mutex> locker(syncRGB);
@@ -305,60 +321,33 @@ std::vector<std::tuple<T*, int> > TensorStream::getFrameAbsolute(std::string con
 	int sts = VREADER_OK;
 	//first call allocate memory for frames
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
-	std::pair<AVPacket*, bool> readFramesTemp = { new AVPacket(), false };
-	AVFrame* decodedFrame;
 	for (int i = 0; i < index.size(); i++) {
 		auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
-		//read desired frame
-		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_ANY);
-		sts = parser->readVideoFrame(readFrames);
-		CHECK_STATUS_THROW(sts);
-		//check if frame can be decoded without any additional info
-		auto keyFlag = readFrames.first->flags & AV_PKT_FLAG_KEY;
-		if (keyFlag == false) {
-			decodedFrame = av_frame_alloc();
-			av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-			while (pts != decodedFrame->pts) {
-				sts = parser->readVideoFrame(readFramesTemp);
-				CHECK_STATUS_THROW(sts);
-				//we should decode frames starting from this one until we reach desired one
-				sts = avcodec_send_packet(decoder->getDecoderContext(), readFramesTemp.first);
-				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
-					CHECK_STATUS_THROW(sts);
-				}
-
-				sts = avcodec_receive_frame(decoder->getDecoderContext(), decodedFrame);
-
-				if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
-					if (pts == decodedFrame->pts) {
-						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
-						sts = avcodec_receive_frame(decoder->getDecoderContext(), decodedFrame);
-						avcodec_flush_buffers(decoder->getDecoderContext());
-					}
-					continue;
-				}
-			}
-			if (pts == decodedFrame->pts) {
-				decoded.push_back(decodedFrame);
-				avcodec_flush_buffers(decoder->getDecoderContext());
-			}
-		}
-		else {
+		//seek to desired frame
+		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+		while (pts != decoded[i]->pts) {
+			sts = parser->readVideoFrame(readFrames);
+			CHECK_STATUS_THROW(sts);
+			//we should decode frames starting from this one until we reach desired one
 			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 			if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 				CHECK_STATUS_THROW(sts);
 			}
-			decodedFrame = av_frame_alloc();
-			sts = avcodec_receive_frame(decoder->getDecoderContext(), decodedFrame);
+
+			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
 
 			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
-				sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
-				sts = avcodec_receive_frame(decoder->getDecoderContext(), decodedFrame);
-				avcodec_flush_buffers(decoder->getDecoderContext());
+				//we found needed frame, need to drain decoder until he returns us desired frame
+				if (pts == readFrames.first->pts) {
+					while (pts != decoded[i]->pts) {
+						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
+						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
+					}
+				}
+				continue;
 			}
-
-			decoded.push_back(decodedFrame);
 		}
+		avcodec_flush_buffers(decoder->getDecoderContext());
 	}
 
 	START_LOG_BLOCK(std::string("vpp->Convert"));
@@ -371,7 +360,7 @@ std::vector<std::tuple<T*, int> > TensorStream::getFrameAbsolute(std::string con
 		AVFrame* processedFrame = processedFrames[i];
 		T* cudaFrame((T*)processedFrame->opaque);
 		//TODO: correct index frame
-		outputTuple.push_back(std::make_tuple(cudaFrame, 0));
+		outputTuple.push_back(cudaFrame);
 	}
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	END_LOG_FUNCTION(std::string("GetFrameAbsolute() ") + std::to_string(0) + std::string(" frame"));
@@ -379,10 +368,10 @@ std::vector<std::tuple<T*, int> > TensorStream::getFrameAbsolute(std::string con
 }
 
 template
-std::vector<std::tuple<float*, int> > TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+std::vector<float*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
 
 template
-std::vector<std::tuple<unsigned char*, int> > TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+std::vector<unsigned char*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
 
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)

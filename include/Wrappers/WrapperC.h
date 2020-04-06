@@ -45,8 +45,14 @@ public:
 	template <class T>
 	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 
+/** Get decoded and post-processed frames by they absoulte position in video. Pixel format can be either float or uint8_t depending on @ref normalization
+ @param[in] consumerName Consumer unique ID
+ @param[in] index Specify batch of frames should be read from stream. Can take values in range [0, video length]
+ @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
+ @return Decoded frames in CUDA memory and indexes of decoded frame
+*/
 	template <class T>
-	std::vector<std::tuple<T*, int> > getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+	std::vector<T*> getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
 /** Close TensorStream session
 */
 	void endProcessing();
