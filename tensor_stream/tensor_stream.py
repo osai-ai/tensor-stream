@@ -232,6 +232,40 @@ class TensorStreamConverter:
     def skip_analyze(self):
         self.tensor_stream.skipAnalyze()
 
+    def read_absolute(self,
+             batch,
+             name="default",
+             width=0,
+             height=0,
+             resize_type=ResizeType.NEAREST,
+             crop_coords=(0,0,0,0),
+             pixel_format=FourCC.RGB24,
+             planes_pos=Planes.MERGED,
+             normalization=None):
+
+        frame_parameters = FrameParameters(
+            width=width,
+            height=height,
+            crop_coords=crop_coords,
+            resize_type=resize_type,
+            pixel_format=pixel_format,
+            planes_pos=planes_pos,
+            normalization=normalization
+        )
+        result = self.param_read_absolute(batch=batch,
+                                          frame_parameters=frame_parameters,
+                                          name=name)
+        return result
+
+    def param_read_absolute(self,
+                            batch,
+                            frame_parameters: FrameParameters,
+                            name="default"):
+
+        tensor = self.tensor_stream.getAbsolute(name, batch, frame_parameters.parameters)
+        return tensor
+
+
     ## Read the next decoded frame, should be invoked only after @ref start() call
     # @param[in] name The unique ID of consumer. Needed mostly in case of several consumers work in different threads
     # @param[in] width Specify the width of decoded frame
