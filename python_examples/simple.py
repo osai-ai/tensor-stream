@@ -71,7 +71,7 @@ def parse_arguments():
     parser.add_argument("--timeout",
                         help="Set timeout in seconds for input frame reading (default: None, means disabled)",
                         type=float, default=None)
-    parser.add_argument("--crop", 
+    parser.add_argument("--crop",
                         help="set crop, left top corner and right bottom corner (default: disabled)",
                         type=crop_coords, default=(0,0,0,0))
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     if args.nvtx:
         reader.enable_nvtx()
-    
+
     reader.initialize(repeat_number=20)
 
     if args.skip_analyze:

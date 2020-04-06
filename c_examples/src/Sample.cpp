@@ -147,7 +147,8 @@ int startBatchPipeline() {
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
 	std::map<std::string, std::string> executionParameters = { {"name", "first"},
 															   {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + ".yuv"} };
-	std::vector<int> frames = { 310, 100, 1341, 5012 };
+	//std::vector<int> frames = { 310, 100, 1341, 5012 };
+	std::vector<int> frames = { 0, 100, 1341, 5012 };
 	std::thread get(get_cycle_batch, frameParameters, executionParameters, frames);
 	get.join();
 	reader.endProcessing();

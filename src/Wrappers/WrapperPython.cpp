@@ -357,6 +357,128 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	return outputTuple;
 }
 
+int64_t frameToPTS(AVStream* stream, int frame)
+{
+	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
+}
+
+std::vector<at::Tensor> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
+	SET_CUDA_DEVICE_THROW();
+	std::vector<AVFrame*> decoded;
+	std::vector<AVFrame*> processedFrames;
+	std::vector<at::Tensor> outputTuple;
+	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
+	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
+
+	START_LOG_BLOCK(std::string("findFree decode frame"));
+	{
+		std::unique_lock<std::mutex> locker(syncRGB);
+		for (int i = 0; i < index.size(); i++) {
+			auto frame = findFreeExcept<AVFrame*>(consumerName, decodedArr, decoded);
+			if (frame)
+				decoded.push_back(frame);
+		}
+		while (decoded.size() < index.size()) {
+			//we should allocate more frames
+			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
+			decodedArr.push_back(frame);
+			decoded.push_back(frame.second);
+		}
+	}
+	END_LOG_BLOCK(std::string("findFree decode frame"));
+	START_LOG_BLOCK(std::string("findFree converted frame"));
+	{
+		std::unique_lock<std::mutex> locker(syncRGB);
+		for (int i = 0; i < index.size(); i++) {
+			auto frame = findFreeExcept<AVFrame*>(consumerName, processedArr, processedFrames);
+			if (frame)
+				processedFrames.push_back(frame);
+		}
+		while (processedFrames.size() < index.size()) {
+			//we should allocate more frames
+			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
+			processedArr.push_back(frame);
+			processedFrames.push_back(frame.second);
+		}
+	}
+	END_LOG_BLOCK(std::string("findFree converted frame"));
+	int sts = VREADER_OK;
+	//first call allocate memory for frames
+	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
+	for (int i = 0; i < index.size(); i++) {
+		auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
+		//seek to desired frame
+		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+		while (pts != decoded[i]->pts) {
+			sts = parser->readVideoFrame(readFrames);
+			CHECK_STATUS_THROW(sts);
+			//we should decode frames starting from this one until we reach desired one
+			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+			if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+				CHECK_STATUS_THROW(sts);
+			}
+
+			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
+
+			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+				//we found needed frame, need to drain decoder until he returns us desired frame
+				if (pts == readFrames.first->pts) {
+					while (pts != decoded[i]->pts) {
+						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
+						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
+					}
+				}
+				continue;
+			}
+		}
+		avcodec_flush_buffers(decoder->getDecoderContext());
+	}
+
+	START_LOG_BLOCK(std::string("vpp->Convert"));
+	if (vpp == nullptr)
+		throw std::runtime_error(std::to_string(VREADER_ERROR));
+
+	for (int i = 0; i < decoded.size(); i++) {
+		at::Tensor outputTensor;
+		sts = vpp->Convert(decoded[i], processedFrames[i], frameParameters, consumerName);
+		CHECK_STATUS_THROW(sts);
+		AVFrame* processedFrame = processedFrames[i];
+
+		float channels = channelsByFourCC(frameParameters.color.dstFourCC);
+		switch (frameParameters.color.dstFourCC) {
+		case FourCC::RGB24:
+		case FourCC::BGR24:
+			if (frameParameters.color.planesPos == Planes::MERGED)
+				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			else
+				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width },
+					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::YUV444:
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::UYVY:
+		case FourCC::NV12:
+		case FourCC::Y800:
+			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width },
+				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			break;
+		case FourCC::HSV:
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+				c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
+		}
+
+		//TODO: correct index frame
+		outputTuple.push_back(outputTensor);
+	}
+	END_LOG_BLOCK(std::string("vpp->Convert"));
+	END_LOG_FUNCTION(std::string("GetFrameAbsolute() ") + std::to_string(0) + std::string(" frame"));
+	return outputTuple;
+}
+
+
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)
 */
@@ -509,6 +631,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("getPars", &TensorStream::getInitializedParams)
 		.def("start", &TensorStream::startProcessing, py::arg("cudaDevice") = defaultCUDADevice, py::call_guard<py::gil_scoped_release>())
 		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
+		.def("getAbsolute", &TensorStream::getFrameAbsolute, py::call_guard<py::gil_scoped_release>())
 		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
 		.def("enableNVTX", &TensorStream::enableNVTX)
 		.def("enableLogs", &TensorStream::enableLogs)
