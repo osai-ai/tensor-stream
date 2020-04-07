@@ -80,46 +80,44 @@ int startSimplePipeline() {
 	return 0;
 }
 
+size_t getGraphicDeviceVRamUsage()
+{
+	size_t l_free = 0;
+	size_t l_Total = 0;
+	cudaError_t error_id = cudaMemGetInfo(&l_free, &l_Total);
+
+	return (l_Total - l_free);
+}
+
 void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std::string> executionParameters, std::vector<int> frames) {
-	try {
+	for (int i = 0; i < 100000; i++) {
+		size_t before = getGraphicDeviceVRamUsage();
+
 		std::shared_ptr<FILE> dumpFile;
 		std::string fileName = executionParameters["dumpName"];
 		if (!fileName.empty()) {
 			remove(fileName.c_str());
-
 			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 		}
-		if (frameParameters.color.normalization) {
-			auto result = reader.getFrameAbsolute<float>(executionParameters["name"], { std::atoi(executionParameters["delay"].c_str()) }, frameParameters);
-			if (!fileName.empty()) {
-				int status = reader.dumpFrame<float>((float*)std::get<0>(result.back()), frameParameters, dumpFile);
+
+		auto result = reader.getFrameAbsolute<unsigned char>(executionParameters["name"], frames, frameParameters);
+		if (!fileName.empty()) {
+			for (auto frame : result) {
+				int status = reader.dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
 				if (status < 0)
 					return;
+				cudaFree(frame);
 			}
-			cudaFree(std::get<0>(result.back()));
 		}
-		else {
-			auto result = reader.getFrameAbsolute<unsigned char>(executionParameters["name"], frames, frameParameters);
-			if (!fileName.empty()) {
-				for (auto frame : result) {
-					int status = reader.dumpFrame<unsigned char>((unsigned char*)std::get<0>(frame), frameParameters, dumpFile);
-					if (status < 0)
-						return;
 
-					cudaFree(std::get<0>(frame));
-				}
-			}
-
-		}
-	}
-	catch (std::runtime_error e) {
-		return;
+		size_t after = getGraphicDeviceVRamUsage();
+		std::cout << i << " " << before << "->" << after << std::endl;
 	}
 
 }
 
 int startBatchPipeline() {
-	reader.enableLogs(-MEDIUM);
+	//reader.enableLogs(-MEDIUM);
 	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;

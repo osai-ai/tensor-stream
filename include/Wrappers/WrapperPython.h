@@ -31,7 +31,7 @@ public:
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing(int cudaDevice = 0);
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
-	std::vector<at::Tensor> getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+	at::Tensor getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
 	void endProcessing();
 	void enableLogs(int logsLevel);
 	void enableNVTX();
