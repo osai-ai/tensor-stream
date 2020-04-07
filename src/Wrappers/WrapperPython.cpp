@@ -327,7 +327,7 @@ int64_t frameToPTS(AVStream* stream, int frame)
 	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
 }
 
-std::vector<at::Tensor> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
+at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	std::vector<AVFrame*> decoded;
 	std::vector<AVFrame*> processedFrames;
@@ -348,6 +348,10 @@ std::vector<at::Tensor> TensorStream::getFrameAbsolute(std::string consumerName,
 			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
 			decodedArr.push_back(frame);
 			decoded.push_back(frame.second);
+		}
+		std::cout << decodedArr.size() << std::endl;
+		for (auto& elem : decodedArr) {
+			std::cout << elem.first << std::endl;
 		}
 	}
 	END_LOG_BLOCK(std::string("findFree decode frame"));
@@ -414,33 +418,33 @@ std::vector<at::Tensor> TensorStream::getFrameAbsolute(std::string consumerName,
 		case FourCC::RGB24:
 		case FourCC::BGR24:
 			if (frameParameters.color.planesPos == Planes::MERGED)
-				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			else
-				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width },
+				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::YUV444:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::UYVY:
 		case FourCC::NV12:
 		case FourCC::Y800:
-			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width },
+			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width }, cudaFree,
 				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::HSV:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 				c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
 		}
 
-		//TODO: correct index frame
 		outputTuple.push_back(outputTensor);
 	}
+
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	END_LOG_FUNCTION(std::string("GetFrameAbsolute() ") + std::to_string(0) + std::string(" frame"));
-	return outputTuple;
+	return torch::stack(outputTuple);
 }
 
 
