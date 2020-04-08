@@ -90,7 +90,7 @@ size_t getGraphicDeviceVRamUsage()
 }
 
 void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std::string> executionParameters, std::vector<int> frames) {
-	for (int i = 0; i < 100000; i++) {
+	for (int i = 0; i < 1; i++) {
 		size_t before = getGraphicDeviceVRamUsage();
 
 		std::shared_ptr<FILE> dumpFile;
@@ -124,7 +124,7 @@ int startBatchPipeline() {
 
 	while (initNumber--) {
 		//sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5);
-		sts = reader.initPipeline("basler_cr_train_005.mp4", 5, 0, 5);
+		sts = reader.initPipeline("basler_cr_train_005.mp4", 0, 0, 0);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else

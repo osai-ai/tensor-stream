@@ -321,52 +321,19 @@ int64_t frameToPTS(AVStream* stream, int frame)
 template <class T>
 std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
-	std::vector<AVFrame*> decoded;
-	std::vector<AVFrame*> processedFrames;
-	std::vector<T*> outputTuple;
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
+	std::vector<T*> outputTuple;
 	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
-
-	START_LOG_BLOCK(std::string("findFree decode frame"));
-	{
-		std::unique_lock<std::mutex> locker(syncRGB);
-		for (int i = 0; i < index.size(); i++) {
-			auto frame = findFreeExcept<AVFrame*>(consumerName, decodedArr, decoded);
-			if (frame)
-				decoded.push_back(frame);
-		}
-		while (decoded.size() < index.size()) {
-			//we should allocate more frames
-			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
-			decodedArr.push_back(frame);
-			decoded.push_back(frame.second);
-		}
-	}
-	END_LOG_BLOCK(std::string("findFree decode frame"));
-	START_LOG_BLOCK(std::string("findFree converted frame"));
-	{
-		std::unique_lock<std::mutex> locker(syncRGB);
-		for (int i = 0; i < index.size(); i++) {
-			auto frame = findFreeExcept<AVFrame*>(consumerName, processedArr, processedFrames);
-			if (frame)
-				processedFrames.push_back(frame);
-		}
-		while (processedFrames.size() < index.size()) {
-			//we should allocate more frames
-			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
-			processedArr.push_back(frame);
-			processedFrames.push_back(frame.second);
-		}
-	}
-	END_LOG_BLOCK(std::string("findFree converted frame"));
 	int sts = VREADER_OK;
-	//first call allocate memory for frames
+	AVFrame* decoded = av_frame_alloc();
+	AVFrame* processedFrame = av_frame_alloc();
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	for (int i = 0; i < index.size(); i++) {
+		std::unique_lock<std::mutex> locker(syncDecoded);
 		auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
 		//seek to desired frame
 		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-		while (pts != decoded[i]->pts) {
+		while (pts != decoded->pts) {
 			sts = parser->readVideoFrame(readFrames);
 			CHECK_STATUS_THROW(sts);
 			//we should decode frames starting from this one until we reach desired one
@@ -375,36 +342,36 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::ve
 				CHECK_STATUS_THROW(sts);
 			}
 
-			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
+			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 
 			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 				//we found needed frame, need to drain decoder until he returns us desired frame
 				if (pts == readFrames.first->pts) {
-					while (pts != decoded[i]->pts) {
+					while (pts != decoded->pts) {
 						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
-						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded[i]);
+						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 					}
 				}
 				continue;
 			}
 		}
 		avcodec_flush_buffers(decoder->getDecoderContext());
-	}
+		
+		START_LOG_BLOCK(std::string("vpp->Convert"));
+		if (vpp == nullptr)
+			throw std::runtime_error(std::to_string(VREADER_ERROR));
 
-	START_LOG_BLOCK(std::string("vpp->Convert"));
-	if (vpp == nullptr)
-		throw std::runtime_error(std::to_string(VREADER_ERROR));
-
-	for (int i = 0; i < decoded.size(); i++) {
-		sts = vpp->Convert(decoded[i], processedFrames[i], frameParameters, consumerName);
+		sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 		CHECK_STATUS_THROW(sts);
-		AVFrame* processedFrame = processedFrames[i];
-		T* cudaFrame((T*)processedFrame->opaque);
-		//TODO: correct index frame
-		outputTuple.push_back(cudaFrame);
+		outputTuple.push_back((T*)processedFrame->opaque);
+		END_LOG_BLOCK(std::string("vpp->Convert"));
 	}
-	END_LOG_BLOCK(std::string("vpp->Convert"));
-	END_LOG_FUNCTION(std::string("GetFrameAbsolute() ") + std::to_string(0) + std::string(" frame"));
+
+	av_frame_free(&decoded);
+	av_frame_free(&processedFrame);
+	delete readFrames.first;
+
+	END_LOG_FUNCTION(std::string("GetFrameAbsolute() "));
 	return outputTuple;
 }
 

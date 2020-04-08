@@ -99,7 +99,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 		std::unique_lock<std::mutex> locker(streamSync);
 		stream = findFree<cudaStream_t>(consumerName, streamArr);
 		if (stream == nullptr) {
-			CHECK_STATUS(VREADER_ERROR);
+			//will be used default stream
 		}
 	}
 
