@@ -364,15 +364,14 @@ int64_t frameToPTS(AVStream* stream, int frame)
 
 at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
-	std::vector<AVFrame*> decoded;
-	std::vector<AVFrame*> processedFrames;
-	std::vector<at::Tensor> outputTuple;
-	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
+	AVFrame* decoded;
+	AVFrame* processedFrame;
+	PUSH_RANGE("TensorStream::getFrameAbsolute", NVTXColors::GREEN);
 	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
 
 	START_LOG_BLOCK(std::string("findFree decode frame"));
 	{
-		std::unique_lock<std::mutex> locker(syncRGB);
+		std::unique_lock<std::mutex> locker(syncDecoded);
 		for (int i = 0; i < index.size(); i++) {
 			auto frame = findFreeExcept<AVFrame*>(consumerName, decodedArr, decoded);
 			if (frame)
@@ -383,10 +382,6 @@ at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<
 			std::pair<std::string, AVFrame*> frame = { consumerName, av_frame_alloc() };
 			decodedArr.push_back(frame);
 			decoded.push_back(frame.second);
-		}
-		std::cout << decodedArr.size() << std::endl;
-		for (auto& elem : decodedArr) {
-			std::cout << elem.first << std::endl;
 		}
 	}
 	END_LOG_BLOCK(std::string("findFree decode frame"));
@@ -442,6 +437,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<
 	if (vpp == nullptr)
 		throw std::runtime_error(std::to_string(VREADER_ERROR));
 
+	std::vector<at::Tensor> outputTuple;
 	for (int i = 0; i < decoded.size(); i++) {
 		at::Tensor outputTensor;
 		sts = vpp->Convert(decoded[i], processedFrames[i], frameParameters, consumerName);
