@@ -102,7 +102,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 			//will be used default stream
 		}
 	}
-
+	std::cout << stream << std::endl;
 	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
 	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
 	bool crop = false;

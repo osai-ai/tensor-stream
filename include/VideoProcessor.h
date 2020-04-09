@@ -125,7 +125,7 @@ public:
 	Notice: VPP doesn't allocate memory for output frame, so correctly allocated Tensor with correct FourCC and resolution
 	should be passed via Python API	and this allocated CUDA memory will be filled.
 	*/
-	int Convert(AVFrame* input, AVFrame* output, FrameParameters& options, std::string consumerName);
+	int Convert(AVFrame* input, AVFrame* output, FrameParameters& options, std::string consumerName = "default");
 	template <class T>
 	int DumpFrame(T* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
 	void Close();
