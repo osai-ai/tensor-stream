@@ -278,7 +278,7 @@ int64_t frameToPTS(AVStream* stream, int frame)
 }
 
 template <class T>
-std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
+std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	std::vector<T*> outputTuple;
@@ -288,39 +288,41 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::ve
 	AVFrame* processedFrame = av_frame_alloc();
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	for (int i = 0; i < index.size(); i++) {
-		std::unique_lock<std::mutex> locker(syncDecoded);
-		auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
-		//seek to desired frame
-		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-		while (pts != decoded->pts) {
-			sts = parser->readVideoFrame(readFrames);
-			CHECK_STATUS_THROW(sts);
-			//we should decode frames starting from this one until we reach desired one
-			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-			if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		{
+			std::unique_lock<std::mutex> locker(syncDecoded);
+			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
+			//seek to desired frame
+			av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			while (pts != decoded->pts) {
+				sts = parser->readVideoFrame(readFrames);
 				CHECK_STATUS_THROW(sts);
-			}
-
-			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-
-			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
-				//we found needed frame, need to drain decoder until he returns us desired frame
-				if (pts == readFrames.first->pts) {
-					while (pts != decoded->pts) {
-						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
-						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-					}
+				//we should decode frames starting from this one until we reach desired one
+				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+					CHECK_STATUS_THROW(sts);
 				}
-				continue;
+
+				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+
+				if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+					//we found needed frame, need to drain decoder until he returns us desired frame
+					if (pts == readFrames.first->pts) {
+						while (pts != decoded->pts) {
+							sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
+							sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+						}
+					}
+					continue;
+				}
 			}
+			avcodec_flush_buffers(decoder->getDecoderContext());
 		}
-		avcodec_flush_buffers(decoder->getDecoderContext());
-		
+
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
 
-		sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
+		sts = vpp->Convert(decoded, processedFrame, frameParameters);
 		CHECK_STATUS_THROW(sts);
 		outputTuple.push_back((T*)processedFrame->opaque);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
@@ -335,10 +337,10 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::string consumerName, std::ve
 }
 
 template
-std::vector<float*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+std::vector<float*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 
 template
-std::vector<unsigned char*> TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+std::vector<unsigned char*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)

@@ -136,7 +136,6 @@ void getCycleLD(std::map<std::string, std::string> parameters, TensorStream& rea
 	catch (std::runtime_error e) {
 		return;
 	}
-
 }
 
 //delay
@@ -475,6 +474,55 @@ TEST(Wrapper_Init, FrameRateBlockingStream) {
 	pipeline.join();
 }
 
+void getCycleBatch(std::map<std::string, std::string> parameters, std::vector<int> batch, TensorStream& reader) {
+	int width = std::atoi(parameters["width"].c_str());
+	int height = std::atoi(parameters["height"].c_str());
+	FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
+	int frames = std::atoi(parameters["frames"].c_str());
+
+	std::string fileName = parameters["dumpName"];
+	std::shared_ptr<FILE> dumpFile;
+	if (!fileName.empty())
+		dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+	ResizeOptions resizeOptions;
+	resizeOptions.width = width;
+	resizeOptions.height = height;
+	ColorOptions colorOptions;
+	colorOptions.dstFourCC = format;
+	FrameParameters frameArgs = { resizeOptions, colorOptions };
+	auto result = reader.getFrameAbsolute<uint8_t>(batch, frameArgs);
+	if (dumpFile) {
+		for (auto& frame : result) {
+			int status = reader.dumpFrame<uint8_t>(frame, frameArgs, dumpFile);
+			if (status < 0)
+				return;
+		}
+	}
+}
+
+//several threads
+TEST(Wrapper_Batch, MultipleThreadsEqual) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_720x480_RGB24_250.h264", 0, 0, 0), VREADER_OK);
+	std::map<std::string, std::string> parametersFirst = { {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													       {"dumpName", "bbb_dumpFirst.yuv"} };
+	std::map<std::string, std::string> parametersSecond = { {"format", std::to_string(Y800)}, {"width", "1920"}, {"height", "1080"},
+													        {"dumpName", "bbb_dumpSecond.yuv"} };
+	//Remove artifacts from previous runs
+	remove(parametersFirst["dumpName"].c_str());
+	remove(parametersSecond["dumpName"].c_str());
+	std::vector<int> frames = { 0, 25, 55, 70 };
+	std::thread getFirst(getCycleBatch, parametersFirst, frames, std::ref(reader));
+	std::thread getSecond(getCycleBatch, parametersSecond, frames, std::ref(reader));
+	getFirst.join();
+	getSecond.join();
+	reader.endProcessing();
+	//let's compare output
+
+	checkCRC(parametersFirst, 249831002);
+	checkCRC(parametersSecond, 756348339);
+
+}
 
 //this test should be at the end
 TEST(Wrapper_Init, OneThreadHang) {
