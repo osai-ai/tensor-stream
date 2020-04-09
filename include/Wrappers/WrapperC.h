@@ -52,7 +52,7 @@ public:
  @return Decoded frames in CUDA memory and indexes of decoded frame
 */
 	template <class T>
-	std::vector<T*> getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters);
+	std::vector<T*> getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 /** Close TensorStream session
 */
 	void endProcessing();

@@ -100,7 +100,7 @@ void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std:
 			dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 		}
 
-		auto result = reader.getFrameAbsolute<unsigned char>(executionParameters["name"], frames, frameParameters);
+		auto result = reader.getFrameAbsolute<unsigned char>(frames, frameParameters);
 		if (!fileName.empty()) {
 			for (auto frame : result) {
 				int status = reader.dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
@@ -117,7 +117,7 @@ void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std:
 }
 
 int startBatchPipeline() {
-	//reader.enableLogs(-MEDIUM);
+	reader.enableLogs(-LOW);
 	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
@@ -143,12 +143,18 @@ int startBatchPipeline() {
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
-	std::map<std::string, std::string> executionParameters = { {"name", "first"},
-															   {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + ".yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
 	//std::vector<int> frames = { 310, 100, 1341, 5012 };
 	std::vector<int> frames = { 0, 100, 1341, 5012 };
 	std::thread get(get_cycle_batch, frameParameters, executionParameters, frames);
+	
+	executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "2.yuv"} };
+	frames = { 310, 100, 2341, 3012 };
+	std::thread get1(get_cycle_batch, frameParameters, executionParameters, frames);
+
 	get.join();
+	get1.join();
+
 	reader.endProcessing();
 	return 0;
 }
