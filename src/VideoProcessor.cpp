@@ -76,7 +76,11 @@ int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, b
 	enableDumps = _enableDumps;
 	this->logger = logger;
 	cudaGetDeviceProperties(&prop, 0);
-	for (int i = 0; i < maxConsumers; i++) {
+
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+	streamArr.push_back(std::make_pair(std::string("empty"), stream));
+	for (int i = 1; i < maxConsumers; i++) {
 		cudaStream_t stream;
 		cudaStreamCreate(&stream);
 		streamArr.push_back(std::make_pair(std::string("empty"), stream));
@@ -100,7 +104,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 			//will be used default stream
 		}
 	}
-	std::cout << stream << std::endl;
 	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
 	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
 	bool crop = false;
