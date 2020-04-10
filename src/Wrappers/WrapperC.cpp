@@ -333,7 +333,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			std::unique_lock<std::mutex> locker(syncDecoded);
 			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
 			//seek to desired frame
-			av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			while (pts != decoded->pts) {
 				sts = parser->readVideoFrame(readFrames);
 				CHECK_STATUS_THROW(sts);
