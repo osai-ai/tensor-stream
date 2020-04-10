@@ -272,8 +272,8 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName); 
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
-	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 
+	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	float channels = channelsByFourCC(frameParameters.color.dstFourCC);
 	switch (frameParameters.color.dstFourCC) {
 		case FourCC::RGB24:
@@ -327,7 +327,7 @@ int64_t frameToPTS(AVStream* stream, int frame)
 	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
 }
 
-at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<int> index, FrameParameters frameParameters) {
+at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	std::vector<at::Tensor> outputTuple;
@@ -337,69 +337,73 @@ at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<
 	AVFrame* processedFrame = av_frame_alloc();
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	for (int i = 0; i < index.size(); i++) {
-		std::unique_lock<std::mutex> locker(syncDecoded);
-		auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
-		//seek to desired frame
-		av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-		while (pts != decoded->pts) {
-			sts = parser->readVideoFrame(readFrames);
-			CHECK_STATUS_THROW(sts);
-			//we should decode frames starting from this one until we reach desired one
-			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-			if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		{
+			std::unique_lock<std::mutex> locker(syncDecoded);
+			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
+			//seek to desired frame
+			int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			while (pts != decoded->pts) {
+				sts = parser->readVideoFrame(readFrames);
 				CHECK_STATUS_THROW(sts);
-			}
-
-			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-
-			if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
-				//we found needed frame, need to drain decoder until he returns us desired frame
-				if (pts == readFrames.first->pts) {
-					while (pts != decoded->pts) {
-						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
-						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-					}
+				//we should decode frames starting from this one until we reach desired one
+				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+					CHECK_STATUS_THROW(sts);
 				}
-				continue;
+
+				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+
+				if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+					//we found needed frame, need to drain decoder until he returns us desired frame
+					if (pts == readFrames.first->pts) {
+						while (pts != decoded->pts) {
+							sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
+							sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+						}
+					}
+					continue;
+				}
 			}
+			avcodec_flush_buffers(decoder->getDecoderContext());
 		}
-		avcodec_flush_buffers(decoder->getDecoderContext());
 
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
 
-		sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
+		sts = vpp->Convert(decoded, processedFrame, frameParameters);
 		CHECK_STATUS_THROW(sts);
+		END_LOG_BLOCK(std::string("vpp->Convert"));
+
+		START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 		at::Tensor outputTensor;
 		float channels = channelsByFourCC(frameParameters.color.dstFourCC);
 		switch (frameParameters.color.dstFourCC) {
 		case FourCC::RGB24:
 		case FourCC::BGR24:
 			if (frameParameters.color.planesPos == Planes::MERGED)
-				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			else
-				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width },
+				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::YUV444:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::UYVY:
 		case FourCC::NV12:
 		case FourCC::Y800:
-			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width },
+			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width }, cudaFree,
 				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
 			break;
 		case FourCC::HSV:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels },
+			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 				c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
 		}
-
 		outputTuple.push_back(outputTensor);
-		END_LOG_BLOCK(std::string("vpp->Convert"));
+		END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	}
 
 	av_frame_free(&decoded);
@@ -409,7 +413,6 @@ at::Tensor TensorStream::getFrameAbsolute(std::string consumerName, std::vector<
 	END_LOG_FUNCTION(std::string("GetFrameAbsolute() "));
 	return torch::stack(outputTuple);
 }
-
 
 /*
 Mode 1 - full close, mode 2 - soft close (for reset)

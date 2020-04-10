@@ -1,6 +1,12 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 
+#ifdef WIN32
+#define NOMINMAX
+#include "Windows.h"
+#include "psapi.h"
+#endif
+
 #include "WrapperC.h"
 extern "C" {
 #include "libavutil/crc.h"
@@ -503,15 +509,15 @@ void getCycleBatch(std::map<std::string, std::string> parameters, std::vector<in
 //several threads
 TEST(Wrapper_Batch, MultipleThreadsEqual) {
 	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_720x480_RGB24_250.h264", 0, 0, 0), VREADER_OK);
-	std::map<std::string, std::string> parametersFirst = { {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 0, 25, 55, 70 };
+	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													       {"dumpName", "bbb_dumpFirst.yuv"} };
-	std::map<std::string, std::string> parametersSecond = { {"format", std::to_string(Y800)}, {"width", "1920"}, {"height", "1080"},
+	std::map<std::string, std::string> parametersSecond = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(NV12)}, {"width", "1920"}, {"height", "1080"},
 													        {"dumpName", "bbb_dumpSecond.yuv"} };
 	//Remove artifacts from previous runs
 	remove(parametersFirst["dumpName"].c_str());
 	remove(parametersSecond["dumpName"].c_str());
-	std::vector<int> frames = { 0, 25, 55, 70 };
 	std::thread getFirst(getCycleBatch, parametersFirst, frames, std::ref(reader));
 	std::thread getSecond(getCycleBatch, parametersSecond, frames, std::ref(reader));
 	getFirst.join();
@@ -519,9 +525,122 @@ TEST(Wrapper_Batch, MultipleThreadsEqual) {
 	reader.endProcessing();
 	//let's compare output
 
-	checkCRC(parametersFirst, 249831002);
-	checkCRC(parametersSecond, 756348339);
+	checkCRC(parametersFirst, 1512214004);
+	checkCRC(parametersSecond, 749536786);
+}
 
+//several threads
+TEST(Wrapper_Batch, MultipleThreadsDifferent) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> framesFirst = { 0, 25, 55 };
+	std::vector<int> framesSecond = { 60, 0, 200, 220, 70 };
+	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(framesFirst.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"dumpName", "bbb_dumpFirst.yuv"} };
+	std::map<std::string, std::string> parametersSecond = { {"frames", std::to_string(framesSecond.size())}, {"format", std::to_string(NV12)}, {"width", "1920"}, {"height", "1080"},
+															{"dumpName", "bbb_dumpSecond.yuv"} };
+	//Remove artifacts from previous runs
+	remove(parametersFirst["dumpName"].c_str());
+	remove(parametersSecond["dumpName"].c_str());
+	std::thread getFirst(getCycleBatch, parametersFirst, framesFirst, std::ref(reader));
+	std::thread getSecond(getCycleBatch, parametersSecond, framesSecond, std::ref(reader));
+	getFirst.join();
+	getSecond.join();
+	reader.endProcessing();
+	//let's compare output
+
+	checkCRC(parametersFirst, 2769188104);
+	checkCRC(parametersSecond, 391182750);
+
+}
+
+//several instances
+TEST(Wrapper_Batch, MultipleInstancesEqual) {
+	TensorStream readerFirst;
+	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStream readerSecond;
+	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 0, 25, 55, 70 };
+	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"dumpName", "bbb_dumpFirst.yuv"} };
+	std::map<std::string, std::string> parametersSecond = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(NV12)}, {"width", "1920"}, {"height", "1080"},
+															{"dumpName", "bbb_dumpSecond.yuv"} };
+	//Remove artifacts from previous runs
+	remove(parametersFirst["dumpName"].c_str());
+	remove(parametersSecond["dumpName"].c_str());
+	std::thread getFirst(getCycleBatch, parametersFirst, frames, std::ref(readerFirst));
+	std::thread getSecond(getCycleBatch, parametersSecond, frames, std::ref(readerSecond));
+	getFirst.join();
+	getSecond.join();
+	readerFirst.endProcessing();
+	readerSecond.endProcessing();
+	//let's compare output
+
+	checkCRC(parametersFirst, 1512214004);
+	checkCRC(parametersSecond, 749536786);
+}
+
+TEST(Wrapper_Batch, InstanceGPUMemory) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	size_t memFreeBefore, memFreeAfter, memTotal;
+	cudaMemGetInfo(&memFreeBefore, &memTotal);
+	//create 10 instances and measure GPU/RAM
+	for (int i = 0; i < 10; i++) {
+		TensorStream reader;
+		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	}
+	cudaMemGetInfo(&memFreeAfter, &memTotal);
+	//used memory in mb
+	ASSERT_LT((memFreeBefore - memFreeAfter) / 1024 / 1024, 10);
+}
+
+#ifdef WIN32
+TEST(Wrapper_Batch, InstanceCPUMemory) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	size_t memBefore, memAfter;
+	auto myHandle = GetCurrentProcess();
+	PROCESS_MEMORY_COUNTERS pmc;
+	if (GetProcessMemoryInfo(myHandle, &pmc, sizeof(pmc)))
+		memBefore = pmc.WorkingSetSize;
+	//create 10 instances and measure GPU/RAM
+	for (int i = 0; i < 10; i++) {
+		TensorStream reader;
+		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	}
+	if (GetProcessMemoryInfo(myHandle, &pmc, sizeof(pmc)))
+		memAfter = pmc.WorkingSetSize;
+
+	//used memory in mb
+	ASSERT_LT((memAfter - memBefore) / 1024 / 1024, 10);
+}
+#endif
+
+TEST(Wrapper_Batch, MultipleInstancesDifferent) {
+	TensorStream readerFirst;
+	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStream readerSecond;
+	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> framesFirst = { 0, 25, 55 };
+	std::vector<int> framesSecond = { 60, 0, 200, 220, 70 };
+	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(framesFirst.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"dumpName", "bbb_dumpFirst.yuv"} };
+	std::map<std::string, std::string> parametersSecond = { {"frames", std::to_string(framesSecond.size())}, {"format", std::to_string(NV12)}, {"width", "1920"}, {"height", "1080"},
+															{"dumpName", "bbb_dumpSecond.yuv"} };
+	//Remove artifacts from previous runs
+	remove(parametersFirst["dumpName"].c_str());
+	remove(parametersSecond["dumpName"].c_str());
+	std::thread getFirst(getCycleBatch, parametersFirst, framesFirst, std::ref(readerFirst));
+	std::thread getSecond(getCycleBatch, parametersSecond, framesSecond, std::ref(readerSecond));
+	getFirst.join();
+	getSecond.join();
+	readerFirst.endProcessing();
+	readerSecond.endProcessing();
+	//let's compare output
+
+	checkCRC(parametersFirst, 2769188104);
+	checkCRC(parametersSecond, 391182750);
 }
 
 //this test should be at the end

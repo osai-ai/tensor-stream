@@ -230,7 +230,6 @@ class TensorStreamConverter:
 
     def read_absolute(self,
              batch,
-             name="default",
              width=0,
              height=0,
              resize_type=ResizeType.NEAREST,
@@ -249,16 +248,14 @@ class TensorStreamConverter:
             normalization=normalization
         )
         result = self.param_read_absolute(batch=batch,
-                                          frame_parameters=frame_parameters,
-                                          name=name)
+                                          frame_parameters=frame_parameters)
         return result
 
     def param_read_absolute(self,
                             batch,
-                            frame_parameters: FrameParameters,
-                            name="default"):
+                            frame_parameters: FrameParameters):
 
-        tensor = self.tensor_stream.getAbsolute(name, batch, frame_parameters.parameters)
+        tensor = self.tensor_stream.getAbsolute(batch, frame_parameters.parameters)
         return tensor
 
 
