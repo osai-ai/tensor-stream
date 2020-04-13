@@ -72,7 +72,7 @@ def parse_arguments():
 
     return parser.parse_args()
 
-def consumer(reader, args, batch):
+def consumer(reader, args):
     parameters = {'pixel_format': FourCC[args.fourcc],
                   'width': args.width,
                   'height': args.height,
@@ -81,10 +81,10 @@ def consumer(reader, args, batch):
                   'planes_pos': Planes[args.planes],
                   'resize_type': ResizeType[args.resize_type]}
 
-    result = reader.read_absolute(batch=batch, **parameters)
+    result = reader.read_absolute(batch=args.batch, **parameters)
     if args.output:
         for i in range(0, result.shape[0]):
-            reader.dump(result[i], f"{args.output}_{batch}", **parameters)
+            reader.dump(result[i], args.output, **parameters)
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -98,16 +98,6 @@ if __name__ == '__main__':
 
     reader.initialize(repeat_number=20)
 
-    batch1 = args.batch
-    batch2 = [e + 30 for e in args.batch]
-
-    thread1 = Thread(target=consumer, args=(reader, args, batch1))
-    thread2 = Thread(target=consumer, args=(reader, args, batch2))
-
-    thread1.start()
-    thread2.start()
-
-    thread1.join()
-    thread2.join()
+    consumer(reader, args)
 
     reader.stop()

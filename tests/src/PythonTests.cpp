@@ -285,3 +285,47 @@ TEST_F(Python_Tests, FrameRate_Fast) {
 TEST_F(Python_Tests, FrameRate_Blocking) {
 	CRCTestFrameRate(setupCmdLine, "tests/resources/bbb_720x480_RGB24_250.h264", 720, 480, 100, "RGB24", "BLOCKING", 2018747012);
 }
+
+void CRCBatchTest(std::string generalCmdLine, std::string input, int width, int height, std::string crop, std::string batch, std::string dstFourCC, std::string planes, std::string resize, unsigned long crc, unsigned long crcLinux = 0) {
+	std::stringstream cmdLine;
+	std::string dumpFileName = std::string("DumpFrame") + dstFourCC + "_" + std::to_string(width) + "x" + std::to_string(height) + "_" + planes;
+	std::string normalizationString = "False";
+	float channels = channelsByFourCC(dstFourCC);
+	cmdLine << " > nul 2>&1 && python python_examples/batch_loader.py -fc " << dstFourCC << " -w " << std::to_string(width) << " -h " << std::to_string(height)
+		<< " --normalize " << normalizationString << " -b " << batch << " -o " << dumpFileName << " -i " << input << " --planes " << planes << " --resize_type " << resize
+		<< " --crop " << crop;
+
+	std::string setupCmdLine = generalCmdLine + cmdLine.str();
+	setupCmdLine = setupCmdLine + " > nul 2>&1";
+	system(setupCmdLine.c_str());
+	{
+		std::shared_ptr<FILE> readFile(fopen(std::string(dumpFileName + ".yuv").c_str(), "rb"), fclose);
+		std::vector<uint8_t> fileProcessing(width * height * channels);
+		fread(&fileProcessing[0], fileProcessing.size(), 1, readFile.get());
+		bool pass = false;
+		auto crc_test = av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels);
+		if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crc)
+			pass = true;
+		if (crcLinux != 0) {
+			if (av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1, &fileProcessing[0], width * height * channels) == crcLinux)
+				pass = true;
+		}
+		ASSERT_EQ(pass, true);
+
+	}
+	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
+}
+
+//FourCC tests
+TEST_F(Python_Tests, Batch_FourCC_NV12) {
+	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "0,0,0,0", "0,100,200,120", "NV12", "PLANAR", "NEAREST", 1386151708);
+}
+
+TEST_F(Python_Tests, Batch_FourCC_RGB24) {
+	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "100,100,720,1000", "0,100,200,120", "RGB24", "MERGED", "NEAREST", 4073280885);
+}
+
+TEST_F(Python_Tests, Batch_Stress_FourCC_RGB24) {
+	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "0,0,0,0", "0,100,200,120,50,100,8,12,16,23,42,120,150,11,1,111,77,88,99,44,33,22", 
+				 "RGB24", "MERGED", "NEAREST", 990539867);
+}

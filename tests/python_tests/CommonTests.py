@@ -4,7 +4,7 @@ import time
 import unittest
 import os
 
-
+'''
 class TestTensorStream(unittest.TestCase):
     path = os.path.dirname(os.path.abspath(__file__)) \
            + "/../../tests/resources/billiard_1920x1080_420_100.h264"
@@ -68,7 +68,7 @@ class TestTensorStream(unittest.TestCase):
         reader.stop()
         #won't work but at least no crush
         reader.start()
-    
+
     def test_start_read_close(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -98,7 +98,7 @@ class TestTensorStream(unittest.TestCase):
         value = tensor[0][0][0].item()
         self.assertEqual(type(value), float)
         reader.stop()
-    
+
     def test_read_without_init(self):
         reader = TensorStreamConverter(self.path)
         reader.start()
@@ -107,7 +107,7 @@ class TestTensorStream(unittest.TestCase):
             tensor, index = reader.read(return_index=True)
 
         reader.stop()
-    
+
     def test_check_dump_size(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -135,7 +135,7 @@ class TestTensorStream(unittest.TestCase):
             tensor, index = reader.read(return_index=True)
 
         reader.stop()
-    
+
     def test_dump_name(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -144,10 +144,10 @@ class TestTensorStream(unittest.TestCase):
         tensor = reader.read()
         # need to find dumped file and compare expected and real sizes
         reader.dump(tensor, name="dump")
-        self.assertTrue(os.path.isfile("dump.yuv")) 
+        self.assertTrue(os.path.isfile("dump.yuv"))
         os.remove("dump.yuv")
         reader.stop()
-    
+
     def test_multiple_init(self):
         reader = TensorStreamConverter(self.path)
         number_close_init = 10
@@ -164,7 +164,7 @@ class TestTensorStream(unittest.TestCase):
         reader.stop()
         with self.assertRaises(RuntimeError):
             tensor = reader.read()
-    
+
     def test_frame_number(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -185,6 +185,36 @@ class TestTensorStream(unittest.TestCase):
         expected_size = expected_width * expected_height * expected_channels * frame_num
         self.assertEqual(dump_size.st_size,
                          expected_size)
+        reader.stop()
+'''
+
+class TestTensorStreamBatch(unittest.TestCase):
+    path = os.path.dirname(os.path.abspath(__file__)) \
+           + "/../../tests/resources/tennis_2s.mp4"
+
+    def test_zero_batch(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        with self.assertRaises(RuntimeError):
+            tensor = reader.read_absolute(batch=[])
+
+        reader.stop()
+
+    def test_batch_out_of_bounds(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        with self.assertRaises(RuntimeError):
+            tensor = reader.read_absolute(batch=[0, 100, 1000])
+
+        reader.stop()
+
+    def test_batch(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        batch = [0, 10, 100]
+        tensor = reader.read_absolute(batch=batch)
+        self.assertEqual(tensor.shape[0],
+                         len(batch))
         reader.stop()
 
 
