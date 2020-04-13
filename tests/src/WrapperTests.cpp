@@ -45,7 +45,6 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 
 }
 
-
 void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 	int width = std::atoi(parameters["width"].c_str());
 	int height = std::atoi(parameters["height"].c_str());
@@ -480,7 +479,7 @@ TEST(Wrapper_Init, FrameRateBlockingStream) {
 	pipeline.join();
 }
 
-void getCycleBatch(std::map<std::string, std::string> parameters, std::vector<int> batch, TensorStream& reader) {
+bool getCycleBatch(std::map<std::string, std::string> parameters, std::vector<int> batch, TensorStream& reader) {
 	int width = std::atoi(parameters["width"].c_str());
 	int height = std::atoi(parameters["height"].c_str());
 	FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
@@ -501,9 +500,36 @@ void getCycleBatch(std::map<std::string, std::string> parameters, std::vector<in
 		for (auto& frame : result) {
 			int status = reader.dumpFrame<uint8_t>(frame, frameArgs, dumpFile);
 			if (status < 0)
-				return;
+				return VREADER_ERROR;
 		}
 	}
+	return VREADER_OK;
+}
+
+TEST(Wrapper_Batch, ZeroBatch) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = {};
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+														   {"dumpName", "bbb_dumpFirst.yuv"} };
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	bool sts = getCycleBatch(parameters, frames, std::ref(reader));
+	ASSERT_EQ(sts, VREADER_OK);
+	reader.endProcessing();
+}
+
+TEST(Wrapper_Batch, FrameOutOfBounds) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 0, 100, 250, 120 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+	
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	ASSERT_THROW(getCycleBatch(parameters, frames, std::ref(reader)), std::runtime_error);
+	reader.endProcessing();
 }
 
 //several threads
