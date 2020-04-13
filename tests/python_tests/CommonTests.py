@@ -4,7 +4,7 @@ import time
 import unittest
 import os
 
-
+'''
 class TestTensorStream(unittest.TestCase):
     path = os.path.dirname(os.path.abspath(__file__)) \
            + "/../../tests/resources/billiard_1920x1080_420_100.h264"
@@ -188,6 +188,36 @@ class TestTensorStream(unittest.TestCase):
         expected_size = expected_width * expected_height * expected_channels * frame_num
         self.assertEqual(dump_size.st_size,
                          expected_size)
+        reader.stop()
+'''
+
+class TestTensorStreamBatch(unittest.TestCase):
+    path = os.path.dirname(os.path.abspath(__file__)) \
+           + "/../../tests/resources/tennis_2s.mp4"
+
+    def test_zero_batch(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        with self.assertRaises(RuntimeError):
+            tensor = reader.read_absolute(batch=[])
+
+        reader.stop()
+
+    def test_batch_out_of_bounds(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        with self.assertRaises(RuntimeError):
+            tensor = reader.read_absolute(batch=[0, 100, 1000])
+
+        reader.stop()
+
+    def test_batch(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        batch = [0, 10, 100]
+        tensor = reader.read_absolute(batch=batch)
+        self.assertEqual(tensor.shape[0],
+                         len(batch))
         reader.stop()
 
 

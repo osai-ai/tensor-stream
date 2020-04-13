@@ -450,6 +450,8 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	av_frame_free(&processedFrame);
 	delete readFrames.first;
 
+	CHECK_STATUS_THROW(outputTuple.size() <= 0);
+
 	END_LOG_FUNCTION(std::string("GetFrameAbsolute() "));
 	return torch::stack(outputTuple);
 }
