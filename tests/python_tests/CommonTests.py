@@ -3,8 +3,10 @@ from tensor_stream import TensorStreamConverter, LogsLevel, LogsType
 import time
 import unittest
 import os
+import psutil
+from subprocess import Popen, PIPE
+from xml.etree.ElementTree import fromstring
 
-'''
 class TestTensorStream(unittest.TestCase):
     path = os.path.dirname(os.path.abspath(__file__)) \
            + "/../../tests/resources/billiard_1920x1080_420_100.h264"
@@ -180,7 +182,6 @@ class TestTensorStream(unittest.TestCase):
             i -= 1
 
         dump_size = os.stat('default.yuv')
-        print(f"SIZE {dump_size}")
         os.remove("default.yuv")
         expected_width = 1920
         expected_height = 1080
@@ -189,7 +190,38 @@ class TestTensorStream(unittest.TestCase):
         self.assertEqual(dump_size.st_size,
                          expected_size)
         reader.stop()
-'''
+
+def get_GPU_memory():
+    if os.name == 'nt':
+        nvidia_smi_exe = 'C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi'
+    else:
+        nvidia_smi_exe = 'nvidia-smi'
+
+    p = Popen([nvidia_smi_exe, '-q', '-x'], stdout=PIPE)
+    outs, errors = p.communicate()
+    xml = fromstring(outs)
+    num_gpus = int(list(xml.iter('attached_gpus'))[0].text)
+    results = []
+    for gpu_id, gpu in enumerate(list(xml.iter('gpu'))):
+        gpu_data = {}
+
+        name = list(gpu.iter('product_name'))[0].text
+        gpu_data['name'] = name
+
+        # get memory
+        memory_usage = list(gpu.iter('fb_memory_usage'))[0]
+        total_memory = list(memory_usage.iter('total'))[0].text.split(" ")[0]
+        used_memory = list(memory_usage.iter('used'))[0].text.split(" ")[0]
+        free_memory = list(memory_usage.iter('free'))[0].text.split(" ")[0]
+        gpu_data['memory'] = {
+            'total': total_memory,
+            'used_memory': used_memory,
+            'free_memory': free_memory
+        }
+
+        results.append(gpu_data)
+
+    return results
 
 class TestTensorStreamBatch(unittest.TestCase):
     path = os.path.dirname(os.path.abspath(__file__)) \
@@ -218,6 +250,51 @@ class TestTensorStreamBatch(unittest.TestCase):
         tensor = reader.read_absolute(batch=batch)
         self.assertEqual(tensor.shape[0],
                          len(batch))
+        reader.stop()
+
+    def test_RAM_footprint(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        instaces_number = 40
+        used_memory_before = psutil.virtual_memory()
+        for i in range(0, instaces_number):
+            reader = TensorStreamConverter(self.path)
+            reader.initialize()
+        used_memory_after = psutil.virtual_memory()
+        self.assertLess((used_memory_after[3] - used_memory_before[3]) / 2 ** 20, instaces_number)
+
+    def test_GPU_footprint(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        instaces_number = 40
+
+        used_memory_before = get_GPU_memory()
+        for i in range(0, instaces_number):
+            reader = TensorStreamConverter(self.path)
+            reader.initialize()
+        used_memory_after = get_GPU_memory()
+        allocated_memory = int(used_memory_after[0]['memory']['used_memory']) - int(used_memory_before[0]['memory']['used_memory'])
+        self.assertLess((allocated_memory) / 2 ** 20, instaces_number)
+
+    def test_batch_dump_size(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        batch = [0, 10, 100]
+        expected_width = 1920
+        expected_height = 1080
+        expected_channels = 3
+        tensor = reader.read_absolute(batch=batch)
+        self.assertEqual(tensor.shape[0], len(batch))
+        self.assertEqual(tensor.shape[1], expected_height)
+        self.assertEqual(tensor.shape[2], expected_width)
+        self.assertEqual(tensor.shape[3], expected_channels)
+        # need to find dumped file and compare expected and real sizes
+        for i in range(0, tensor.shape[0]):
+            reader.dump(tensor[i])
+
+        dump_size = os.stat('default.yuv')
+        os.remove("default.yuv")
+        self.assertEqual(dump_size.st_size, len(batch) * expected_width * expected_height * expected_channels)
         reader.stop()
 
 

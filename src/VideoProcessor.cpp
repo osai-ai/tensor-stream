@@ -76,7 +76,7 @@ int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, b
 	enableDumps = _enableDumps;
 	this->logger = logger;
 	cudaGetDeviceProperties(&prop, 0);
-
+	//We should allocate at least 1 stream to avoid any collision in one default stream if use only it
 	cudaStream_t stream;
 	cudaStreamCreate(&stream);
 	streamArr.push_back(std::make_pair(std::string("empty"), stream));
