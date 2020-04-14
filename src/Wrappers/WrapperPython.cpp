@@ -485,7 +485,6 @@ int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FramePa
 			//in this case size of Tensor is (1, height * channels, width)
 			frameParameters.resize.width = stream.size(2);
 		}
-		std::cout << frameParameters.resize.width << std::endl;
 	}
 
 	if (!frameParameters.resize.height) {
@@ -497,7 +496,6 @@ int TensorStream::dumpFrame(at::Tensor stream, std::string consumerName, FramePa
 			//in this case size of Tensor is (1, height * channels, width)
 			frameParameters.resize.height = stream.size(1) / channelsByFourCC(frameParameters.color.dstFourCC);
 		}
-		std::cout << frameParameters.resize.height << std::endl;
 	}
 
 	//Kind of magic, need to concatenate string from Python with std::string to avoid issues in frame dumping (some strange artifacts appeared if create file using consumerName)
