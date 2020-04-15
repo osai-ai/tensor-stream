@@ -1,10 +1,14 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 
-#ifdef WIN32
+#if defined(_WIN32)
 #define NOMINMAX
-#include "Windows.h"
-#include "psapi.h"
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <unistd.h>
+#include <sys/resource.h>
+#include <stdio.h>
 #endif
 
 #include "WrapperC.h"
@@ -675,25 +679,46 @@ TEST(Wrapper_Batch, InstanceGPUMemory) {
 	ASSERT_LT((memFreeBefore - memFreeAfter) / 1024 / 1024, 10);
 }
 
+size_t getCurrentMemory()
+{
+#if defined(_WIN32)
+	/* Windows -------------------------------------------------- */
+	PROCESS_MEMORY_COUNTERS info;
+	GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
+	return (size_t)info.WorkingSetSize;
+
+#else
+	/* Linux ---------------------------------------------------- */
+	long rss = 0L;
+	FILE* fp = NULL;
+	if ((fp = fopen("/proc/self/statm", "r")) == NULL)
+		return (size_t)0L;      /* Can't open? */
+	if (fscanf(fp, "%*s%ld", &rss) != 1)
+	{
+		fclose(fp);
+		return (size_t)0L;      /* Can't read? */
+	}
+	fclose(fp);
+	return (size_t)rss * (size_t)sysconf(_SC_PAGESIZE);
+#endif
+}
+
 #ifdef WIN32
 TEST(Wrapper_Batch, InstanceCPUMemory) {
 	TensorStream reader;
 	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
 	size_t memBefore, memAfter;
-	auto myHandle = GetCurrentProcess();
-	PROCESS_MEMORY_COUNTERS pmc;
-	if (GetProcessMemoryInfo(myHandle, &pmc, sizeof(pmc)))
-		memBefore = pmc.WorkingSetSize;
+	memBefore = getCurrentMemory();
+	int instancesNumber = 1000;
 	//create 10 instances and measure GPU/RAM
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < instancesNumber; i++) {
 		TensorStream reader;
 		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
 	}
-	if (GetProcessMemoryInfo(myHandle, &pmc, sizeof(pmc)))
-		memAfter = pmc.WorkingSetSize;
+	memAfter = getCurrentMemory();
 
 	//used memory in mb
-	ASSERT_LT((memAfter - memBefore) / 1024 / 1024, 10);
+	ASSERT_LT((memAfter - memBefore) / 1024 / 1024, instancesNumber);
 }
 #endif
 
