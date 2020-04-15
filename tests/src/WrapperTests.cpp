@@ -649,7 +649,6 @@ size_t getCurrentMemory()
 #endif
 }
 
-#ifdef WIN32
 TEST(Wrapper_Batch, InstanceCPUMemory) {
 	TensorStream reader;
 	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
@@ -666,7 +665,6 @@ TEST(Wrapper_Batch, InstanceCPUMemory) {
 	//used memory in mb
 	ASSERT_LT((memAfter - memBefore) / 1024 / 1024, instancesNumber);
 }
-#endif
 
 TEST(Wrapper_Batch, MultipleInstancesDifferent) {
 	TensorStream readerFirst;
