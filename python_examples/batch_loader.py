@@ -81,8 +81,7 @@ def consumer(reader, args):
                   'planes_pos': Planes[args.planes],
                   'resize_type': ResizeType[args.resize_type]}
 
-    for i in range(0, 1000):
-        result = reader.read_absolute(batch=args.batch, **parameters)
+    result = reader.read_absolute(batch=args.batch, **parameters)
     if args.output:
         for i in range(0, result.shape[0]):
             reader.dump(result[i], args.output, **parameters)
