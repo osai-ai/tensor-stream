@@ -260,6 +260,18 @@ class TestTensorStreamBatch(unittest.TestCase):
         used_memory_after = psutil.virtual_memory()
         self.assertLess((used_memory_after[3] - used_memory_before[3]) / 2 ** 20, instaces_number)
 
+    def test_RAM_read_footprint(self):
+        reader = TensorStreamConverter(self.path)
+        reader.initialize()
+        batch = [0, 10, 100]
+        read_number = 50
+        reader.read_absolute(batch)
+        used_memory_before = psutil.virtual_memory()
+        for i in range(0, read_number):
+            reader.read_absolute(batch)
+        used_memory_after = psutil.virtual_memory()
+        self.assertLess((used_memory_after[3] - used_memory_before[3]) / 2 ** 20, 5)
+
     def test_GPU_footprint(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
