@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <algorithm>
-
+#include <math.h>
 #if defined(_WIN32)
 #define NOMINMAX
 #include <windows.h>
@@ -664,6 +664,24 @@ TEST(Wrapper_Batch, InstanceCPUMemory) {
 
 	//used memory in mb
 	ASSERT_LT((memAfter - memBefore) / 1024 / 1024, instancesNumber);
+}
+
+TEST(Wrapper_Batch, ReadCPUMemory) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> batch = { 0, 10, 100 };
+	size_t memBefore, memAfter;
+	int readNumber = 50;
+	FrameParameters frameParameters;
+	auto result = reader.getFrameAbsolute<uint8_t>(batch, frameParameters);
+	memBefore = getCurrentMemory();
+	for (int i = 0; i < readNumber; i++) {
+		auto result = reader.getFrameAbsolute<uint8_t>(batch, frameParameters);
+		for (auto &item : result)
+			cudaFree(item);
+	}
+	memAfter = getCurrentMemory();
+	ASSERT_NEAR(std::labs(memAfter - memBefore) / 1024 / 1024, 0, 5);
 }
 
 TEST(Wrapper_Batch, MultipleInstancesDifferent) {
