@@ -393,9 +393,11 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 
 				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 
+				int currentPTS = readFrames.first->pts;
+				av_packet_unref(readFrames.first);
 				if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 					//we found needed frame, need to drain decoder until he returns us desired frame
-					if (pts == readFrames.first->pts) {
+					if (pts == currentPTS) {
 						while (pts != decoded->pts) {
 							sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
 							sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
