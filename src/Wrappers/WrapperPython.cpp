@@ -116,6 +116,8 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
+	std::pair<int64_t, bool> startDTS = { 0, false };
+	std::pair<std::chrono::high_resolution_clock::time_point, bool> startTime = { std::chrono::high_resolution_clock::now(), false };
 	SET_CUDA_DEVICE();
 	while (shouldWork) {
 		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
@@ -131,6 +133,7 @@ int TensorStream::processingLoop() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
+		int64_t frameDTS = parsed->dts;
 		if (!skipAnalyze) {
 			START_LOG_BLOCK(std::string("parser->Analyze"));
 			//Parse package to find some syntax issues, don't handle errors returned from this function
@@ -165,11 +168,34 @@ int TensorStream::processingLoop() {
 		if (frameRateMode == FrameRateMode::NATIVE) {
 			START_LOG_BLOCK(std::string("sleep"));
 			PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
-			//wait here
-			int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
-				std::chrono::high_resolution_clock::now() - waitTime).count();
-			if (sleepTime > 0) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+			int sleepTime = 0;
+			if (frameDTS > 0) {
+				int64_t dts = av_rescale(frameDTS, 1000000, AV_TIME_BASE);
+
+				if (!startDTS.second) {
+					startDTS.first = dts;
+					startDTS.second = true;
+				}
+
+				dts -= startDTS.first;
+
+				if (!startTime.second) {
+					startTime.first = std::chrono::high_resolution_clock::now();
+					startTime.second = true;
+				}
+
+				int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime.first).count();
+				if (dts > now) {
+					sleepTime = dts - now;
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+				}
+			} else {
+				//wait here
+				sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::high_resolution_clock::now() - waitTime).count();
+				if (sleepTime > 0) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+				}
 			}
 			LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
 			END_LOG_BLOCK(std::string("sleep"));
