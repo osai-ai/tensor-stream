@@ -11,7 +11,7 @@ from enum import Enum
 # @{
 
 ## Class with list of possible error statuses can be returned from TensorStream extension
-# @warning These statuses are used only in Python wrapper that communicates with TensorStream C++ extension 
+# @warning These statuses are used only in Python wrapper that communicates with TensorStream C++ extension
 class StatusLevel(Enum):
     ## No errors
     OK = 0
@@ -80,17 +80,19 @@ class Planes(Enum):
     ## Color components R, G, B are stored in memory separately like RRRRR, GGGGG, BBBBB
     PLANAR = 0
     ## Color components R, G, B are stored in memory one by one like RGBRGBRGB
-    MERGED = 1 
+    MERGED = 1
 
 
 ## Enum with possible stream reading modes
 class FrameRate(Enum):
-    ## Read at native stream/camera frame rate
+    ## Read at native stream frame rate
     NATIVE = 0
+    ## Read at fixed stream frame rate
+    NATIVE_SIMPLE = 1
     ## Read frames as fast as possible
-    FAST = 1
+    FAST = 2
     ## Read frame by frame without skipping (only local files)
-    BLOCKING = 2
+    BLOCKING = 3
 
 
 ## Class that stores frame parameters
@@ -166,9 +168,9 @@ class TensorStreamConverter:
         self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
-        self.fps = None 
+        self.fps = None
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
-        self.frame_size = None 
+        self.frame_size = None
 
         self.max_consumers = max_consumers
         self.cuda_device = cuda_device
@@ -239,7 +241,7 @@ class TensorStreamConverter:
     # @param[in] normalization Should final colors be normalized or not
     # @param[in] delay Specify which frame should be read from decoded buffer. Can take values in range [-buffer_size, 0]
     # @param[in] return_index Specify whether need return index of decoded frame or not
-    
+
     # @return Decoded frame in CUDA memory wrapped to Pytorch tensor and index of decoded frame if @ref return_index option set
     def read(self,
              name="default",
