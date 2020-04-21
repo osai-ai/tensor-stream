@@ -7,8 +7,12 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 }
 
 int64_t frameToPTS(AVStream* stream, int frame) {
-	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
+	//1) frameindex * framerate.den / framerate.num = frame time in seconds
+	//2) 1) * framerate.den / framerate.num = frame time in time base units
+	double scaleCoeff = (double)(stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
+	return int64_t(frame) * scaleCoeff;
 }
+
 
 int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
 	int sts = VREADER_OK;
@@ -122,6 +126,7 @@ int TensorStream::processingLoop() {
 	int sts = VREADER_OK;
 	std::pair<int64_t, bool> startDTS = { 0, false };
 	std::pair<std::chrono::high_resolution_clock::time_point, bool> startTime = { std::chrono::high_resolution_clock::now(), false };
+	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	SET_CUDA_DEVICE();
 	while (shouldWork) {
 		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
@@ -138,9 +143,8 @@ int TensorStream::processingLoop() {
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
 		int64_t frameDTS = parsed->dts;
-		if (frameDTS == AV_NOPTS_VALUE) {
-			//getFrameIndex() + 1 because incrementing happens in Decode
-			frameDTS = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], decoder->getFrameIndex() + 1);
+		if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
+			frameDTS = frameToPTS(videoStream, decoder->getFrameIndex());
 		}
 		if (!skipAnalyze) {
 			START_LOG_BLOCK(std::string("parser->Analyze"));
@@ -187,7 +191,11 @@ int TensorStream::processingLoop() {
 			}
 
 			frameDTS -= startDTS.first;
-
+			//need convert DTS to ms
+			//first of all converting DTS to seconds (DTS is measured in timebase.num / timebase.den seconds, so 1 dts = timebase.num / timebase.den seconds)
+			//after converting from seconds to ms by dividing by 1000
+			double scaleCoeff = (double)videoStream->time_base.num / (double)videoStream->time_base.den * (double)1000;
+			frameDTS = frameDTS * scaleCoeff;
 			if (!startTime.second) {
 				startTime.first = std::chrono::high_resolution_clock::now();
 				startTime.second = true;

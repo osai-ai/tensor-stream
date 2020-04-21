@@ -541,7 +541,8 @@ double checkPSNR(uint8_t* reference, uint8_t* input, int width, int height) {
 
 uint8_t* getFrame(std::string path, FrameParameters frameParams) {
 	TensorStream reader;
-	auto sts = reader.initPipeline(path);
+	//we read only one image, so we have to set blocking mode
+	auto sts = reader.initPipeline(path, 5, 0, 5, FrameRateMode::BLOCKING);
 	reader.skipAnalyzeStage();
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::tuple<uint8_t*, int> result;
