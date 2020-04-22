@@ -11,13 +11,6 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int64_t frameToPTS(AVStream* stream, int frame) {
-	//1) frameindex * framerate.den / framerate.num = frame time in seconds
-	//2) 1) * framerate.den / framerate.num = frame time in time base units
-	double scaleCoeff = (double)(stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
-	return int64_t(frame) * scaleCoeff;
-}
-
 int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
 	int sts = VREADER_OK;
 	shouldWork = true;
@@ -79,6 +72,15 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	realTimeDelay = ((float)frameRate.first /
 		(float)frameRate.second) * 1000;
 	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int) (frameRate.second / frameRate.first)), LogsLevel::LOW);
+
+	//1) frameindex * framerate.den / framerate.num = frame time in seconds
+	//2) 1) * framerate.den / framerate.num = frame time in time base units
+	indexToDTSCoeff = (double)(videoStream->r_frame_rate.den * videoStream->time_base.den) / (int64_t(videoStream->r_frame_rate.num) * videoStream->time_base.num);
+
+	//need convert DTS to ms
+	//first of all converting DTS to seconds (DTS is measured in timebase.num / timebase.den seconds, so 1 dts = timebase.num / timebase.den seconds)
+	//after converting from seconds to ms by dividing by 1000
+	DTSToMsCoeff = (double)videoStream->time_base.num / (double)videoStream->time_base.den * (double)1000;
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }
@@ -127,7 +129,6 @@ int TensorStream::processingLoop() {
 	int sts = VREADER_OK;
 	std::pair<int64_t, bool> startDTS = { 0, false };
 	std::pair<std::chrono::high_resolution_clock::time_point, bool> startTime = { std::chrono::high_resolution_clock::now(), false };
-	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	SET_CUDA_DEVICE();
 	while (shouldWork) {
 		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
@@ -145,7 +146,7 @@ int TensorStream::processingLoop() {
 		END_LOG_BLOCK(std::string("parser->Get"));
 		int64_t frameDTS = parsed->dts;
 		if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
-			frameDTS = frameToPTS(videoStream, decoder->getFrameIndex());
+			frameDTS = int64_t(decoder->getFrameIndex()) * indexToDTSCoeff;
 		}
 		if (!skipAnalyze) {
 			START_LOG_BLOCK(std::string("parser->Analyze"));
@@ -175,11 +176,8 @@ int TensorStream::processingLoop() {
 			}
 
 			frameDTS -= startDTS.first;
-			//need convert DTS to ms
-			//first of all converting DTS to seconds (DTS is measured in timebase.num / timebase.den seconds, so 1 dts = timebase.num / timebase.den seconds)
-			//after converting from seconds to ms by dividing by 1000
-			double scaleCoeff = (double)videoStream->time_base.num / (double)videoStream->time_base.den * (double)1000;
-			frameDTS = frameDTS * scaleCoeff;
+			
+			frameDTS = frameDTS * DTSToMsCoeff;
 			if (!startTime.second) {
 				startTime.first = std::chrono::high_resolution_clock::now();
 				startTime.second = true;
