@@ -72,10 +72,15 @@ if platform.system() == 'Windows':
     if version.parse(torch.__version__) <= version.parse("1.1.0"):
         library += ["caffe2"]
         library += ["caffe2_gpu"]
-    library += ["torch"]
-    library += ["torch_python"]
-    library += ["c10"]
     library += ["_C"]
+
+library += ["c10"]
+library += ["c10_cuda"]
+if version.parse(torch.__version__) >= version.parse("1.5.0"):
+    library += ["torch_cpu"]
+    library += ["torch_cuda"]
+library += ["torch"]
+library += ["torch_python"]
 
 if platform.system() == 'Windows':
     library += ["nvToolsExt64_1"]
@@ -92,6 +97,10 @@ app_src_path += ["src/Parser.cpp"]
 app_src_path += ["src/VideoProcessor.cpp"]
 app_src_path += ["src/Wrappers/WrapperPython.cpp"]
 
+linker_flags = ""
+if platform.system() == 'Windows':
+    linker_flags = '/INCLUDE:?warp_size@cuda@at@@YAHXZ'
+
 setup(
     name='tensor_stream',
     version=VERSION,
@@ -107,10 +116,11 @@ setup(
             library_dirs=library_path,
             libraries=library,
             extra_compile_args=['-g'],
+            extra_link_args=[linker_flags],
             language='c++')
     ],
     cmdclass={
-        'build_ext': BuildExtension
+        'build_ext': BuildExtension.with_options(use_ninja=False)
     },
     packages=find_packages(),
     zip_safe=True,
