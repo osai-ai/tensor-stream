@@ -287,19 +287,23 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	AVFrame* decoded = av_frame_alloc();
 	AVFrame* processedFrame = av_frame_alloc();
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
+	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	for (int i = 0; i < index.size(); i++) {
 		{
 			std::unique_lock<std::mutex> locker(syncDecoded);
 			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
+			LOG_VALUE("Desired index: " + std::to_string(index[i]) + ", Desired pts: " + std::to_string(pts), LogsLevel::HIGH);
 			//seek to desired frame
 			int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			while (pts != decoded->pts) {
 				sts = parser->readVideoFrame(readFrames);
 				if (sts == AVERROR_EOF) {
+					LOG_VALUE("EOF found", LogsLevel::HIGH);
 					sts = 0;
 					while (pts != decoded->pts && !sts) {
 						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
 						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+						LOG_VALUE("Decoded pts: " + std::to_string(decoded->pts), LogsLevel::HIGH);
 					}
 					if (pts != decoded->pts)
 						CHECK_STATUS_THROW(VREADER_ERROR);
@@ -313,15 +317,18 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				}
 
 				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+				LOG_VALUE("Decoded pts: " + std::to_string(decoded->pts), LogsLevel::HIGH);
 
 				int currentPTS = readFrames.first->pts;
 				av_packet_unref(readFrames.first);
 				if (sts == AVERROR(EAGAIN)) {
+					LOG_VALUE("Need more data", LogsLevel::HIGH);
 					//we found needed frame, need to drain decoder until he returns us desired frame
 					if (pts == currentPTS) {
 						while (pts != decoded->pts) {
 							sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
 							sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+							LOG_VALUE("Decoded pts: " + std::to_string(decoded->pts), LogsLevel::HIGH);
 						}
 					}
 					continue;
