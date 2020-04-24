@@ -331,7 +331,17 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			while (pts != decoded->pts) {
 				sts = parser->readVideoFrame(readFrames);
-				CHECK_STATUS_THROW(sts);
+				if (sts == AVERROR_EOF) {
+					sts = 0;
+					while (pts != decoded->pts && !sts) {
+						sts = avcodec_send_packet(decoder->getDecoderContext(), nullptr);
+						sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+					}
+					if (pts != decoded->pts)
+						CHECK_STATUS_THROW(VREADER_ERROR);
+
+					break;
+				}
 				//we should decode frames starting from this one until we reach desired one
 				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
@@ -342,7 +352,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 
 				int currentPTS = readFrames.first->pts;
 				av_packet_unref(readFrames.first);
-				if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+				if (sts == AVERROR(EAGAIN)) {
 					//we found needed frame, need to drain decoder until he returns us desired frame
 					if (pts == currentPTS) {
 						while (pts != decoded->pts) {
@@ -352,6 +362,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 					}
 					continue;
 				}
+
 			}
 			avcodec_flush_buffers(decoder->getDecoderContext());
 		}
