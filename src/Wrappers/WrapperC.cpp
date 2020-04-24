@@ -289,14 +289,19 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	for (int i = 0; i < index.size(); i++) {
+		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
 			std::unique_lock<std::mutex> locker(syncDecoded);
 			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
 			LOG_VALUE("Desired index: " + std::to_string(index[i]) + ", Desired pts: " + std::to_string(pts), LogsLevel::HIGH);
+			START_LOG_BLOCK(std::string("av_seek_frame"));
 			//seek to desired frame
-			int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			END_LOG_BLOCK(std::string("av_seek_frame"));
 			while (pts != decoded->pts) {
+				START_LOG_BLOCK(std::string("readVideoFrame"));
 				sts = parser->readVideoFrame(readFrames);
+				END_LOG_BLOCK(std::string("readVideoFrame"));
 				if (sts == AVERROR_EOF) {
 					LOG_VALUE("EOF found", LogsLevel::HIGH);
 					sts = 0;
@@ -310,14 +315,17 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 
 					break;
 				}
+				START_LOG_BLOCK(std::string("avcodec_send_packet"));
 				//we should decode frames starting from this one until we reach desired one
 				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+				END_LOG_BLOCK(std::string("avcodec_send_packet"));
 				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 					CHECK_STATUS_THROW(sts);
 				}
 
+				START_LOG_BLOCK(std::string("avcodec_receive_frame"));
 				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-				LOG_VALUE("Decoded pts: " + std::to_string(decoded->pts), LogsLevel::HIGH);
+				END_LOG_BLOCK(std::string("avcodec_receive_frame"));
 
 				int currentPTS = readFrames.first->pts;
 				av_packet_unref(readFrames.first);
@@ -335,8 +343,11 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				}
 
 			}
+			START_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 			avcodec_flush_buffers(decoder->getDecoderContext());
+			END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 		}
+		END_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
