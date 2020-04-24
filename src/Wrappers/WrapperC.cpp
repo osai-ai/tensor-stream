@@ -277,6 +277,9 @@ int64_t frameToPTS(AVStream* stream, int frame)
 	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
 }
 
+//TODO:
+//Find GOP size, if distance between frames in batch is less than GOP than we can continue decoding without seek!!!
+//Add tests for corner case when required frame is last of pre-last and we should drain decoder to get it
 template <class T>
 std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
@@ -313,6 +316,9 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 					if (pts != decoded->pts)
 						CHECK_STATUS_THROW(VREADER_ERROR);
 
+					START_LOG_BLOCK(std::string("avcodec_flush_buffers"));
+					avcodec_flush_buffers(decoder->getDecoderContext());
+					END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 					break;
 				}
 				START_LOG_BLOCK(std::string("avcodec_send_packet"));
@@ -338,14 +344,14 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 							sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 							LOG_VALUE("Decoded pts: " + std::to_string(decoded->pts), LogsLevel::HIGH);
 						}
+
+						START_LOG_BLOCK(std::string("avcodec_flush_buffers"));
+						avcodec_flush_buffers(decoder->getDecoderContext());
+						END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 					}
 					continue;
 				}
-
 			}
-			START_LOG_BLOCK(std::string("avcodec_flush_buffers"));
-			avcodec_flush_buffers(decoder->getDecoderContext());
-			END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 		}
 		END_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 
