@@ -9,6 +9,9 @@ class TestTensorStream(unittest.TestCase):
     path = os.path.dirname(os.path.abspath(__file__)) \
            + "/../../tests/resources/billiard_1920x1080_420_100.h264"
 
+    def setUp(self):
+        print (f"In method {self._testMethodName}")
+
     def test_constructor(self):
         max_consumers = 5
         cuda_device = 0
@@ -68,7 +71,7 @@ class TestTensorStream(unittest.TestCase):
         reader.stop()
         #won't work but at least no crush
         reader.start()
-    
+
     def test_start_read_close(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -98,7 +101,7 @@ class TestTensorStream(unittest.TestCase):
         value = tensor[0][0][0].item()
         self.assertEqual(type(value), float)
         reader.stop()
-    
+
     def test_read_without_init(self):
         reader = TensorStreamConverter(self.path)
         reader.start()
@@ -107,7 +110,7 @@ class TestTensorStream(unittest.TestCase):
             tensor, index = reader.read(return_index=True)
 
         reader.stop()
-    
+
     def test_check_dump_size(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -135,7 +138,7 @@ class TestTensorStream(unittest.TestCase):
             tensor, index = reader.read(return_index=True)
 
         reader.stop()
-    
+
     def test_dump_name(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()
@@ -144,10 +147,10 @@ class TestTensorStream(unittest.TestCase):
         tensor = reader.read()
         # need to find dumped file and compare expected and real sizes
         reader.dump(tensor, name="dump")
-        self.assertTrue(os.path.isfile("dump.yuv")) 
+        self.assertTrue(os.path.isfile("dump.yuv"))
         os.remove("dump.yuv")
         reader.stop()
-    
+
     def test_multiple_init(self):
         reader = TensorStreamConverter(self.path)
         number_close_init = 10
@@ -164,7 +167,7 @@ class TestTensorStream(unittest.TestCase):
         reader.stop()
         with self.assertRaises(RuntimeError):
             tensor = reader.read()
-    
+
     def test_frame_number(self):
         reader = TensorStreamConverter(self.path)
         reader.initialize()

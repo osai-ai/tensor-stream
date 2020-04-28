@@ -47,6 +47,8 @@ private:
 	std::shared_ptr<VideoProcessor> vpp;
 	AVPacket* parsed;
 	int realTimeDelay = 0;
+	double indexToDTSCoeff = 0;
+	double DTSToMsCoeff = 0;
 	std::pair<int, int> frameRate;
 	FrameRateMode frameRateMode;
 	bool shouldWork;

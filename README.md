@@ -16,13 +16,13 @@ reader.initialize()
 reader.start()
 
 while need_predictions:
-    # read the latest available frame from the stream 
+    # read the latest available frame from the stream
     tensor = reader.read(pixel_format=FourCC.BGR24,
                          width=256,                 # resize to 256x256 px
                          height=256,
                          normalization=True,        # normalize to range [0, 1]
                          planes_pos=Planes.PLANAR)  # dimension order [C, H, W]
-                         
+
     # tensor dtype is torch.float32, device is 'cuda:0', shape is (3, 256, 256)
     prediction = model(tensor.unsqueeze(0))
 ```
@@ -102,15 +102,15 @@ Extension for Python can be installed via pip:
 - **CUDA 10:**
 TensorStream compiled with different versions of Pytorch:
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.3.1/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor_stream-0.4.0-cp36-cp36m-linux_x86_64.whl
 ```
 ```
-pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor_stream-0.3.0-cp36-cp36m-linux_x86_64.whl
+pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.5.0/linux/tensor_stream-0.4.0-cp36-cp36m-linux_x86_64.whl
 ```
 
 #### Building examples and tests
 Examples for Python and C++ can be found in [c_examples](c_examples) and [python_examples](python_examples) folders.  Tests for C++ can be found in [tests](tests) folder.
-#### Python example 
+#### Python example
 Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
 ```
 cd python_examples
@@ -136,7 +136,7 @@ cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v
 ## Docker image
 To build TensorStream need to pass Pytorch version via TORCH_VERSION argument:
 ```
-docker build --build-arg TORCH_VERSION=1.4.0 -t tensorstream .
+docker build --build-arg TORCH_VERSION=1.5.0 -t tensorstream .
 ```
 Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
@@ -155,7 +155,7 @@ docker run --gpus=all -ti tensorstream bash
 1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
 > **Note:** You can pass **--help** to get the list of all available options, their description and default values
 
-* Convert an RTMP bitstream to RGB24 PyTorch tensors and dump the result to a dump.yuv file: 
+* Convert an RTMP bitstream to RGB24 PyTorch tensors and dump the result to a dump.yuv file:
 ```
 python simple.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -fc RGB24 -o dump
 ```
@@ -222,7 +222,6 @@ python different_streams.py -i1 <path-to-first-stream> -i2 <path-to-second-strea
 ### PyTorch example
 
 Real-time video style transfer example: [fast-neural-style](python_examples/fast_neural_style).
-
 
 ## Documentation
 

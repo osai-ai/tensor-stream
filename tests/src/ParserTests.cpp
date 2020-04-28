@@ -61,6 +61,48 @@ TEST(Parser_ReadGet, CheckFrame) {
 	EXPECT_EQ(memcmp(parsed.data, secondFrame.c_str(), parsed.size), 0);
 }
 
+int64_t frameToPTS(AVStream* stream, int frame) {
+	//1) frameindex * framerate.den / framerate.num = frame time in seconds
+	//2) 1) * framerate.den / framerate.num = frame time in time base units
+	double scaleCoeff = (double)(stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
+	return int64_t(frame) * scaleCoeff;
+}
+
+int64_t timebaseDTS(AVStream* stream, int64_t dts) {
+	//need convert DTS to ms
+	//first of all converting DTS to seconds (DTS is measured in timebase.num / timebase.den seconds, so 1 dts = timebase.num / timebase.den seconds)
+	//after converting from seconds to ms by dividing by 1000
+	double scaleCoeff = (double)stream->time_base.num / (double)stream->time_base.den * (double)1000;
+	auto frameDTS = dts * scaleCoeff;
+	return frameDTS;
+}
+
+TEST(Parser_ReadGet, CheckDTS) {
+	Parser parser;
+	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
+	parser.Init(parserArgs, std::make_shared<Logger>());
+	//Read SPS/PPS/SEI + IDR frame
+	EXPECT_EQ(parser.Read(), VREADER_OK);
+	AVPacket parsed;
+	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
+	EXPECT_EQ(parsed.dts, AV_NOPTS_VALUE);
+	auto videoStream = parser.getFormatContext()->streams[parser.getVideoIndex()];
+	auto frameDTS = frameToPTS(videoStream, 2);
+	EXPECT_EQ(timebaseDTS(videoStream, frameDTS), 80);
+	//
+	parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4" };
+	parser.Init(parserArgs, std::make_shared<Logger>());
+	//Read SPS/PPS/SEI + IDR frame
+	EXPECT_EQ(parser.Read(), VREADER_OK);
+	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
+	EXPECT_EQ(parsed.dts, 0);
+	EXPECT_EQ(parser.Read(), VREADER_OK);
+	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
+	EXPECT_EQ(parsed.dts, 41);
+	frameDTS = frameToPTS(videoStream, 1);
+	EXPECT_EQ(timebaseDTS(videoStream, frameDTS), 40);
+}
+
 TEST(Parser_ReadGet, BitstreamEnd) {
 	Parser parser;
 	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };

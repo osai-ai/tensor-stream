@@ -72,6 +72,15 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	realTimeDelay = ((float)frameRate.first /
 		(float)frameRate.second) * 1000;
 	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int) (frameRate.second / frameRate.first)), LogsLevel::LOW);
+
+	//1) frameindex * framerate.den / framerate.num = frame time in seconds
+	//2) 1) * framerate.den / framerate.num = frame time in time base units
+	indexToDTSCoeff = (double)(videoStream->r_frame_rate.den * videoStream->time_base.den) / (int64_t(videoStream->r_frame_rate.num) * videoStream->time_base.num);
+
+	//need convert DTS to ms
+	//first of all converting DTS to seconds (DTS is measured in timebase.num / timebase.den seconds, so 1 dts = timebase.num / timebase.den seconds)
+	//after converting from seconds to ms by dividing by 1000
+	DTSToMsCoeff = (double)videoStream->time_base.num / (double)videoStream->time_base.den * (double)1000;
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }
@@ -118,6 +127,8 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 int TensorStream::processingLoop() {
 	std::unique_lock<std::mutex> locker(closeSync);
 	int sts = VREADER_OK;
+	std::pair<int64_t, bool> startDTS = { 0, false };
+	std::pair<std::chrono::high_resolution_clock::time_point, bool> startTime = { std::chrono::high_resolution_clock::now(), false };
 	SET_CUDA_DEVICE();
 	while (shouldWork) {
 		PUSH_RANGE("TensorStream::processingLoop", NVTXColors::GREEN);
@@ -133,6 +144,10 @@ int TensorStream::processingLoop() {
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
+		int64_t frameDTS = parsed->dts;
+		if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
+			frameDTS = int64_t(decoder->getFrameIndex()) * indexToDTSCoeff;
+		}
 		if (!skipAnalyze) {
 			START_LOG_BLOCK(std::string("parser->Analyze"));
 			//Parse package to find some syntax issues, don't handle errors returned from this function
@@ -147,18 +162,39 @@ int TensorStream::processingLoop() {
 			continue;
 		CHECK_STATUS(sts);
 
-		if (frameRateMode == FrameRateMode::NATIVE) {
-			START_LOG_BLOCK(std::string("sleep"));
-			PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
-			//wait here
-			int sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
+		START_LOG_BLOCK(std::string("sleep"));
+		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
+		int sleepTime = 0;
+		if (frameRateMode == FrameRateMode::NATIVE_SIMPLE) {
+			sleepTime = realTimeDelay - std::chrono::duration_cast<std::chrono::milliseconds>(
 				std::chrono::high_resolution_clock::now() - waitTime).count();
-			if (sleepTime > 0) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
-			}
-			LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
-			END_LOG_BLOCK(std::string("sleep"));
 		}
+		else if (frameRateMode == FrameRateMode::NATIVE) {
+			if (!startDTS.second) {
+				startDTS.first = frameDTS;
+				startDTS.second = true;
+			}
+
+			frameDTS -= startDTS.first;
+			
+			frameDTS = frameDTS * DTSToMsCoeff;
+			if (!startTime.second) {
+				startTime.first = std::chrono::high_resolution_clock::now();
+				startTime.second = true;
+			}
+
+			int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime.first).count();
+			LOG_VALUE("Dts: " + std::to_string(frameDTS) + " now: " + std::to_string(now), LogsLevel::HIGH);
+			if (frameDTS > now) {
+				sleepTime = frameDTS - now;
+			}
+		}
+		LOG_VALUE(std::string("Should sleep for: ") + std::to_string(sleepTime), LogsLevel::HIGH);
+		if (sleepTime > 0) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+		}
+		END_LOG_BLOCK(std::string("sleep"));
+
 		if (frameRateMode == FrameRateMode::BLOCKING) {
 			std::unique_lock<std::mutex> locker(blockingSync);
 			START_LOG_BLOCK(std::string("blocking wait"));
