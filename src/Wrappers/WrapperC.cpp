@@ -276,6 +276,10 @@ int64_t frameToPTS(AVStream* stream, int frame)
 	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
 }
 
+int PTSToFrame(AVStream* stream, uint64_t PTS) {
+	return PTS / ((stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num));
+}
+
 //TODO:
 //Find GOP size, if distance between frames in batch is less than GOP than we can continue decoding without seek!!!
 //Add tests for corner case when required frame is last of pre-last and we should drain decoder to get it
@@ -291,7 +295,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	bool flushed = false;
-	int currentPTS;
+	uint64_t currentPTS, decodedPTS;
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
@@ -301,8 +305,10 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 
 			sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			sts = parser->readVideoFrame(readFrames);
-			//if distance between frames in batch is less than GOP than we can continue decoding without seek
-			if (i == 0 || flushed ||  pts - frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i - 1]) > pts - readFrames.first->pts) {
+			//if distance between current PTS of decoded frame and needed PTS is greater than distance between needed PTS and the nearest intra frame then we should flush decoder and seek to intra
+			//if decoder was flushed we should seek to intra because we can't proceed without intra frame
+			//if i == 0 so no frames was processed we should seek to intra
+			if (i == 0 || flushed || pts - decodedPTS < 0 || pts - decodedPTS > pts - readFrames.first->dts) {
 				if (flushed)
 					flushed = false;
 				else
@@ -310,8 +316,10 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
-			else {
-				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i - 1]), AVSEEK_FLAG_ANY);
+			//in any other case (except the same frame) we should return to currentPTS and continue decoding
+			else if (pts != decoded->pts){
+				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), currentPTS, AVSEEK_FLAG_ANY);
+				//sts = parser->readVideoFrame(readFrames);
 			}
 			while (pts != decoded->pts) {
 				START_LOG_BLOCK(std::string("readVideoFrame"));
@@ -368,6 +376,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			}
 		}
 		END_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
+		decodedPTS = decoded->pts;
 
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
