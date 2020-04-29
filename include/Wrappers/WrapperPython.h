@@ -39,8 +39,10 @@ public:
 	void skipAnalyzeStage();
 	void setTimeout(int timeout);
 	int getTimeout();
+	void enableBatchOptimization();
 private:
 	int processingLoop();
+	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
 	std::shared_ptr<Parser> parser;
