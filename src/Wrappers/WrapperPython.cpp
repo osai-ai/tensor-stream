@@ -362,6 +362,10 @@ int64_t frameToPTS(AVStream* stream, int frame)
 	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
 }
 
+int PTSToFrame(AVStream* stream, uint64_t PTS) {
+	int frameIndex = PTS / ((stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num));
+	return frameIndex;
+}
 at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
@@ -374,19 +378,20 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	bool flushed = false;
 	uint64_t currentPTS, decodedPTS;
+	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
 			std::unique_lock<std::mutex> locker(syncDecoded);
-			auto pts = frameToPTS(parser->getFormatContext()->streams[parser->getVideoIndex()], index[i]);
+			auto pts = frameToPTS(videoStream, index[i]);
 			LOG_VALUE("Desired index: " + std::to_string(index[i]) + ", Desired pts: " + std::to_string(pts), LogsLevel::HIGH);
 
-			sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-			sts = parser->readVideoFrame(readFrames);
+			//sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
+			//sts = parser->readVideoFrame(readFrames);
 			//if distance between current PTS of decoded frame and needed PTS is greater than distance between needed PTS and the nearest intra frame then we should flush decoder and seek to intra
 			//if decoder was flushed we should seek to intra because we can't proceed without intra frame
 			//if i == 0 so no frames was processed we should seek to intra
-			if (i == 0 || flushed || pts - decodedPTS < 0 || pts - decodedPTS > pts - readFrames.first->dts) {
+			if (i == 0 || flushed || pts - decodedPTS < 0 || PTSToFrame(videoStream, pts) - PTSToFrame(videoStream, decodedPTS) > 32) { //TODO: change this const to something adequate
 				if (flushed)
 					flushed = false;
 				else
@@ -395,10 +400,12 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
 			//in any other case (except the same frame) we should return to currentPTS and continue decoding
-			else if (pts != decoded->pts){
+			/*
+			else if (pts != decodedPTS){
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), currentPTS, AVSEEK_FLAG_ANY);
 				//sts = parser->readVideoFrame(readFrames);
 			}
+			*/
 			while (pts != decoded->pts) {
 				START_LOG_BLOCK(std::string("readVideoFrame"));
 				sts = parser->readVideoFrame(readFrames);
@@ -433,6 +440,8 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 				END_LOG_BLOCK(std::string("avcodec_receive_frame"));
 
 				currentPTS = readFrames.first->pts;
+				LOG_VALUE("Current PTS: " + std::to_string(currentPTS), LogsLevel::HIGH);
+				LOG_VALUE("DTS: " + std::to_string(decoded->pts), LogsLevel::HIGH);
 				av_packet_unref(readFrames.first);
 				if (sts == AVERROR(EAGAIN)) {
 					LOG_VALUE("Need more data", LogsLevel::HIGH);
@@ -455,13 +464,16 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 		}
 		END_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		decodedPTS = decoded->pts;
+
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
 
 		sts = vpp->Convert(decoded, processedFrame, frameParameters);
 		CHECK_STATUS_THROW(sts);
+		outputTuple.push_back((T*)processedFrame->opaque);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
+
 
 		START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 		at::Tensor outputTensor;
