@@ -366,6 +366,26 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 	int frameIndex = PTS / ((stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num));
 	return frameIndex;
 }
+void TensorStream::enableBatchOptimization() {
+	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
+	AVFrame* decoded = av_frame_alloc();
+	int sts = VREADER_OK;
+	std::vector<int> keyFrames;
+	while (keyFrames.size() < 2) {
+		sts = parser->readVideoFrame(readFrames);
+		if (sts == AVERROR_EOF)
+			break;
+		sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+		sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+		if (sts == AVERROR(EAGAIN))
+			continue;
+		if (decoded->key_frame)
+			keyFrames.push_back(PTSToFrame(parser->getFormatContext()->streams[parser->getVideoIndex()], decoded->pts));
+	}
+
+	if (sts != AVERROR_EOF)
+		gopSize = keyFrames[1] - keyFrames[0];
+}
 at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
@@ -391,7 +411,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 			//if distance between current PTS of decoded frame and needed PTS is greater than distance between needed PTS and the nearest intra frame then we should flush decoder and seek to intra
 			//if decoder was flushed we should seek to intra because we can't proceed without intra frame
 			//if i == 0 so no frames was processed we should seek to intra
-			if (i == 0 || flushed || pts - decodedPTS < 0 || PTSToFrame(videoStream, pts) - PTSToFrame(videoStream, decodedPTS) > 32) { //TODO: change this const to something adequate
+			if (i == 0 || flushed || pts < decodedPTS || PTSToFrame(videoStream, pts) - PTSToFrame(videoStream, decodedPTS) > gopSize) { //TODO: change this const to something adequate
 				if (flushed)
 					flushed = false;
 				else
@@ -669,6 +689,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("getAbsolute", &TensorStream::getFrameAbsolute, py::call_guard<py::gil_scoped_release>())
 		.def("dump", &TensorStream::dumpFrame, py::call_guard<py::gil_scoped_release>())
 		.def("enableNVTX", &TensorStream::enableNVTX)
+		.def("enableBatchOptimization", &TensorStream::enableBatchOptimization)
 		.def("enableLogs", &TensorStream::enableLogs)
 		.def("close", &TensorStream::endProcessing)
 		.def("skipAnalyze", &TensorStream::skipAnalyzeStage)

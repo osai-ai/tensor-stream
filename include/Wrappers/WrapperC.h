@@ -77,11 +77,16 @@ public:
 @param[in] value of timeout in ms
 */
 	void setTimeout(int timeout);
-	
+
+/** Calculate GOP value which is used for batch loading optimization. Used in batch load mode only.
+*/
+	void enableBatchOptimization();
+
 	int getTimeout();
 	int getDelay();
 private:
 	int processingLoop();
+	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
 	std::shared_ptr<Parser> parser;

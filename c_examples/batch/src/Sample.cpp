@@ -34,13 +34,14 @@ int main() {
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("../../../basler_office_005.mp4", 0, 0, 0);
+		sts = reader.initPipeline("../../../tests/resources/tennis_2s.mp4", 0, 0, 0);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
 			break;
 	}
 
+	reader.enableBatchOptimization();
 	reader.skipAnalyzeStage();
 	CHECK_STATUS(sts);
 	int dstWidth = 1920;
@@ -54,7 +55,7 @@ int main() {
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
 	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
-	std::vector<int> frames = { 15817, 15818, 15819, 15820 };
+	std::vector<int> frames = { 0, 100, 200, 120 };
 	std::thread get(get_cycle_batch, frameParameters, executionParameters, frames);
 
 	get.join();
