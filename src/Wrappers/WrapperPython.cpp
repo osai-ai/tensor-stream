@@ -471,9 +471,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 
 		sts = vpp->Convert(decoded, processedFrame, frameParameters);
 		CHECK_STATUS_THROW(sts);
-		outputTuple.push_back((T*)processedFrame->opaque);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
-
 
 		START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 		at::Tensor outputTensor;
