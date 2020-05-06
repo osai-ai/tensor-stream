@@ -201,6 +201,9 @@ class TensorStreamConverter:
             self.fps = params['framerate_num'] / params['framerate_den']
             self.frame_size = (params['width'], params['height'])
 
+    def enable_batch_optimization(self):
+      self.tensor_stream.enableBatchOptimization()
+
     ## Enable logs from TensorStream C++ extension
     # @param[in] level Specify output level of logs, see @ref LogsLevel for supported values
     # @param[in] log_type Specify where the logs should be printed, see @ref LogsType for supported values

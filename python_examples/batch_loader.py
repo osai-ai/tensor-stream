@@ -97,6 +97,7 @@ if __name__ == '__main__':
         reader.enable_nvtx()
 
     reader.initialize(repeat_number=20)
+    reader.enable_batch_optimization()
 
     consumer(reader, args)
 
