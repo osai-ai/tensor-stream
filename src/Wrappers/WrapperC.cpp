@@ -67,10 +67,10 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
 	}
 	CHECK_STATUS(frameRate.second == 0 || frameRate.first == 0);
-	CHECK_STATUS((int) (frameRate.second / frameRate.first) > frameRateConstraints);
+	CHECK_STATUS((int)(frameRate.second / frameRate.first) > frameRateConstraints);
 	realTimeDelay = ((float)frameRate.first /
 		(float)frameRate.second) * 1000;
-	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int) (frameRate.second / frameRate.first)), LogsLevel::LOW);
+	LOG_VALUE(std::string("Frame rate: ") + std::to_string((int)(frameRate.second / frameRate.first)), LogsLevel::LOW);
 	END_LOG_FUNCTION(std::string("Initializing() "));
 	return sts;
 }
@@ -281,10 +281,12 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 	return frameIndex;
 }
 
-void TensorStream::enableBatchOptimization() {
+int TensorStream::enableBatchOptimization() {
+	int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
+	CHECK_STATUS(sts);
+	avcodec_flush_buffers(decoder->getDecoderContext());
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	AVFrame* decoded = av_frame_alloc();
-	int sts = VREADER_OK;
 	std::vector<int> keyFrames;
 	while (keyFrames.size() < 2) {
 		sts = parser->readVideoFrame(readFrames);
@@ -300,16 +302,21 @@ void TensorStream::enableBatchOptimization() {
 
 	if (sts != AVERROR_EOF)
 		gopSize = keyFrames[1] - keyFrames[0];
+
+	av_frame_free(&decoded);
+	delete readFrames.first;
+	
+	return sts;
 }
 
-//TODO:
-//Find GOP size, if distance between frames in batch is less than GOP than we can continue decoding without seek!!!
-//Add tests for corner case when required frame is last of pre-last and we should drain decoder to get it
 template <class T>
 std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
+	//if several threads read one stream, issues with flush can be observed (one thread read frames, another flush decoder), so the whole function is the critical section
+	std::unique_lock<std::mutex> locker(syncDecoded);
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	std::vector<T*> outputTuple;
+	std::vector<uint64_t> outputDTS;
 	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
 	int sts = VREADER_OK;
 	AVFrame* decoded = av_frame_alloc();
@@ -317,21 +324,24 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	bool flushed = false;
-	uint64_t currentPTS, decodedPTS;
+	uint64_t currentPTS;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
-			std::unique_lock<std::mutex> locker(syncDecoded);
 			auto pts = frameToPTS(videoStream, index[i]);
 			LOG_VALUE("Desired index: " + std::to_string(index[i]) + ", Desired pts: " + std::to_string(pts), LogsLevel::HIGH);
-
-			//sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
-			//sts = parser->readVideoFrame(readFrames);
-			//if distance between current PTS of decoded frame and needed PTS is greater than distance between needed PTS and the nearest intra frame then we should flush decoder and seek to intra
-			//if decoder was flushed we should seek to intra because we can't proceed without intra frame
-			//if i == 0 so no frames was processed we should seek to intra
-			if (i == 0 || flushed || pts < decodedPTS || PTSToFrame(videoStream, pts) - PTSToFrame(videoStream, decodedPTS) > gopSize) { //TODO: change this const to something adequate
+			//just put the same frame
+			auto elemIterator = std::find(outputDTS.begin(), outputDTS.end(), pts);
+			if (elemIterator != outputDTS.end()) {
+				int index = std::distance(outputDTS.begin(), elemIterator);
+				outputDTS.push_back(outputDTS[index]);
+				outputTuple.push_back(outputTuple[index]);
+				continue;
+			}
+			int multiplier = index[i] / gopSize;
+			int intraIndex = multiplier * gopSize;
+			if (i == 0 || flushed || pts < outputDTS.back() || PTSToFrame(videoStream, outputDTS.back()) < intraIndex) {
 				if (flushed)
 					flushed = false;
 				else
@@ -339,17 +349,8 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
-			//in any other case (except the same frame) we should return to currentPTS and continue decoding
-			/*
-			else if (pts != decodedPTS){
-				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), currentPTS, AVSEEK_FLAG_ANY);
-				//sts = parser->readVideoFrame(readFrames);
-			}
-			*/
 			while (pts != decoded->pts) {
-				START_LOG_BLOCK(std::string("readVideoFrame"));
 				sts = parser->readVideoFrame(readFrames);
-				END_LOG_BLOCK(std::string("readVideoFrame"));
 				if (sts == AVERROR_EOF) {
 					LOG_VALUE("EOF found", LogsLevel::HIGH);
 					sts = 0;
@@ -361,23 +362,17 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 					if (pts != decoded->pts)
 						CHECK_STATUS_THROW(VREADER_ERROR);
 
-					START_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 					avcodec_flush_buffers(decoder->getDecoderContext());
 					flushed = true;
-					END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 					break;
 				}
-				START_LOG_BLOCK(std::string("avcodec_send_packet"));
 				//we should decode frames starting from this one until we reach desired one
 				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-				END_LOG_BLOCK(std::string("avcodec_send_packet"));
 				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 					CHECK_STATUS_THROW(sts);
 				}
 
-				START_LOG_BLOCK(std::string("avcodec_receive_frame"));
 				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-				END_LOG_BLOCK(std::string("avcodec_receive_frame"));
 
 				currentPTS = readFrames.first->pts;
 				LOG_VALUE("Current PTS: " + std::to_string(currentPTS), LogsLevel::HIGH);
@@ -403,7 +398,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			}
 		}
 		END_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
-		decodedPTS = decoded->pts;
+		outputDTS.push_back(decoded->pts);
 
 		START_LOG_BLOCK(std::string("vpp->Convert"));
 		if (vpp == nullptr)
@@ -500,6 +495,11 @@ int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shar
 	return status;
 }
 
+int TensorStream::getGOP() {
+	return gopSize;
+}
+
 int TensorStream::getDelay() {
 	return realTimeDelay;
 }
+

@@ -80,10 +80,11 @@ public:
 
 /** Calculate GOP value which is used for batch loading optimization. Used in batch load mode only.
 */
-	void enableBatchOptimization();
+	int enableBatchOptimization();
 
 	int getTimeout();
 	int getDelay();
+	int getGOP();
 private:
 	int processingLoop();
 	int gopSize = 32;

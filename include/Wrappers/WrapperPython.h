@@ -39,7 +39,7 @@ public:
 	void skipAnalyzeStage();
 	void setTimeout(int timeout);
 	int getTimeout();
-	void enableBatchOptimization();
+	int enableBatchOptimization();
 private:
 	int processingLoop();
 	int gopSize = 32;
