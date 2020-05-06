@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <math.h>
+#include <chrono>
 #if defined(_WIN32)
 #define NOMINMAX
 #include <windows.h>
@@ -708,6 +709,132 @@ TEST(Wrapper_Batch, MultipleInstancesDifferent) {
 
 	checkCRC(parametersFirst, 2769188104);
 	checkCRC(parametersSecond, 391182750);
+}
+
+//same frames
+TEST(Wrapper_Batch, OnlySameFrames) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 120, 120, 120, 120, 120 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	getCycleBatch(parameters, frames, std::ref(reader));
+	reader.endProcessing();
+
+	checkCRC(parameters, 4085859668);
+}
+
+//need to test performance
+TEST(Wrapper_Batch, SeveralSameFrames) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 120, 0, 11, 0, 120 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	getCycleBatch(parameters, frames, std::ref(reader));
+	reader.endProcessing();
+
+	checkCRC(parameters, 1608000610);
+}
+
+//correct handle of last frame
+TEST(Wrapper_Batch, LastFrame) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 240 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	getCycleBatch(parameters, frames, std::ref(reader));
+	reader.endProcessing();
+
+	checkCRC(parameters, 3792767460);
+}
+
+//End of file (drain)
+TEST(Wrapper_Batch, DrainAtTheEnd) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 235, 238, 240 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	getCycleBatch(parameters, frames, std::ref(reader));
+	reader.endProcessing();
+
+	checkCRC(parameters, 1613132448);
+}
+
+//Sequence of neighbor frames (to check that we don't loose frames)
+TEST(Wrapper_Batch, SequenceNeighborFrames) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	std::vector<int> frames = { 100, 101, 102, 103, 104, 105 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
+													  {"dumpName", "bbb_dumpFirst.yuv"} };
+
+	//Remove artifacts from previous runs
+	remove(parameters["dumpName"].c_str());
+	getCycleBatch(parameters, frames, std::ref(reader));
+	reader.endProcessing();
+
+	checkCRC(parameters, 1025621190);
+}
+
+//performance of neighbor frames
+TEST(Wrapper_Batch, PerformanceNeighborFrames) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	//Measure execution time of batch
+	std::vector<int> frames = { 100, 101, 102, 103, 104, 105, 106, 107 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
+	std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+	getCycleBatch(parameters, frames, std::ref(reader));
+	std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+	int executionTimeBatch = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+	//Measure execution time of 1 frame
+	frames = { 100 };
+	parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
+	startTime = std::chrono::high_resolution_clock::now();
+	getCycleBatch(parameters, frames, std::ref(reader));
+	endTime = std::chrono::high_resolution_clock::now();
+	int executionTimeFrame = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+	//quite soft restriction for batch time performance, it should be executed much faster than expected in ASSERT
+	ASSERT_LT(executionTimeBatch, executionTimeFrame + executionTimeFrame / 2);
+	reader.endProcessing();
+}
+
+//performance with and w/o batch optimization
+TEST(Wrapper_Batch, PerformanceGOPOptimization) {
+	TensorStream reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_1s_100gop.mp4", 0, 0, 0), VREADER_OK);
+	//it will jump to the nearest "intra" which is incorrect if GOP size wasn't set, so he will start decoding from 0
+	//if set GOP it will continue decoding from 100
+	std::vector<int> frames = { reader.getGOP() * 3 - 1, reader.getGOP() * 3 + 1 };
+	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
+	std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+	getCycleBatch(parameters, frames, std::ref(reader));
+	std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+	int executionTimeWithout = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+	
+	reader.enableBatchOptimization();
+	startTime = std::chrono::high_resolution_clock::now();
+	getCycleBatch(parameters, frames, std::ref(reader));
+	endTime = std::chrono::high_resolution_clock::now();
+	int executionTimeWith = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+	
+	ASSERT_LT(executionTimeWith, executionTimeWithout / 1.5);
+	reader.endProcessing();
 }
 
 //this test should be at the end
