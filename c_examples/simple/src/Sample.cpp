@@ -71,8 +71,8 @@ int main() {
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "500000"},
-		/*{"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"}*/ };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "100"},
+															   {"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
 	reader.endProcessing();

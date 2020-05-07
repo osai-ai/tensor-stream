@@ -97,7 +97,7 @@ public:
 //NVTXTracer should be outside of "if" because it's RAII object
 #define PUSH_RANGE(name, colorID) \
 	NVTXTracer tracer; \
-	if (logger && logger->enableNVTX) \
+	if (_logger && _logger->enableNVTX) \
 	{ \
 		tracer.trace(name, colorID); \
 	} \
@@ -123,13 +123,13 @@ public:
 #define LOG_VALUE(messageIn, neededLevel) \
 	{ \
 		std::unique_lock<std::mutex> locker(logsMutex); \
-		if (logger && logger->logsLevel && std::abs(logger->logsLevel) >= std::abs(neededLevel)) \
+		if (_logger && _logger->logsLevel && std::abs(_logger->logsLevel) >= std::abs(neededLevel)) \
 		{ \
 			std::string finalMessage = messageIn + std::string("\n"); \
-			if (logger->logsLevel < 0) \
+			if (_logger->logsLevel < 0) \
 				std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-			else if (logger->logsFile.is_open()) \
-				logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+			else if (_logger->logsFile.is_open()) \
+				_logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 		} \
 	} \
 
@@ -138,14 +138,14 @@ public:
 		std::chrono::high_resolution_clock::time_point startFunc; \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger && logger->logsLevel) \
+			if (_logger && _logger->logsLevel) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
-				if (logger->logsLevel < 0) \
+				if (_logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logger->logsFile.is_open()) \
-					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				if (std::abs(logger->logsLevel) >= MEDIUM) \
+				else if (_logger->logsFile.is_open()) \
+					_logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				if (std::abs(_logger->logsLevel) >= MEDIUM) \
 					startFunc = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
@@ -153,19 +153,19 @@ public:
 #define END_LOG_FUNCTION(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger && logger->logsLevel) { \
+			if (_logger && _logger->logsLevel) { \
 				std::string finalMessage; \
-				if (std::abs(logger->logsLevel) >= MEDIUM) { \
+				if (std::abs(_logger->logsLevel) >= MEDIUM) { \
 					int timeMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startFunc).count(); \
 					std::string time = std::to_string(timeMs); \
 					finalMessage = messageOut + std::string(" -\nFunction time: ") + time + std::string("ms\n\n"); \
 				} else { \
 					finalMessage = messageOut + std::string(" -\n\n"); \
 				} \
-				if (logger->logsLevel < 0) \
+				if (_logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logger->logsFile.is_open()) \
-					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (_logger->logsFile.is_open()) \
+					_logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \
 	}
@@ -174,14 +174,14 @@ public:
 	{ \
 		std::chrono::high_resolution_clock::time_point start; \
 		{ \
-			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger && std::abs(logger->logsLevel) >= HIGH) \
+			std::unique_lock<std::mutex> _locker(logsMutex); \
+			if (_logger && std::abs(_logger->logsLevel) >= HIGH) \
 			{ \
 				std::string finalMessage = messageIn + std::string(" +\n"); \
-				if (logger->logsLevel < 0) \
+				if (_logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logger->logsFile.is_open()) \
-					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (_logger->logsFile.is_open()) \
+					_logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 				start = std::chrono::high_resolution_clock::now(); \
 			} \
 		} \
@@ -189,15 +189,15 @@ public:
 #define END_LOG_BLOCK(messageOut) \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			if (logger && std::abs(logger->logsLevel) >= HIGH) { \
+			if (_logger && std::abs(_logger->logsLevel) >= HIGH) { \
 				std::string finalMessage; \
 				std::string time = \
 				std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count()); \
 				finalMessage = messageOut + std::string(" -\ntime: ") + time + std::string(" ms\n"); \
-				if (logger->logsLevel < 0) \
+				if (_logger->logsLevel < 0) \
 					std::cout << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
-				else if (logger->logsFile.is_open()) \
-					logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
+				else if (_logger->logsFile.is_open()) \
+					_logger->logsFile << "TID: " << std::this_thread::get_id() << " " << finalMessage << std::flush; \
 			} \
 		} \
 	}
@@ -205,14 +205,14 @@ public:
 #define SET_CUDA_DEVICE() \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			auto sts = cudaSetDevice(currentCUDADevice); \
+			auto sts = cudaSetDevice(_currentCUDADevice); \
 			CHECK_STATUS(sts); \
 		} \
 
 #define SET_CUDA_DEVICE_THROW() \
 		{ \
 			std::unique_lock<std::mutex> locker(logsMutex); \
-			auto sts = cudaSetDevice(currentCUDADevice); \
+			auto sts = cudaSetDevice(_currentCUDADevice); \
 			CHECK_STATUS_THROW(sts); \
 		} \
 

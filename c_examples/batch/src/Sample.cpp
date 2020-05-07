@@ -1,7 +1,7 @@
 #include "WrapperC.h"
 #include <experimental/filesystem> //C++17 
 
-TensorStream reader;
+TensorStreamBatch reader;
 
 void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std::string> executionParameters, std::vector<int> frames) {
 	for (int i = 0; i < 1; i++) {
@@ -21,8 +21,6 @@ void get_cycle_batch(FrameParameters frameParameters, std::map<std::string, std:
 				cudaFree(frame);
 			}
 		}
-
-		result = reader.getFrameAbsolute<unsigned char>({10, 11, 20}, frameParameters);
 	}
 
 }
@@ -34,7 +32,7 @@ int main() {
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("../../../tests/resources/tennis_2s.mp4", 0, 0, 0);
+		sts = reader.initPipeline("../../../tests/resources/tennis_2s.mp4", 0);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
@@ -42,7 +40,6 @@ int main() {
 	}
 
 	reader.enableBatchOptimization();
-	reader.skipAnalyzeStage();
 	CHECK_STATUS(sts);
 	int dstWidth = 1920;
 	int dstHeight = 1080;
@@ -54,7 +51,7 @@ int main() {
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
-	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv"} };
 	std::vector<int> frames = { 0, 100, 200, 120 };
 	std::thread get(get_cycle_batch, frameParameters, executionParameters, frames);
 

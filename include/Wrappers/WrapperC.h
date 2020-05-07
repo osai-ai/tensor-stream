@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include "Wrapper.h"
 #include "Common.h"
 #include "Parser.h"
 #include "Decoder.h"
@@ -13,7 +14,7 @@
 /**
 Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 */
-class TensorStream {
+class TensorStream : public TensorStreamCommon {
 public:
 /** Initialization of TensorStream pipeline
  @param[in] inputFile Path to stream should be decoded
@@ -45,14 +46,6 @@ public:
 	template <class T>
 	std::tuple<T*, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 
-/** Get decoded and post-processed frames by they absoulte position in video. Pixel format can be either float or uint8_t depending on @ref normalization
- @param[in] consumerName Consumer unique ID
- @param[in] index Specify batch of frames should be read from stream. Can take values in range [0, video length]
- @param[in] frameParameters Frame specific parameters, see @ref ::FrameParameters for more information
- @return Decoded frames in CUDA memory and indexes of decoded frame
-*/
-	template <class T>
-	std::vector<T*> getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 /** Close TensorStream session
 */
 	void endProcessing();
@@ -78,16 +71,10 @@ public:
 */
 	void setTimeout(int timeout);
 
-/** Calculate GOP value which is used for batch loading optimization. Used in batch load mode only.
-*/
-	int enableBatchOptimization();
-
 	int getTimeout();
 	int getDelay();
-	int getGOP();
 private:
 	int processingLoop();
-	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
 	std::shared_ptr<Parser> parser;
@@ -115,3 +102,28 @@ private:
 /** 
 @} 
 */
+
+class TensorBatch {
+public:
+	int initPipeline(std::string inputFile, uint8_t cudaDevice = defaultCUDADevice);
+	int enableBatchOptimization();
+	template <class T>
+	std::vector<T*> getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
+	template <class T>
+	int dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+	void endProcessing();
+
+	void enableLogs(int level);
+	void enableNVTX();
+	int getGOP();
+private:
+	uint64_t frameToPTS(AVStream* stream, int frame);
+	int PTSToFrame(AVStream* stream, uint64_t PTS);
+	std::mutex syncBatchRead;
+	int gopSize;
+	std::shared_ptr<Parser> parser;
+	std::shared_ptr<Decoder> decoder;
+	std::shared_ptr<VideoProcessor> vpp;
+	std::shared_ptr<Logger> logger;
+	uint8_t currentCUDADevice;
+};

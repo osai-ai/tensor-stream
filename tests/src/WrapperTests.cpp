@@ -484,7 +484,7 @@ TEST(Wrapper_Init, FrameRateBlockingStream) {
 	pipeline.join();
 }
 
-bool getCycleBatch(std::map<std::string, std::string> parameters, std::vector<int> batch, TensorStream& reader) {
+bool getCycleBatch(std::map<std::string, std::string> parameters, std::vector<int> batch, TensorStreamBatch& reader) {
 	int width = std::atoi(parameters["width"].c_str());
 	int height = std::atoi(parameters["height"].c_str());
 	FourCC format = (FourCC)std::atoi(parameters["format"].c_str());
@@ -512,8 +512,8 @@ bool getCycleBatch(std::map<std::string, std::string> parameters, std::vector<in
 }
 
 TEST(Wrapper_Batch, ZeroBatch) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = {};
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 														   {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -525,8 +525,8 @@ TEST(Wrapper_Batch, ZeroBatch) {
 }
 
 TEST(Wrapper_Batch, FrameOutOfBounds) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 0, 100, 250, 120 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -539,8 +539,8 @@ TEST(Wrapper_Batch, FrameOutOfBounds) {
 
 //several threads
 TEST(Wrapper_Batch, MultipleThreadsEqual) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 0, 25, 55, 70 };
 	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													       {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -562,8 +562,8 @@ TEST(Wrapper_Batch, MultipleThreadsEqual) {
 
 //several threads
 TEST(Wrapper_Batch, MultipleThreadsDifferent) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> framesFirst = { 0, 25, 55 };
 	std::vector<int> framesSecond = { 60, 0, 200, 220, 70 };
 	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(framesFirst.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
@@ -587,10 +587,10 @@ TEST(Wrapper_Batch, MultipleThreadsDifferent) {
 
 //several instances
 TEST(Wrapper_Batch, MultipleInstancesEqual) {
-	TensorStream readerFirst;
-	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
-	TensorStream readerSecond;
-	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch readerFirst;
+	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
+	TensorStreamBatch readerSecond;
+	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 0, 25, 55, 70 };
 	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 														   {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -612,14 +612,14 @@ TEST(Wrapper_Batch, MultipleInstancesEqual) {
 }
 
 TEST(Wrapper_Batch, InstanceGPUMemory) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	size_t memFreeBefore, memFreeAfter, memTotal;
 	cudaMemGetInfo(&memFreeBefore, &memTotal);
 	//create 10 instances and measure GPU/RAM
 	for (int i = 0; i < 10; i++) {
-		TensorStream reader;
-		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+		TensorStreamBatch reader;
+		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	}
 	cudaMemGetInfo(&memFreeAfter, &memTotal);
 	//used memory in mb
@@ -651,15 +651,15 @@ size_t getCurrentMemory()
 }
 
 TEST(Wrapper_Batch, InstanceCPUMemory) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	size_t memBefore, memAfter;
 	memBefore = getCurrentMemory();
 	int instancesNumber = 1000;
 	//create 10 instances and measure GPU/RAM
 	for (int i = 0; i < instancesNumber; i++) {
-		TensorStream reader;
-		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+		TensorStreamBatch reader;
+		ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	}
 	memAfter = getCurrentMemory();
 
@@ -668,8 +668,8 @@ TEST(Wrapper_Batch, InstanceCPUMemory) {
 }
 
 TEST(Wrapper_Batch, ReadCPUMemory) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> batch = { 0, 10, 100 };
 	size_t memBefore, memAfter;
 	int readNumber = 50;
@@ -686,10 +686,10 @@ TEST(Wrapper_Batch, ReadCPUMemory) {
 }
 
 TEST(Wrapper_Batch, MultipleInstancesDifferent) {
-	TensorStream readerFirst;
-	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
-	TensorStream readerSecond;
-	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch readerFirst;
+	ASSERT_EQ(readerFirst.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
+	TensorStreamBatch readerSecond;
+	ASSERT_EQ(readerSecond.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> framesFirst = { 0, 25, 55 };
 	std::vector<int> framesSecond = { 60, 0, 200, 220, 70 };
 	std::map<std::string, std::string> parametersFirst = { {"frames", std::to_string(framesFirst.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
@@ -713,8 +713,8 @@ TEST(Wrapper_Batch, MultipleInstancesDifferent) {
 
 //same frames
 TEST(Wrapper_Batch, OnlySameFrames) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 120, 120, 120, 120, 120 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -729,8 +729,8 @@ TEST(Wrapper_Batch, OnlySameFrames) {
 
 //need to test performance
 TEST(Wrapper_Batch, SeveralSameFrames) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 120, 0, 11, 0, 120 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -745,8 +745,8 @@ TEST(Wrapper_Batch, SeveralSameFrames) {
 
 //correct handle of last frame
 TEST(Wrapper_Batch, LastFrame) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 240 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -761,8 +761,8 @@ TEST(Wrapper_Batch, LastFrame) {
 
 //End of file (drain)
 TEST(Wrapper_Batch, DrainAtTheEnd) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 235, 238, 240 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -777,8 +777,8 @@ TEST(Wrapper_Batch, DrainAtTheEnd) {
 
 //Sequence of neighbor frames (to check that we don't loose frames)
 TEST(Wrapper_Batch, SequenceNeighborFrames) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	std::vector<int> frames = { 100, 101, 102, 103, 104, 105 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"dumpName", "bbb_dumpFirst.yuv"} };
@@ -793,8 +793,8 @@ TEST(Wrapper_Batch, SequenceNeighborFrames) {
 
 //performance of neighbor frames
 TEST(Wrapper_Batch, PerformanceNeighborFrames) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_2s.mp4", 0), VREADER_OK);
 	//Measure execution time of batch
 	std::vector<int> frames = { 100, 101, 102, 103, 104, 105, 106, 107 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
@@ -816,8 +816,8 @@ TEST(Wrapper_Batch, PerformanceNeighborFrames) {
 
 //performance with and w/o batch optimization
 TEST(Wrapper_Batch, PerformanceGOPOptimization) {
-	TensorStream reader;
-	ASSERT_EQ(reader.initPipeline("../resources/tennis_1s_100gop.mp4", 0, 0, 0), VREADER_OK);
+	TensorStreamBatch reader;
+	ASSERT_EQ(reader.initPipeline("../resources/tennis_1s_100gop.mp4", 0), VREADER_OK);
 	//it will jump to the nearest "intra" which is incorrect if GOP size wasn't set, so he will start decoding from 0
 	//if set GOP it will continue decoding from 100
 	std::vector<int> frames = { reader.getGOP() * 3 - 1, reader.getGOP() * 3 + 1 };

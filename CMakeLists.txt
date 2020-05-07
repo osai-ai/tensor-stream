@@ -23,12 +23,12 @@ include_directories("include")
 include_directories("include/Wrappers")
 
 FILE(GLOB APP_SOURCE "src/*.c*")
-FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c* src/Wrappers/WrapperCommon.c*)
+FILE(GLOB WRAPPER_SOURCE src/Wrappers/WrapperC.c* src/Wrappers/Wrapper.c*)
 list(APPEND APP_SOURCE ${WRAPPER_SOURCE})
 source_group("src" FILES ${APP_SOURCE})
 
 FILE(GLOB APP_HEADERS "include/*.h*")
-FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h* include/Wrappers/WrapperCommon.h*)
+FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h* include/Wrappers/Wrapper.h*)
 list(APPEND APP_HEADERS ${WRAPPER_HEADER})
 source_group("include" FILES ${APP_HEADERS})
 
@@ -114,11 +114,11 @@ else()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVCODEC_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
         COMMENT "Copying dependent DLL")
-    
+
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVFORMAT_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
         COMMENT "Copying dependent DLL")
-    
+
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVUTIL_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
         COMMENT "Copying dependent DLL")

@@ -55,6 +55,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	sts = vpp->Init(logger, maxConsumers, false);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("VPP->Init"));
+
 	parsed = new AVPacket();
 	for (int i = 0; i < maxConsumers; i++) {
 		decodedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
@@ -271,17 +272,140 @@ std::tuple<float*, int> TensorStream::getFrame(std::string consumerName, int ind
 template
 std::tuple<unsigned char*, int> TensorStream::getFrame(std::string consumerName, int index, FrameParameters frameParameters);
 
-int64_t frameToPTS(AVStream* stream, int frame)
-{
-	return (int64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num);
+/*
+Mode 1 - full close, mode 2 - soft close (for reset)
+*/
+void TensorStream::endProcessing() {
+	shouldWork = false;
+	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
+	{
+		//force processing thread to wake up and end work
+		if (frameRateMode == FrameRateMode::BLOCKING) {
+			std::unique_lock<std::mutex> locker(blockingSync);
+			for (auto &item : blockingStatuses) {
+				item.second = true;
+			}
+			blockingCV.notify_all();
+		}
+	}
+	{
+		std::unique_lock<std::mutex> locker(closeSync);
+		SET_CUDA_DEVICE_THROW();
+		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
+		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
+		if (parser)
+			parser->Close();
+		if (decoder)
+			decoder->Close();
+		if (vpp)
+			vpp->Close();
+		for (auto& item : processedArr)
+			av_frame_free(&item.second);
+		for (auto& item : decodedArr)
+			av_frame_free(&item.second);
+		decodedArr.clear();
+		processedArr.clear();
+		delete parsed;
+		parsed = nullptr;
+		LOG_VALUE(std::string("End processing sync part end"), LogsLevel::LOW);
+	}
 }
 
-int PTSToFrame(AVStream* stream, uint64_t PTS) {
+void TensorStream::enableLogs(int level) {
+	auto logsLevel = static_cast<LogsLevel>(level);
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+	}
+	logger->initialize(logsLevel);
+}
+
+void TensorStream::enableNVTX() {
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	logger->enableNVTX = true;
+}
+
+template
+int TensorStream::dumpFrame<unsigned char>(unsigned char* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template
+int TensorStream::dumpFrame<float>(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template <class T>
+int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+	int status = VREADER_OK;
+	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
+	START_LOG_FUNCTION(std::string("dumpFrame()"));
+	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
+	END_LOG_FUNCTION(std::string("dumpFrame()"));
+	return status;
+}
+
+int TensorStream::getDelay() {
+	return realTimeDelay;
+}
+
+int TensorBatch::initPipeline(std::string inputFile, uint8_t cudaDevice) {
+	int sts = VREADER_OK;
+	//default GOP size value
+	gopSize = 32;
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	int cudaDevicesNumber;
+	sts = cudaGetDeviceCount(&cudaDevicesNumber);
+	CHECK_STATUS(sts);
+	if (cudaDevice >= 0 && cudaDevice < cudaDevicesNumber) {
+		currentCUDADevice = cudaDevice;
+	}
+	else {
+		int device;
+		auto sts = cudaGetDevice(&device);
+		currentCUDADevice = device;
+	}
+
+	SET_CUDA_DEVICE();
+
+	PUSH_RANGE("TensorStream::initPipeline", NVTXColors::GREEN);
+	av_log_set_callback(logCallback);
+	START_LOG_FUNCTION(std::string("Initializing() "));
+	LOG_VALUE(std::string("Chosen GPU: ") + std::to_string(currentCUDADevice), LogsLevel::LOW);
+	parser = std::make_shared<Parser>();
+	decoder = std::make_shared<Decoder>();
+	vpp = std::make_shared<VideoProcessor>();
+	ParserParameters parserArgs = { inputFile, false };
+	START_LOG_BLOCK(std::string("parser->Init"));
+	sts = parser->Init(parserArgs, logger);
+	CHECK_STATUS(sts);
+	END_LOG_BLOCK(std::string("parser->Init"));
+	DecoderParameters decoderArgs = { parser, false, 0 };
+	START_LOG_BLOCK(std::string("decoder->Init"));
+	sts = decoder->Init(decoderArgs, logger);
+	CHECK_STATUS(sts);
+	END_LOG_BLOCK(std::string("decoder->Init"));
+	START_LOG_BLOCK(std::string("VPP->Init"));
+	sts = vpp->Init(logger, 0, false);
+	CHECK_STATUS(sts);
+	END_LOG_BLOCK(std::string("VPP->Init"));
+	END_LOG_FUNCTION(std::string("Initializing() "));
+	return sts;
+}
+
+
+uint64_t TensorBatch::frameToPTS(AVStream* stream, int frame)
+{
+	return (uint64_t(frame) * stream->r_frame_rate.den * stream->time_base.den) / (uint64_t(stream->r_frame_rate.num) * stream->time_base.num);
+}
+
+int TensorBatch::PTSToFrame(AVStream* stream, uint64_t PTS) {
 	int frameIndex = PTS / ((stream->r_frame_rate.den * stream->time_base.den) / (int64_t(stream->r_frame_rate.num) * stream->time_base.num));
 	return frameIndex;
 }
 
-int TensorStream::enableBatchOptimization() {
+int TensorBatch::enableBatchOptimization() {
 	int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
 	CHECK_STATUS(sts);
 	avcodec_flush_buffers(decoder->getDecoderContext());
@@ -305,14 +429,14 @@ int TensorStream::enableBatchOptimization() {
 
 	av_frame_free(&decoded);
 	delete readFrames.first;
-	
+
 	return sts;
 }
 
 template <class T>
-std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
+std::vector<T*> TensorBatch::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters) {
 	//if several threads read one stream, issues with flush can be observed (one thread read frames, another flush decoder), so the whole function is the critical section
-	std::unique_lock<std::mutex> locker(syncDecoded);
+	std::unique_lock<std::mutex> locker(syncBatchRead);
 	SET_CUDA_DEVICE_THROW();
 	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
 	std::vector<T*> outputTuple;
@@ -419,74 +543,12 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 }
 
 template
-std::vector<float*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
-
+std::vector<float*> TensorBatch::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 template
-std::vector<unsigned char*> TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
-
-/*
-Mode 1 - full close, mode 2 - soft close (for reset)
-*/
-void TensorStream::endProcessing() {
-	shouldWork = false;
-	LOG_VALUE(std::string("End processing async part"), LogsLevel::LOW);
-	{
-		//force processing thread to wake up and end work
-		if (frameRateMode == FrameRateMode::BLOCKING) {
-			std::unique_lock<std::mutex> locker(blockingSync);
-			for (auto &item : blockingStatuses) {
-				item.second = true;
-			}
-			blockingCV.notify_all();
-		}
-	}
-	{
-		std::unique_lock<std::mutex> locker(closeSync);
-		SET_CUDA_DEVICE_THROW();
-		PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
-		LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
-		if (parser)
-			parser->Close();
-		if (decoder)
-			decoder->Close();
-		if (vpp)
-			vpp->Close();
-		for (auto& item : processedArr)
-			av_frame_free(&item.second);
-		for (auto& item : decodedArr)
-			av_frame_free(&item.second);
-		decodedArr.clear();
-		processedArr.clear();
-		delete parsed;
-		parsed = nullptr;
-		LOG_VALUE(std::string("End processing sync part end"), LogsLevel::LOW);
-	}
-}
-
-void TensorStream::enableLogs(int level) {
-	auto logsLevel = static_cast<LogsLevel>(level);
-	if (logger == nullptr) {
-		logger = std::make_shared<Logger>();
-	}
-	logger->initialize(logsLevel);
-}
-
-void TensorStream::enableNVTX() {
-	if (logger == nullptr) {
-		logger = std::make_shared<Logger>();
-		logger->initialize(LogsLevel::NONE);
-	}
-	logger->enableNVTX = true;
-}
-
-template
-int TensorStream::dumpFrame<unsigned char>(unsigned char* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
-
-template
-int TensorStream::dumpFrame<float>(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+std::vector<unsigned char*> TensorBatch::getFrameAbsolute(std::vector<int> index, FrameParameters frameParameters);
 
 template <class T>
-int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
+int TensorBatch::dumpFrame(T* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile) {
 	int status = VREADER_OK;
 	PUSH_RANGE("TensorStream::dumpFrame", NVTXColors::YELLOW);
 	START_LOG_FUNCTION(std::string("dumpFrame()"));
@@ -495,11 +557,40 @@ int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shar
 	return status;
 }
 
-int TensorStream::getGOP() {
+template
+int TensorBatch::dumpFrame<unsigned char>(unsigned char* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+template
+int TensorBatch::dumpFrame<float>(float* frame, FrameParameters frameParameters, std::shared_ptr<FILE> dumpFile);
+
+void TensorBatch::endProcessing() {
+	SET_CUDA_DEVICE_THROW();
+	PUSH_RANGE("TensorStream::endProcessing", NVTXColors::GREEN);
+	LOG_VALUE(std::string("End processing sync part start"), LogsLevel::LOW);
+	if (parser)
+		parser->Close();
+	if (decoder)
+		decoder->Close();
+	if (vpp)
+		vpp->Close();
+	LOG_VALUE(std::string("End processing sync part end"), LogsLevel::LOW);
+}
+
+void TensorBatch::enableLogs(int level) {
+	auto logsLevel = static_cast<LogsLevel>(level);
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+	}
+	logger->initialize(logsLevel);
+}
+void TensorBatch::enableNVTX() {
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	logger->enableNVTX = true;
+}
+
+int TensorBatch::getGOP() {
 	return gopSize;
 }
-
-int TensorStream::getDelay() {
-	return realTimeDelay;
-}
-
