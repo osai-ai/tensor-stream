@@ -399,7 +399,11 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	//if several threads read one stream, issues with flush can be observed (one thread read frames, another flush decoder), so the whole function is the critical section
 	std::unique_lock<std::mutex> locker(syncDecoded);
 	SET_CUDA_DEVICE_THROW();
-	PUSH_RANGE("TensorStream::getFrame", NVTXColors::GREEN);
+	std::string indexes = "TensorStream::getFrame ";
+	for (auto item : index) {
+ 	    indexes += std::to_string(item) + " ";
+	}
+	PUSH_RANGE(indexes.c_str(), NVTXColors::GREEN);
 	std::vector<at::Tensor> outputTuple;
 	std::vector<uint64_t> outputDTS;
 	START_LOG_FUNCTION(std::string("GetFrameAbsolute()"));
@@ -414,6 +418,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
+			PUSH_RANGE(std::to_string(index[i]).c_str(), NVTXColors::PURPLE);
 			auto pts = frameToPTS(videoStream, index[i]);
 			LOG_VALUE("Desired index: " + std::to_string(index[i]) + ", Desired pts: " + std::to_string(pts), LogsLevel::HIGH);
 			//just put the same frame
@@ -435,7 +440,13 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
 			while (pts != decoded->pts) {
-				sts = parser->readVideoFrame(readFrames);
+				{
+				    PUSH_RANGE("Read video frame", NVTXColors::YELLOW);
+				    sts = parser->readVideoFrame(readFrames);
+
+				}
+				{
+				    PUSH_RANGE("EOF found", NVTXColors::YELLOW);
 				if (sts == AVERROR_EOF) {
 					LOG_VALUE("EOF found", LogsLevel::HIGH);
 					sts = 0;
@@ -451,14 +462,21 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 					flushed = true;
 					break;
 				}
+				}
+				{
+				    PUSH_RANGE("Send frame to decode", NVTXColors::YELLOW);
 				//we should decode frames starting from this one until we reach desired one
 				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 					CHECK_STATUS_THROW(sts);
 				}
-
-				sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-
+				}
+				{
+				    PUSH_RANGE("Decode video frame", NVTXColors::YELLOW);
+				    sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+				}
+				{
+				    PUSH_RANGE("EAGAIN", NVTXColors::YELLOW);
 				currentPTS = readFrames.first->pts;
 				LOG_VALUE("Current PTS: " + std::to_string(currentPTS), LogsLevel::HIGH);
 				LOG_VALUE("DTS: " + std::to_string(decoded->pts), LogsLevel::HIGH);
@@ -479,6 +497,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 						END_LOG_BLOCK(std::string("avcodec_flush_buffers"));
 					}
 					continue;
+				}
 				}
 			}
 		}
