@@ -9,6 +9,26 @@ Decoder::Decoder() {
 
 }
 
+int Decoder::InitSW(DecoderParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
+	state = input;
+	int sts;
+	this->logger = logger;
+	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
+	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	CHECK_STATUS(sts);
+
+	framesBuffer.resize(state.bufferDeep);
+
+	if (state.enableDumps) {
+		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"), std::fclose);
+	}
+
+	isClosed = false;
+	return sts;
+}
+
 int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;
