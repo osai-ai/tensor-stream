@@ -29,6 +29,34 @@ int Decoder::InitSW(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	return sts;
 }
 
+int Decoder::InitIntel(DecoderParameters& input, std::shared_ptr<Logger> logger) {
+	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
+	state = input;
+	int sts;
+	this->logger = logger;
+	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
+	CHECK_STATUS(sts);
+	sts = cudaFree(0);
+	CHECK_STATUS(sts);
+	//CUDA device initialization
+	deviceReference = av_hwdevice_ctx_alloc(AV_HWDEVICE_TYPE_QSV);
+	sts = av_hwdevice_ctx_init(deviceReference);
+	CHECK_STATUS(sts);
+	decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
+	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	CHECK_STATUS(sts);
+
+	framesBuffer.resize(state.bufferDeep);
+
+	if (state.enableDumps) {
+		dumpFrame = std::shared_ptr<FILE>(fopen("NV12.yuv", "wb+"), std::fclose);
+	}
+
+	isClosed = false;
+	return sts;
+}
+
 int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;

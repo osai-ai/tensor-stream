@@ -47,7 +47,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false, decoderBuffer };
 	START_LOG_BLOCK(std::string("decoder->Init"));
-	sts = decoder->InitSW(decoderArgs, logger);
+	sts = decoder->InitIntel(decoderArgs, logger);
 	//sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));

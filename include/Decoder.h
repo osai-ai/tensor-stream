@@ -33,6 +33,7 @@ public:
 	*/
 	int Init(DecoderParameters& input, std::shared_ptr<Logger> logger);
 	int InitSW(DecoderParameters& input, std::shared_ptr<Logger> logger);
+	int InitIntel(DecoderParameters& input, std::shared_ptr<Logger> logger);
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
 	*/
