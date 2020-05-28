@@ -36,7 +36,7 @@ void get_cycle_batch(TensorStream& reader, FrameParameters frameParameters, std:
 int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
 	std::vector<std::shared_ptr<TensorStream> > readers{ 1 };
-	int index = 0;
+	int index = 1;
 	for (auto& reader : readers) {
 		reader = std::make_shared<TensorStream>();
 		reader->enableLogs(-LOW);
