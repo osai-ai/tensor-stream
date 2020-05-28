@@ -162,16 +162,17 @@ class TensorStreamConverter:
                  cuda_device=torch.cuda.current_device(),
                  buffer_size=5,
                  framerate_mode=FrameRate.NATIVE,
-                 timeout=None):
+                 timeout=None,
+                 cuda=True):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
+        self.cuda = cuda
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
         self.fps = None
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
         self.frame_size = None
-
         self.max_consumers = max_consumers
         self.cuda_device = cuda_device
         self.buffer_size = buffer_size
@@ -191,7 +192,8 @@ class TensorStreamConverter:
                                              self.max_consumers,
                                              self.cuda_device,
                                              self.buffer_size,
-                                             self.framerate_mode)
+                                             self.framerate_mode,
+                                             self.cuda)
             if status != StatusLevel.OK.value:
                 self.stop()
                 repeat = repeat - 1

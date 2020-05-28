@@ -6,10 +6,11 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	skipAnalyze = false;
+	_cuda = cuda;
 	this->frameRateMode = frameRateMode;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
@@ -44,7 +45,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
-	DecoderParameters decoderArgs = { parser, false, decoderBuffer };
+	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda };
 	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
@@ -376,8 +377,10 @@ int TensorStream::enableBatchOptimization() {
 	std::vector<int> keyFrames;
 	while (keyFrames.size() < 2) {
 		sts = parser->readVideoFrame(readFrames);
-		if (sts == AVERROR_EOF)
+		if (sts == AVERROR_EOF) {
+			LOG_VALUE(std::string("Not enough frames to calculate GOP"), LogsLevel::LOW);
 			break;
+		}
 		sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 		sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 		if (sts == AVERROR(EAGAIN))
@@ -399,7 +402,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	//if several threads read one stream, issues with flush can be observed (one thread read frames, another flush decoder), so the whole function is the critical section
 	std::unique_lock<std::mutex> locker(syncDecoded);
 	SET_CUDA_DEVICE_THROW();
-	std::string indexes = "TensorStream::getFrame ";
+	std::string indexes = "TensorStream::getFrame " + std::to_string(_cuda) + " ";
 	for (auto item : index) {
  	    indexes += std::to_string(item) + " ";
 	}
@@ -464,7 +467,8 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 				}
 				}
 				{
-				    PUSH_RANGE("Send frame to decode", NVTXColors::YELLOW);
+				std::string text = "Send frame to decode " + std::to_string(PTSToFrame(videoStream, readFrames.first->dts));
+			    PUSH_RANGE(text.c_str(), NVTXColors::YELLOW);
 				//we should decode frames starting from this one until we reach desired one
 				sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 				if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
@@ -512,35 +516,38 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 		CHECK_STATUS_THROW(sts);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
 
-		START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
-		at::Tensor outputTensor;
-		float channels = channelsByFourCC(frameParameters.color.dstFourCC);
-		switch (frameParameters.color.dstFourCC) {
-		case FourCC::RGB24:
-		case FourCC::BGR24:
-			if (frameParameters.color.planesPos == Planes::MERGED)
+		{
+			PUSH_RANGE("convertFromBlob", NVTXColors::RED);
+			START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
+			at::Tensor outputTensor;
+			float channels = channelsByFourCC(frameParameters.color.dstFourCC);
+			switch (frameParameters.color.dstFourCC) {
+			case FourCC::RGB24:
+			case FourCC::BGR24:
+				if (frameParameters.color.planesPos == Planes::MERGED)
+					outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
+						c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+				else
+					outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width }, cudaFree,
+						c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
+				break;
+			case FourCC::YUV444:
 				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
-			else
-				outputTensor = torch::from_blob(processedFrame->opaque, { (int)channels, processedFrame->height, processedFrame->width }, cudaFree,
+				break;
+			case FourCC::UYVY:
+			case FourCC::NV12:
+			case FourCC::Y800:
+				outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width }, cudaFree,
 					c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
-			break;
-		case FourCC::YUV444:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
-				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
-			break;
-		case FourCC::UYVY:
-		case FourCC::NV12:
-		case FourCC::Y800:
-			outputTensor = torch::from_blob(processedFrame->opaque, { 1, (int)(processedFrame->height * channels), processedFrame->width }, cudaFree,
-				c10::TensorOptions(frameParameters.color.normalization ? at::kFloat : at::kByte).device(torch::Device(at::kCUDA, currentCUDADevice)));
-			break;
-		case FourCC::HSV:
-			outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
-				c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
+				break;
+			case FourCC::HSV:
+				outputTensor = torch::from_blob(processedFrame->opaque, { processedFrame->height, processedFrame->width, (int)channels }, cudaFree,
+					c10::TensorOptions(at::kFloat).device(torch::Device(at::kCUDA, currentCUDADevice)));
+			}
+			outputTuple.push_back(outputTensor);
+			END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 		}
-		outputTuple.push_back(outputTensor);
-		END_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
 	}
 
 	av_frame_free(&decoded);

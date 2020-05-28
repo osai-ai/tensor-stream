@@ -11,15 +11,17 @@ Structure with initialization/reset parameters.
 */
 struct DecoderParameters {
 	DecoderParameters(std::shared_ptr<Parser> _parser = nullptr,
-		bool _enableDumps = false, unsigned int _bufferDeep = 10) {
+		bool _enableDumps = false, int _bufferDeep = 10, bool cuda = true) {
 		parser = _parser;
 		enableDumps = _enableDumps;
 		bufferDeep = _bufferDeep;
+		_cuda = cuda;
 	}
 
 	std::shared_ptr<Parser> parser;
 	bool enableDumps;
-	unsigned int bufferDeep;
+	int bufferDeep;
+	bool _cuda;
 };
 
 /*
@@ -32,8 +34,6 @@ public:
 	Initialize decoder with corresponding parameters. Allocate all neccessary resources.
 	*/
 	int Init(DecoderParameters& input, std::shared_ptr<Logger> logger);
-	int InitSW(DecoderParameters& input, std::shared_ptr<Logger> logger);
-	int InitIntel(DecoderParameters& input, std::shared_ptr<Logger> logger);
 	/*
 	Asynchronous call, start decoding process. Should be executed in different thread.
 	*/

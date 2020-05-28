@@ -27,7 +27,7 @@
 
 class TensorStream {
 public:
-	int initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRate);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRate, bool cuda);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing(int cudaDevice = 0);
 	std::tuple<at::Tensor, int> getFrame(std::string consumerName, int index, FrameParameters frameParameters);
@@ -67,4 +67,5 @@ private:
 	std::condition_variable blockingCV;
 	std::shared_ptr<Logger> logger;
 	uint8_t currentCUDADevice;
+	bool _cuda;
 };

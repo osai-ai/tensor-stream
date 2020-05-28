@@ -277,6 +277,55 @@ __global__ void RGBMergedToHSVMerged(T* RGB, T* dest, int width, int height) {
 	}
 }
 
+//width is half of real width, the same for height
+__global__ void YUV420PToNV12(uint8_t* srcU, uint8_t* srcV, uint8_t* destUV, int width, int height) {
+	unsigned int i = blockIdx.y*blockDim.y + threadIdx.y;
+	unsigned int j = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (i < height && j < width) {
+		int srcIndex = j + i * width;
+		int dstIndex = j * 2 + i * width * 2;
+		destUV[dstIndex] = srcU[srcIndex];
+		destUV[dstIndex + 1] = srcV[srcIndex];
+	}
+}
+
+int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream) {
+	cudaError err = cudaSuccess;
+	int width = src->width;
+	int height = src->height;
+	//first of all we have to copy data from YUV420P to NV12 in case of SW decoder and create AVFrame structure similar to output of CUDA decoding
+	uint8_t *Y, *U, *V;
+	err = cudaMalloc(&Y, width * height * sizeof(uint8_t));
+	err = cudaMalloc(&U, width / 2 * height / 2 * sizeof(uint8_t));
+	err = cudaMalloc(&V, width / 2 * height / 2 * sizeof(uint8_t));
+
+	err = cudaMemcpy2D(Y, width, (void*)src->data[0], src->linesize[0], width, height, cudaMemcpyHostToDevice);
+	err = cudaMemcpy2D(U, width / 2, (void*)src->data[1], src->linesize[1], width / 2, height / 2, cudaMemcpyHostToDevice);
+	err = cudaMemcpy2D(V, width / 2, (void*)src->data[2], src->linesize[2], width / 2, height / 2, cudaMemcpyHostToDevice);
+	
+	uint8_t *UV;
+	err = cudaMalloc(&UV, width * height / 2 * sizeof(uint8_t));
+
+	//need to execute for width and height
+	dim3 threadsPerBlock(64, maxThreadsPerBlock / 64);
+
+	//blocks for merged format
+	int blockX = std::ceil(width / 2 / (float)threadsPerBlock.x);
+	int blockY = std::ceil(src->height / 2 / (float)threadsPerBlock.y);
+
+	dim3 numBlocks(blockX, blockY);
+
+	YUV420PToNV12<< <numBlocks, threadsPerBlock, 0, *stream >> > (U, V, UV, width / 2, height / 2);
+
+	dst->data[0] = Y;
+	dst->data[1] = UV;
+	dst->width = width;
+	dst->height = height;
+
+	return VREADER_OK;
+}
+
 template <class T>
 int colorConversionKernel(AVFrame* src, AVFrame* dst, ColorOptions color, int maxThreadsPerBlock, cudaStream_t* stream) {
 	float channels = channelsByFourCC(color.dstFourCC);

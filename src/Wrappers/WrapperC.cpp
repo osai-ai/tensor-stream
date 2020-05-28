@@ -11,10 +11,11 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	skipAnalyze = false;
+	_cuda = cuda;
 	this->frameRateMode = frameRateMode;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
@@ -45,10 +46,9 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
-	DecoderParameters decoderArgs = { parser, false, decoderBuffer };
+	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda };
 	START_LOG_BLOCK(std::string("decoder->Init"));
-	sts = decoder->InitIntel(decoderArgs, logger);
-	//sts = decoder->Init(decoderArgs, logger);
+	sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("decoder->Init"));
 	START_LOG_BLOCK(std::string("VPP->Init"));
@@ -353,7 +353,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	//if several threads read one stream, issues with flush can be observed (one thread read frames, another flush decoder), so the whole function is the critical section
 	std::unique_lock<std::mutex> locker(syncDecoded);
 	SET_CUDA_DEVICE_THROW();
-	std::string indexes = "TensorStream::getFrame ";
+	std::string indexes = "TensorStream::getFrame " + std::to_string(_cuda) + " ";
 	for (auto item : index) {
  	    indexes += std::to_string(item) + " ";
 	}
@@ -369,6 +369,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	bool flushed = false;
 	uint64_t currentPTS;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
+
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{

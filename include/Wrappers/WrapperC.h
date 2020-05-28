@@ -24,7 +24,7 @@ public:
  @warning decodedBuffer should be less than DPB
  @return Status of execution, one of @ref ::Internal values
 */
-	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10, FrameRateMode frameRate = FrameRateMode::NATIVE);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10, FrameRateMode frameRate = FrameRateMode::NATIVE, bool cuda = true);
 
 /** Get parameters from bitstream
  @return Map with "framerate_num", "framerate_den", "width", "height" values
@@ -105,6 +105,7 @@ private:
 	std::vector<std::pair<std::string, AVFrame*> > processedArr;
 	std::mutex freeSync;
 	std::mutex closeSync;
+	bool _cuda;
 
 	std::map<std::string, bool> blockingStatuses;
 	std::mutex blockingSync;

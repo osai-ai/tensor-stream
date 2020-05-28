@@ -27,14 +27,16 @@ void get_cycle_batch(TensorStream& reader, FrameParameters frameParameters, std:
 
 }
 
-void get_cycle(std::shared_ptr<TensorStream> reader, FrameParameters frameParameters, std::vector<int> indexes) {
-	std::shared_ptr<Logger> logger = std::make_shared<Logger>();
-	auto result = reader->getFrameAbsolute<unsigned char>(indexes, frameParameters);
-}
+/*
+1) Каждая "пачка" кадров должна обрабатываться в отдельном ИНСТАНСЕ TensorReader, паралеллить с помощью потоков не получится из-за seek
+2) На каждый стрим нужно создавать пару инстансов с SW и HW, запрашивать кадры нужны из SW И из HW одновременно, т.е. готовить сразу два батча (неважно инстансы с разными стримами или одинаковыми)
+3) Как сделать, чтобы они одновременно запускались и работали параллельно в Python? Запускать в разных тредах в питоне и откреплять GIL в С++
+*/
 
 int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
-	std::vector<std::shared_ptr<TensorStream> > readers{ 6 };
+	std::vector<std::shared_ptr<TensorStream> > readers{ 12 };
+	int index = 0;
 	for (auto& reader : readers) {
 		reader = std::make_shared<TensorStream>();
 		reader->enableLogs(-LOW);
@@ -43,7 +45,7 @@ int main() {
 		int initNumber = 10;
 
 		while (initNumber--) {
-			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0);
+			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, index % 2);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
 			else
@@ -53,6 +55,7 @@ int main() {
 		reader->enableBatchOptimization();
 		reader->skipAnalyzeStage();
 		CHECK_STATUS(sts);
+		index++;
 	}
 	int dstWidth = 1920;
 	int dstHeight = 1080;
@@ -65,11 +68,10 @@ int main() {
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
 	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
-	std::vector<std::thread> threads{ 6 };
+	std::vector<std::thread> threads{ 12 };
 	for (int i = 0; i < readers.size(); i++) {
-		std::vector<int> frames = { 125 - i * 10, 126 - i * 10, 127 - i * 10, 128 - i * 10, 129 - i * 10 };
-		threads[i] = std::thread(get_cycle, readers[i], frameParameters, frames);
-		//threads[i].join();
+		std::vector<int> frames = { 125, 126, 127, 128, 129 };
+		threads[i] = std::thread([=]() { readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); });
 	}
 	for (int i = 0; i < threads.size(); i++) {
 		threads[i].join();
