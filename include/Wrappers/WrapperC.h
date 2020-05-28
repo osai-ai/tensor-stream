@@ -24,7 +24,7 @@ public:
  @warning decodedBuffer should be less than DPB
  @return Status of execution, one of @ref ::Internal values
 */
-	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10, FrameRateMode frameRate = FrameRateMode::NATIVE, bool cuda = true);
+	int initPipeline(std::string inputFile, uint8_t maxConsumers = 5, uint8_t cudaDevice = defaultCUDADevice, uint8_t decoderBuffer = 10, FrameRateMode frameRate = FrameRateMode::NATIVE, bool cuda = true, int threads = 0);
 
 /** Get parameters from bitstream
  @return Map with "framerate_num", "framerate_den", "width", "height" values

@@ -163,12 +163,14 @@ class TensorStreamConverter:
                  buffer_size=5,
                  framerate_mode=FrameRate.NATIVE,
                  timeout=None,
-                 cuda=True):
+                 cuda=True,
+                 threads=0):
         self.log = logging.getLogger(__name__)
         self.log.info("Create TensorStream")
         self.tensor_stream = TensorStream.TensorStream()
         self.thread = None
         self.cuda = cuda
+        self.threads = threads
         ## Amount of frames per second obtained from input bitstream, set by @ref initialize() function
         self.fps = None
         ## Size (width and height) of frames in input bitstream, set by @ref initialize() function
@@ -193,7 +195,8 @@ class TensorStreamConverter:
                                              self.cuda_device,
                                              self.buffer_size,
                                              self.framerate_mode,
-                                             self.cuda)
+                                             self.cuda,
+                                             self.threads)
             if status != StatusLevel.OK.value:
                 self.stop()
                 repeat = repeat - 1

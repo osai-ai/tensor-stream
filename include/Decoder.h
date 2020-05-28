@@ -11,17 +11,19 @@ Structure with initialization/reset parameters.
 */
 struct DecoderParameters {
 	DecoderParameters(std::shared_ptr<Parser> _parser = nullptr,
-		bool _enableDumps = false, int _bufferDeep = 10, bool cuda = true) {
+		bool _enableDumps = false, int _bufferDeep = 10, bool cuda = true, int threads = 0) {
 		parser = _parser;
 		enableDumps = _enableDumps;
 		bufferDeep = _bufferDeep;
 		_cuda = cuda;
+		_threads = threads;
 	}
 
 	std::shared_ptr<Parser> parser;
 	bool enableDumps;
 	int bufferDeep;
 	bool _cuda;
+	int _threads;
 };
 
 /*

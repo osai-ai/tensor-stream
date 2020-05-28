@@ -35,7 +35,7 @@ void get_cycle_batch(TensorStream& reader, FrameParameters frameParameters, std:
 
 int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
-	std::vector<std::shared_ptr<TensorStream> > readers{ 12 };
+	std::vector<std::shared_ptr<TensorStream> > readers{ 1 };
 	int index = 0;
 	for (auto& reader : readers) {
 		reader = std::make_shared<TensorStream>();
@@ -45,7 +45,7 @@ int main() {
 		int initNumber = 10;
 
 		while (initNumber--) {
-			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, index % 2);
+			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 0, 0);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
 			else
@@ -68,7 +68,7 @@ int main() {
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
 	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
-	std::vector<std::thread> threads{ 12 };
+	std::vector<std::thread> threads{ 1 };
 	for (int i = 0; i < readers.size(); i++) {
 		std::vector<int> frames = { 125, 126, 127, 128, 129 };
 		threads[i] = std::thread([=]() { readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); });

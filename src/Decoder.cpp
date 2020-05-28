@@ -15,6 +15,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	int sts;
 	this->logger = logger;
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	decoderContext->thread_count = input._threads;
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	sts = cudaFree(0);

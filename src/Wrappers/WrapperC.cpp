@@ -11,7 +11,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda) {
+int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda, int threads) {
 	int sts = VREADER_OK;
 	shouldWork = true;
 	skipAnalyze = false;
@@ -46,7 +46,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
-	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda };
+	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda, threads };
 	START_LOG_BLOCK(std::string("decoder->Init"));
 	sts = decoder->Init(decoderArgs, logger);
 	CHECK_STATUS(sts);
