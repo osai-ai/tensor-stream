@@ -105,7 +105,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 		}
 	}
 	//first of all if decoder is SW need to convert YUV420P to NV12
-	if (input->linesize[2] != 0) {
+	if (input->format == AV_PIX_FMT_YUV420P) {
 		AVFrame* convertedFrame = av_frame_alloc();
 		convertSWToHW(input, convertedFrame, prop.maxThreadsPerBlock, &stream);
 		av_frame_unref(input);

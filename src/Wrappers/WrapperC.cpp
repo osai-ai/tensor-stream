@@ -283,6 +283,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	int sts = VREADER_OK;
 	if (vpp == nullptr)
 		throw std::runtime_error(std::to_string(VREADER_ERROR));
+
 	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
@@ -369,7 +370,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	bool flushed = false;
 	uint64_t currentPTS;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-
+	const int distanceForSeek = 20;
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
@@ -386,7 +387,8 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			}
 			int multiplier = index[i] / gopSize;
 			int intraIndex = multiplier * gopSize;
-			if (i == 0 || flushed || pts < outputDTS.back() || PTSToFrame(videoStream, outputDTS.back()) < intraIndex) {
+			//if first frame or flushed or needed frame is behind current decoded or 
+			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex - PTSToFrame(videoStream, outputDTS.back()) > distanceForSeek) {
 				if (flushed)
 					flushed = false;
 				else
@@ -423,11 +425,6 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				    PUSH_RANGE(text.c_str(), NVTXColors::YELLOW);
 					//we should decode frames starting from this one until we reach desired one
 					sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-					/*
-					char* buffer = new char[AV_ERROR_MAX_STRING_SIZE];
-					av_make_error_string(buffer, AV_ERROR_MAX_STRING_SIZE, sts);
-					std::cout << buffer << std::endl;
-					*/
 					if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 						CHECK_STATUS_THROW(sts);
 					}

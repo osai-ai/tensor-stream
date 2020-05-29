@@ -16,6 +16,14 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	this->logger = logger;
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	decoderContext->thread_count = input._threads;
+	/*
+	//
+	decoderContext->thread_type = FF_THREAD_SLICE;
+	decoderContext->delay = 0;
+	decoderContext->skip_loop_filter = AVDISCARD_NONKEY;
+	decoderContext->skip_idct = AVDISCARD_NONKEY;
+	//
+	*/
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	sts = cudaFree(0);
@@ -133,13 +141,18 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 int Decoder::Decode(AVPacket* pkt) {
 	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
-	sts = avcodec_send_packet(decoderContext, pkt);
+	{
+		PUSH_RANGE("Send frame to decode", NVTXColors::YELLOW);
+		sts = avcodec_send_packet(decoderContext, pkt);
+	}
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		return sts;
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
-	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-
+	{
+		PUSH_RANGE("Receive frame from decode", NVTXColors::YELLOW);
+		sts = avcodec_receive_frame(decoderContext, decodedFrame);
+	}
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);
 		return sts;

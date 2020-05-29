@@ -50,7 +50,7 @@ int main() {
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://streaming.sportlevel.com/relay/Eiwaidi4oeZefaNgliga", 5, 0, 5);
+		sts = reader.initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4", 5, 0, 5, FrameRateMode::NATIVE, 1, 0);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else

@@ -45,7 +45,7 @@ int main() {
 		int initNumber = 10;
 
 		while (initNumber--) {
-			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 0, 0);
+			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 0);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
 			else
