@@ -322,6 +322,7 @@ int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream
 	dst->data[1] = UV;
 	dst->width = width;
 	dst->height = height;
+	dst->format = src->format;
 
 	return VREADER_OK;
 }
