@@ -318,6 +318,8 @@ int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream
 
 	YUV420PToNV12<< <numBlocks, threadsPerBlock, 0, *stream >> > (U, V, UV, width / 2, height / 2);
 
+	cudaFree(U);
+	cudaFree(V);
 	dst->data[0] = Y;
 	dst->data[1] = UV;
 	dst->width = width;
