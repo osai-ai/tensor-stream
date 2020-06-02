@@ -418,7 +418,8 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	bool flushed = false;
 	uint64_t currentPTS;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-	const int distanceForSeek = 20;
+	//TODO: in case of SW decoder if required frame is very close to I frame, we should set not big number of threads otherwise we will stuck at feeding decoder with
+	//frames because it uses frame parallel decoding not slice
 	for (int i = 0; i < index.size(); i++) {
 		START_LOG_BLOCK(std::string("GetFrameAbsolute iteration"));
 		{
@@ -435,11 +436,13 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 			}
 			int multiplier = index[i] / gopSize;
 			int intraIndex = multiplier * gopSize;
-			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex - PTSToFrame(videoStream, outputDTS.back()) > distanceForSeek) {
+			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
+				/*
 				if (flushed)
 					flushed = false;
 				else
 					avcodec_flush_buffers(decoder->getDecoderContext());
+				*/
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
