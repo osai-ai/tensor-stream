@@ -390,11 +390,11 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			int intraIndex = multiplier * gopSize;
 			//if first frame or flushed or needed frame is behind current decoded or 
 			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
+				//TODO: maybe it will be faster to decode rest of "unrelated" frames after seek than reset HW decoder
 				/*
 				if (flushed)
 					flushed = false;
 				else
-					//TODO: maybe it will be faster to decode rest of "unrelated" frames after seek than reset HW decoder
 					avcodec_flush_buffers(decoder->getDecoderContext());
 				*/
 				//seek to desired frame
@@ -407,6 +407,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 
 				}
 				{
+					//TODO: if EOF found need to cache all frames till the end, so don't flush buffers for further frames
 				    PUSH_RANGE("EOF found", NVTXColors::YELLOW);
 					if (sts == AVERROR_EOF) {
 						LOG_VALUE("EOF found", LogsLevel::HIGH);
