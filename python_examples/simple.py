@@ -74,6 +74,9 @@ def parse_arguments():
     parser.add_argument("--crop",
                         help="set crop, left top corner and right bottom corner (default: disabled)",
                         type=crop_coords, default=(0,0,0,0))
+    parser.add_argument("--sw",
+                        help="Use SW decoding (default: 0)",
+                        type=int, default=0)
 
     return parser.parse_args()
 
@@ -86,7 +89,8 @@ if __name__ == '__main__':
                                    cuda_device=args.cuda_device,
                                    buffer_size=args.buffer_size,
                                    framerate_mode=FrameRate[args.framerate_mode],
-                                   timeout=args.timeout)
+                                   timeout=args.timeout,
+                                   cuda=not args.sw)
     # To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 

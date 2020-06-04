@@ -284,6 +284,7 @@ int Parser::Analyze(AVPacket* package) {
 }
 
 int interruptCallback(void *ctx) {
+	//TODO: In the newest FFmpeg version this callback is called during context destroying, it can be bug but need keep in mind
 	if (timeoutFrame < 0)
 		return 0;
 	AVFormatContext* formatContext = reinterpret_cast<AVFormatContext*>(ctx);

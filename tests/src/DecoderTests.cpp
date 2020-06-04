@@ -115,10 +115,61 @@ TEST_F(Decoder_Init, CheckHWPixelFormat) {
 	get.join();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_CUDA);
 	EXPECT_NE(result, VREADER_REPEAT);
-
 }
 
-TEST(Decoder_Init_YUV444, HWUsupportedPixelFormat) {
+TEST_F(Decoder_Init, CheckSWPixelFormat) {
+	Decoder decoder;
+	//the buffer size is 1 frame, so only the last frame is stored
+	DecoderParameters decoderArgs = { parser, false, 1, 0 };
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
+	sts = parser->Read();
+	sts = parser->Get(&parsed);
+	auto output = av_frame_alloc();
+	int result;
+	std::thread get([&decoder, &output, &result]() {
+		result = decoder.GetFrame(0, "visualize", output);
+	});
+	AVCodecContext* context = decoder.getDecoderContext();
+	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV420P);
+	//Decoder after frame decoding frees memory of parsed frame
+	sts = decoder.Decode(&parsed);
+	get.join();
+	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV420P);
+	EXPECT_NE(result, VREADER_REPEAT);
+}
+
+//444 is unsupported in HW so only in SW
+TEST(Decoder_Init_YUV444, SWSupportedPixelFormat) {
+	av_log_set_callback([](void *ptr, int level, const char *fmt, va_list vargs) {
+		return;
+	});
+	std::shared_ptr<Parser> parser;
+	AVPacket parsed;
+	ParserParameters parserArgs = { "../resources/parser_444/bbb_1080x608_10.h264" };
+	parser = std::make_shared<Parser>();
+	parser->Init(parserArgs, std::make_shared<Logger>());
+	Decoder decoder;
+	//the buffer size is 1 frame, so only the last frame is stored
+	DecoderParameters decoderArgs = { parser, false, 1, 0 };
+	int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
+	sts = parser->Read();
+	sts = parser->Get(&parsed);
+	auto output = av_frame_alloc();
+	int result;
+	std::thread get([&decoder, &output, &result]() {
+		result = decoder.GetFrame(0, "visualize", output);
+	});
+	AVCodecContext* context = decoder.getDecoderContext();
+	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
+	//Decoder after frame decoding frees memory of parsed frame
+	sts = decoder.Decode(&parsed);
+	get.join();
+	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
+	EXPECT_NE(result, VREADER_REPEAT);
+}
+
+//444 is unsupported in HW so only in SW
+TEST(Decoder_Init_YUV444, HWUnsupportedPixelFormat) {
 	av_log_set_callback([](void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 	});
@@ -143,9 +194,9 @@ TEST(Decoder_Init_YUV444, HWUsupportedPixelFormat) {
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
 	get.join();
+	//in case of HW it should be AV_PIX_FMT_CUDA
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
 	EXPECT_NE(result, VREADER_REPEAT);
-
 }
 
 //Notice that we have buffer with decoded surfaces(!) which holds references to decoder surfaces from DPB,

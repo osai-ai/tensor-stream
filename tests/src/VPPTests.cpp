@@ -15,31 +15,47 @@ TEST(VPP_Init, WithoutDumps) {
 class VPP_Convert : public ::testing::Test {
 public:
 	std::shared_ptr<Parser> parser;
-	Decoder decoder;
+	Decoder decoderHW;
+	Decoder decoderSW;
 	AVPacket parsed;
-	std::shared_ptr<AVFrame> output;
+	std::shared_ptr<AVFrame> outputHW, outputSW;
 protected:
 	void SetUp()
 	{
 		ParserParameters parserArgs = { "../resources/bbb_1080x608_420_10.h264" };
 		parser = std::make_shared<Parser>();
 		parser->Init(parserArgs, std::make_shared<Logger>());
-		DecoderParameters decoderArgs = { parser, false, 4 };
-		int sts = decoder.Init(decoderArgs, std::make_shared<Logger>());
-		auto parsed = new AVPacket();
-		output = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+		DecoderParameters decoderArgsHW = { parser, false, 4 };
+		int sts = decoderHW.Init(decoderArgsHW, std::make_shared<Logger>());
+		EXPECT_EQ(sts, VREADER_OK);
+		DecoderParameters decoderArgsSW = { parser, false, 4, 0 };
+		sts = decoderSW.Init(decoderArgsSW, std::make_shared<Logger>());
+		EXPECT_EQ(sts, VREADER_OK);
+		auto parsedHW = new AVPacket();
+		auto parsedSW = new AVPacket();
+		outputHW = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
+		outputSW = std::shared_ptr<AVFrame>(av_frame_alloc(), av_frame_unref);
 		sts = parser->Read();
 		EXPECT_EQ(sts, VREADER_OK);
-		sts = parser->Get(parsed);
+		sts = parser->Get(parsedHW);
 		EXPECT_EQ(sts, VREADER_OK);
-		int result;
-		std::thread get([this, &result]() {
-			result = decoder.GetFrame(0, "visualize", output.get());
+		sts = av_packet_ref(parsedSW, parsedHW);
+		int resultSW, resultHW;
+		std::thread getHW([this, &resultHW]() {
+			resultHW = decoderHW.GetFrame(0, "visualize", outputHW.get());
 		});
-		sts = decoder.Decode(parsed);
-		get.join();
+		sts = decoderHW.Decode(parsedHW);
+		getHW.join();
 		EXPECT_EQ(sts, VREADER_OK);
-		EXPECT_NE(result, VREADER_REPEAT);
+		EXPECT_NE(resultHW, VREADER_REPEAT);
+
+		std::thread getSW([this, &resultSW]() {
+			resultSW = decoderSW.GetFrame(0, "visualize", outputSW.get());
+		});
+		sts = decoderSW.Decode(parsedSW);
+		getSW.join();
+		EXPECT_EQ(sts, VREADER_OK);
+		EXPECT_NE(resultSW, VREADER_REPEAT);
 	}
 };
 
@@ -135,91 +151,104 @@ TEST_F(VPP_Convert, NV12ToRGB24) {
 	ColorOptions colorOptions(RGB24);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 2225932432, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 2225932432, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 2225932432, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Planar) {
 	ColorOptions colorOptions(RGB24);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 3151499217, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 3151499217, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 3151499217, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Downscale) {
 	ColorOptions colorOptions(RGB24);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080 / 2, 608 / 2);
-	fourCCTest(output, 3545075074, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 3545075074, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 3545075074, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToRGB24Upscale) {
 	ColorOptions colorOptions(RGB24);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080 * 2, 608 * 2);
-	fourCCTest(output, 97423732, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 97423732, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 97423732, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24) {
 	ColorOptions colorOptions(BGR24);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 2467105116, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 2467105116, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 2467105116, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24Planar) {
 	ColorOptions colorOptions(BGR24);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 3969775694, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 3969775694, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 3969775694, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToY800) {
 	ColorOptions colorOptions(Y800);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 3265466497, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 3265466497, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 3265466497, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToUYVY422) {
 	ColorOptions colorOptions(UYVY);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 1323730732, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 1323730732, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 1323730732, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToUYVY422Downscale) {
 	ColorOptions colorOptions(UYVY);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(720, 480);
-	fourCCTest(output, 1564587937, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 1564587937, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 1564587937, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV444) {
 	ColorOptions colorOptions(YUV444);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 1110927649, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 1110927649, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 1110927649, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV444Downscale) {
 	ColorOptions colorOptions(YUV444);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(720, 480);
-	fourCCTest(output, 449974214, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 449974214, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 449974214, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12) {
 	ColorOptions colorOptions(NV12);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(1080, 608);
-	fourCCTest(output, 2957341121, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 2957341121, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 2957341121, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12Downscale) {
 	ColorOptions colorOptions(NV12);
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
-	fourCCTest(output, 1200915282, colorOptions, resizeOptions);
+	fourCCTest(outputHW, 1200915282, colorOptions, resizeOptions);
+	fourCCTest(outputSW, 1200915282, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropLeftWithoutResize) {
@@ -228,7 +257,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropLeftWithoutResize) {
 	//force native stream width and height
 	ResizeOptions resizeOptions(0, 0);
 	CropOptions cropOptions({ 0, 0 }, { 320, 240 });
-	checkCropCorrectness(output, 3435719157, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(outputHW, 3435719157, colorOptions, resizeOptions, cropOptions);
+	//don't check SW here because crop without resize function is written only for HW
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropCenterWithoutResize) {
@@ -237,7 +267,7 @@ TEST_F(VPP_Convert, NV12ToNV12CropCenterWithoutResize) {
 	//force native stream width and height
 	ResizeOptions resizeOptions(0, 0);
 	CropOptions cropOptions({ 320, 240 }, { 720, 480 });
-	checkCropCorrectness(output, 1515981907, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(outputHW, 1515981907, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropCenter2WithoutResize) {
@@ -246,7 +276,7 @@ TEST_F(VPP_Convert, NV12ToNV12CropCenter2WithoutResize) {
 	//force native stream width and height
 	ResizeOptions resizeOptions(0, 0);
 	CropOptions cropOptions({ 400, 240 }, { 720, 480 });
-	checkCropCorrectness(output, 655388614, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(outputHW, 655388614, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropRightWithoutResize) {
@@ -255,7 +285,7 @@ TEST_F(VPP_Convert, NV12ToNV12CropRightWithoutResize) {
 	//force native stream width and height
 	ResizeOptions resizeOptions(0, 0);
 	CropOptions cropOptions({ 640, 360 }, { 1080, 608 });
-	checkCropCorrectness(output, 602193072, colorOptions, resizeOptions, cropOptions);
+	checkCropCorrectness(outputHW, 602193072, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleLeft) {
@@ -263,7 +293,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleLeft) {
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
 	CropOptions cropOptions({ 0, 0 }, {320, 240});
-	fourCCTest(output, 1764198598, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputHW, 1764198598, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputSW, 1764198598, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleCenter) {
@@ -271,7 +302,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleCenter) {
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
 	CropOptions cropOptions({ 160, 120 }, { 480, 360 });
-	fourCCTest(output, 1834204062, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputHW, 1834204062, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputSW, 1834204062, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleRight) {
@@ -279,7 +311,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropResizeUpscaleRight) {
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(720, 480);
 	CropOptions cropOptions({ 400, 240 }, { 720, 480 });
-	fourCCTest(output, 1750083777, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputHW, 1750083777, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputSW, 1750083777, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleLeft) {
@@ -287,7 +320,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleLeft) {
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(480, 320);
 	CropOptions cropOptions({ 0, 0 }, { 720, 480 });
-	fourCCTest(output, 3477030875, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputHW, 3477030875, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputSW, 3477030875, colorOptions, resizeOptions, cropOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleRight) {
@@ -295,7 +329,8 @@ TEST_F(VPP_Convert, NV12ToNV12CropResizeDownscaleRight) {
 	colorOptions.planesPos = Planes::PLANAR;
 	ResizeOptions resizeOptions(480, 320);
 	CropOptions cropOptions({ 480, 340 }, { 1080, 608 });
-	fourCCTest(output, 2394953726, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputHW, 2394953726, colorOptions, resizeOptions, cropOptions);
+	fourCCTest(outputSW, 2394953726, colorOptions, resizeOptions, cropOptions);
 }
 
 void fourCCTestNormalized(std::string refPath, std::string refName, std::shared_ptr<AVFrame> output, ColorOptions colorOptions = ColorOptions(), ResizeOptions resizeOptions = ResizeOptions(), CropOptions cropOptions = CropOptions()) {
@@ -357,7 +392,8 @@ TEST_F(VPP_Convert, NV12ToRGB24Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "RGB24Normalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "RGB24Normalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "RGB24Normalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
@@ -381,7 +417,8 @@ TEST_F(VPP_Convert, NV12ToBGR24Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "BGR24Normalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "BGR24Normalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "BGR24Normalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
@@ -404,7 +441,8 @@ TEST_F(VPP_Convert, NV12ToYUV800Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "Y800Normalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "Y800Normalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "Y800Normalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 
@@ -430,7 +468,8 @@ TEST_F(VPP_Convert, NV12ToUYVY422Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "UYVYNormalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "UYVYNormalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "UYVYNormalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 
@@ -457,7 +496,8 @@ TEST_F(VPP_Convert, NV12ToYUV444Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "YUV444Normalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "YUV444Normalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "YUV444Normalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 TEST_F(VPP_Convert, NV12ToNV12Normalization) {
@@ -483,7 +523,8 @@ TEST_F(VPP_Convert, NV12ToNV12Normalization) {
 	colorOptions.planesPos = Planes::MERGED;
 	colorOptions.normalization = true;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "NV12Normalization_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "NV12Normalization_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "NV12Normalization_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 
@@ -508,7 +549,8 @@ TEST_F(VPP_Convert, NV12ToHSV) {
 	ColorOptions colorOptions(HSV);
 	colorOptions.planesPos = Planes::MERGED;
 	ResizeOptions resizeOptions(320, 240);
-	fourCCTestNormalized("../resources/test_references/", "HSV_320x240.yuv", output, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "HSV_320x240.yuv", outputHW, colorOptions, resizeOptions);
+	fourCCTestNormalized("../resources/test_references/", "HSV_320x240.yuv", outputSW, colorOptions, resizeOptions);
 }
 
 //monochrome reference and monochrome input (noisy approximation)
@@ -539,10 +581,10 @@ double checkPSNR(uint8_t* reference, uint8_t* input, int width, int height) {
 	return psnr;
 }
 
-uint8_t* getFrame(std::string path, FrameParameters frameParams) {
+uint8_t* getFrame(std::string path, FrameParameters frameParams, bool cuda) {
 	TensorStream reader;
 	//we read only one image, so we have to set blocking mode
-	auto sts = reader.initPipeline(path, 5, 0, 5, FrameRateMode::BLOCKING);
+	auto sts = reader.initPipeline(path, 5, 0, 5, FrameRateMode::BLOCKING, cuda);
 	reader.skipAnalyzeStage();
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::tuple<uint8_t*, int> result;
@@ -581,6 +623,7 @@ uint8_t* getFrame(uint8_t* frame, int width, int height, FrameParameters framePa
 	inputAV->data[1] = destinationUV;
 	inputAV->linesize[0] = inputAV->linesize[1] = inputAV->width = width;
 	inputAV->height = height;
+	inputAV->format = AV_PIX_FMT_NV12;
 	vpp.Convert(inputAV, outputAV, frameParams, "PSNR");
 
 	cudaFree(destinationY);
@@ -589,7 +632,7 @@ uint8_t* getFrame(uint8_t* frame, int width, int height, FrameParameters framePa
 	return (uint8_t*)outputAV->opaque;
 }
 
-double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int resizeWidth, int resizeHeight, ResizeType resizeType, FourCC dstFourCC) {
+double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int resizeWidth, int resizeHeight, ResizeType resizeType, FourCC dstFourCC, bool cuda) {
 	VideoProcessor VPP;
 	EXPECT_EQ(VPP.Init(std::make_shared<Logger>()), 0);
 
@@ -601,7 +644,9 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = NV12;
 	FrameParameters frameArgs = { resizeOptions, colorOptions };
 
-	auto source = getFrame(imagePath, frameArgs);
+	auto source = getFrame(imagePath, frameArgs, cuda);
+	if (source == nullptr)
+		return -1;
 	/*
 	std::string dumpFileName = "Dump_NV12_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
@@ -614,7 +659,9 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	resizeOptions.type = NEAREST;
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
-	auto converted = getFrame(imagePath, frameArgs);
+	auto converted = getFrame(imagePath, frameArgs, cuda);
+	if (converted == nullptr)
+		return -1;
 	/*
 	dumpFileName = "Dump_RGB24_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";
 	{
@@ -628,6 +675,8 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = NV12;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaled = getFrame(source, dstWidth, dstHeight, frameArgs);
+	if (scaled == nullptr)
+		return -1;
 	/*
 	dumpFileName = "Dump_NV12_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";
 	{
@@ -640,6 +689,8 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = RGB24;
 	frameArgs = { resizeOptions, colorOptions };
 	auto scaledRGB = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
+	if (scaledRGB == nullptr)
+		return -1;
 	/*
 	dumpFileName = "Dump_RGB24_" + std::to_string(resizeWidth) + "x" + std::to_string(resizeHeight) + ".yuv";;
 	{
@@ -652,6 +703,8 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	colorOptions.dstFourCC = dstFourCC;
 	frameArgs = { resizeOptions, colorOptions };
 	auto rescaled = getFrame(scaled, resizeWidth, resizeHeight, frameArgs);
+	if (rescaled == nullptr)
+		return -1;
 	/*
 	dumpFileName = "Dump_RGB24_Rescaled_" + std::to_string(dstWidth) + "x" + std::to_string(dstHeight) + ".yuv";;
 	{
@@ -669,6 +722,143 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	return psnr;
 }
 
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = BILINEAR;
+	double psnrBilinearSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrBilinearSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = BILINEAR;
+	double psnrBilinearHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrBilinearHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrBilinearSW, psnrBilinearHW);
+}
+
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBilinear) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = BILINEAR;
+	double psnrBilinearSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrBilinearSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = BILINEAR;
+	double psnrBilinearHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrBilinearHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrBilinearSW, psnrBilinearHW);
+}
+
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = BICUBIC;
+	double psnrBicubicSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrBicubicSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = BICUBIC;
+	double psnrBicubicHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrBicubicHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrBicubicSW, psnrBicubicHW);
+}
+
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBicubic) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = BICUBIC;
+	double psnrBicubicSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrBicubicSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = BICUBIC;
+	double psnrBicubicHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrBicubicHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrBicubicSW, psnrBicubicHW);
+}
+
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 480;
+	int resizeHeight = 360;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = AREA;
+	double psnrAreaSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrAreaSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = AREA;
+	double psnrAreaHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrAreaHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrAreaSW, psnrAreaHW);
+}
+
+TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledArea) {
+	//Test parameters
+	int dstWidth = 720;
+	int dstHeight = 480;
+	int resizeWidth = 1920;
+	int resizeHeight = 1080;
+	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	FourCC dstFourCC = RGB24;
+	//----------------
+	ResizeType resizeType = NEAREST;
+	double psnrNearestSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	resizeType = AREA;
+	double psnrAreaSW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 0);
+	ASSERT_GT(psnrAreaSW, psnrNearestSW);
+	resizeType = NEAREST;
+	double psnrNearestHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	resizeType = AREA;
+	double psnrAreaHW = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
+	ASSERT_GT(psnrAreaHW, psnrNearestHW);
+	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
+	ASSERT_EQ(psnrAreaSW, psnrAreaHW);
+}
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	//Test parameters
@@ -680,11 +870,10 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	resizeType = BILINEAR;
-	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	ASSERT_GT(psnrBilinear, psnrNearest);
-	
 }
 
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
@@ -697,7 +886,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBilinear) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrBilinear, 26.07, 0.01);
 }
 
@@ -711,7 +900,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledNearest) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 19.14, 0.01);
 }
 
@@ -725,7 +914,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledBicubic) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrBicubic, 25.80, 0.01);
 }
 
@@ -739,7 +928,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledArea) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrArea, 25.89, 0.01);
 }
 
@@ -753,7 +942,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBilinear) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrBilinear = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrBilinear, 39.27, 0.01);
 }
 
@@ -767,7 +956,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledNearest) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 19.14, 0.01);
 }
 
@@ -781,7 +970,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledBicubic) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrBicubic = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrBicubic, 30.45, 0.01);
 }
 
@@ -795,7 +984,7 @@ TEST_F(VPP_Convert, PSNRTVTemplateRGBUpscaledArea) {
 	std::string imagePath = "../resources/test_resize/tv_template.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrArea = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrArea, 39.34, 0.01);
 }
 
@@ -809,7 +998,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledNearest) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 14.15, 0.01);
 }
 
@@ -823,7 +1012,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBilinear) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 19.51, 0.01);
 }
 
@@ -837,7 +1026,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledBicubic) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 20.81, 0.01);
 }
 
@@ -851,7 +1040,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBDownscaledArea) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 19.95, 0.01);
 }
 
@@ -865,7 +1054,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledNearest) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 14.15, 0.01);
 }
 
@@ -879,7 +1068,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledBilinear) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 28.00, 0.01);
 }
 
@@ -893,7 +1082,7 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledBicubic) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 43.08, 0.01);
 }
 
@@ -907,6 +1096,6 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledArea) {
 	std::string imagePath = "../resources/test_resize/forest.jpg";
 	FourCC dstFourCC = RGB24;
 	//----------------
-	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC);
+	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 30.14, 0.01);
 }

@@ -16,14 +16,13 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	this->logger = logger;
 	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	decoderContext->thread_count = input._threads;
-	/*
-	//
-	decoderContext->thread_type = FF_THREAD_SLICE;
-	decoderContext->delay = 0;
-	decoderContext->skip_loop_filter = AVDISCARD_NONKEY;
-	decoderContext->skip_idct = AVDISCARD_NONKEY;
-	//
-	*/
+	//useless in GPU mode and in CPU if no slices in stream (surprise!)
+	//decoderContext->thread_type = FF_THREAD_SLICE;
+	//useless in CPU and GPU modes
+	//decoderContext->delay = 0;
+	//useless in GPU mode but give some performance boost in CPU mode (15ms) and unsignificant negative quality impact
+	//decoderContext->skip_loop_filter = AVDISCARD_ALL;
+	//decoderContext->skip_idct = AVDISCARD_ALL;
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	sts = cudaFree(0);

@@ -104,6 +104,10 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 			//will be used default stream
 		}
 	}
+
+	//TensorStream currently supports only either YUV420P or NV12 (AV_PIX_FMT_CUDA)
+	CHECK_STATUS(input->format != AV_PIX_FMT_YUV420P && input->format != AV_PIX_FMT_NV12 && input->format != AV_PIX_FMT_CUDA);
+
 	//first of all if decoder is SW need to convert YUV420P to NV12
 	if (input->format == AV_PIX_FMT_YUV420P) {
 		AVFrame* convertedFrame = av_frame_alloc();
@@ -170,6 +174,7 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 				DumpFrame(static_cast<unsigned char*>(output->opaque), options, dumpFile);
 		}
 	}
+	output->format = AV_PIX_FMT_NV12;
 	//if memory was allocated manually need to deallocate it manually too
 	if (input->format == AV_PIX_FMT_YUV420P) {
 		sts = cudaFree(input->data[0]);

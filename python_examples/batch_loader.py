@@ -69,6 +69,9 @@ def parse_arguments():
     parser.add_argument("--crop",
                         help="set crop, left top corner and right bottom corner (default: disabled)",
                         type=crop_coords, default=(0,0,0,0))
+    parser.add_argument("--sw",
+                        help="Use SW decoding (default: 0)",
+                        type=int, default=0)
 
     return parser.parse_args()
 
@@ -89,7 +92,7 @@ def consumer(reader, args):
 if __name__ == '__main__':
     args = parse_arguments()
     #Note: max_consumers and buffer_size should be zero, otherwise for each instance additional memory will be allocated
-    reader = TensorStreamConverter(args.input, 0, args.cuda_device, 0)
+    reader = TensorStreamConverter(args.input, 0, args.cuda_device, 0, cuda=not args.sw)
     # To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 
