@@ -322,7 +322,6 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 int TensorStream::enableBatchOptimization() {
 	int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
 	CHECK_STATUS(sts);
-	avcodec_flush_buffers(decoder->getDecoderContext());
 	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
 	AVFrame* decoded = av_frame_alloc();
 	std::vector<int> keyFrames;
@@ -334,8 +333,9 @@ int TensorStream::enableBatchOptimization() {
 		}
 		sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
 		sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-		if (sts == AVERROR(EAGAIN))
+		if (sts == AVERROR(EAGAIN)) {
 			continue;
+		}
 		if (decoded->key_frame)
 			keyFrames.push_back(PTSToFrame(parser->getFormatContext()->streams[parser->getVideoIndex()], decoded->pts));
 	}
@@ -345,7 +345,6 @@ int TensorStream::enableBatchOptimization() {
 
 	av_frame_free(&decoded);
 	delete readFrames.first;
-	
 	return sts;
 }
 
@@ -388,15 +387,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			}
 			int multiplier = index[i] / gopSize;
 			int intraIndex = multiplier * gopSize;
-			//if first frame or flushed or needed frame is behind current decoded or 
 			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
-				//TODO: maybe it will be faster to decode rest of "unrelated" frames after seek than reset HW decoder
-				/*
-				if (flushed)
-					flushed = false;
-				else
-					avcodec_flush_buffers(decoder->getDecoderContext());
-				*/
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}

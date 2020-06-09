@@ -164,6 +164,13 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 		err = cudaFree(output->data[1]);
 		CHECK_STATUS(err);
 	}
+	output->format = AV_PIX_FMT_NV12;
+	//if memory was allocated manually need to deallocate it manually too
+	if (input->format == AV_PIX_FMT_YUV420P) {
+		sts = cudaFree(input->data[0]);
+		sts = cudaFree(input->data[1]);
+	}
+	av_frame_unref(input);
 	if (enableDumps) {
 		std::string fileName = std::string("Processed_") + consumerName + std::string(".yuv");
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose));
@@ -176,13 +183,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 				DumpFrame(static_cast<unsigned char*>(output->opaque), options, dumpFile);
 		}
 	}
-	output->format = AV_PIX_FMT_NV12;
-	//if memory was allocated manually need to deallocate it manually too
-	if (input->format == AV_PIX_FMT_YUV420P) {
-		sts = cudaFree(input->data[0]);
-		sts = cudaFree(input->data[1]);
-	}
-	av_frame_unref(input);
 	return sts;
 }
 

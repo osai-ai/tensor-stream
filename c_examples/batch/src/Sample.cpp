@@ -27,12 +27,6 @@ void get_cycle_batch(TensorStream& reader, FrameParameters frameParameters, std:
 
 }
 
-/*
-1) Каждая "пачка" кадров должна обрабатываться в отдельном ИНСТАНСЕ TensorReader, паралеллить с помощью потоков не получится из-за seek
-2) На каждый стрим нужно создавать пару инстансов с SW и HW, запрашивать кадры нужны из SW И из HW одновременно, т.е. готовить сразу два батча (неважно инстансы с разными стримами или одинаковыми)
-3) Как сделать, чтобы они одновременно запускались и работали параллельно в Python? Запускать в разных тредах в питоне и откреплять GIL в С++
-*/
-
 int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
 	std::vector<std::shared_ptr<TensorStream> > readers{ 1 };
@@ -45,7 +39,7 @@ int main() {
 		int initNumber = 10;
 
 		while (initNumber--) {
-			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 0);
+			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 1);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
 			else
@@ -57,6 +51,7 @@ int main() {
 		CHECK_STATUS(sts);
 		index++;
 	}
+
 	int dstWidth = 1920;
 	int dstHeight = 1080;
 	std::tuple<int, int> cropTopLeft = { 0, 0 };
