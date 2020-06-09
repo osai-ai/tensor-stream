@@ -75,7 +75,9 @@ int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, b
 	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
 	this->logger = logger;
-	cudaGetDeviceProperties(&prop, 0);
+	int currentDevice;
+	cudaGetDevice(&currentDevice);
+	cudaGetDeviceProperties(&prop, currentDevice);
 	//We should allocate at least 1 stream to avoid any collision in one default stream if use only it
 	cudaStream_t stream;
 	cudaStreamCreate(&stream);
