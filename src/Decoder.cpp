@@ -9,6 +9,34 @@ Decoder::Decoder() {
 
 }
 
+AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmts)
+{
+	while (*pix_fmts != AV_PIX_FMT_NONE) {
+		if (*pix_fmts == AV_PIX_FMT_CUDA) {
+			AVHWFramesContext* framesContext = NULL;
+			AVCodecContext* decoderContext = (AVCodecContext*) avctx->opaque;
+			AVBufferRef *hwFramesRef = av_hwframe_ctx_alloc(decoderContext->hw_device_ctx);
+			framesContext = (AVHWFramesContext *)(hwFramesRef->data);
+			framesContext->format = AV_PIX_FMT_CUDA;
+			framesContext->sw_format = avctx->sw_pix_fmt;
+			framesContext->width = FFALIGN(avctx->coded_width, 32);
+			framesContext->height = FFALIGN(avctx->coded_height, 32);
+			framesContext->initial_pool_size = 6;//input.bufferDeep + 1;
+			int sts = av_hwframe_ctx_init(hwFramesRef);
+
+			decoderContext->hw_frames_ctx = av_buffer_ref(hwFramesRef);
+			av_buffer_unref(&hwFramesRef);
+			return AV_PIX_FMT_CUDA;
+		}
+
+		pix_fmts++;
+	}
+
+	fprintf(stderr, "No CUDA in get_format()\n");
+
+	return AV_PIX_FMT_NONE;
+}
+
 int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;
@@ -30,9 +58,9 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	if (state._cuda) {
 		//CUDA device initialization
 		deviceReference = av_hwdevice_ctx_alloc(av_hwdevice_find_type_by_name("cuda"));
+		
 		AVHWDeviceContext* deviceContext = (AVHWDeviceContext*)deviceReference->data;
 		AVCUDADeviceContext *CUDAContext = (AVCUDADeviceContext*)deviceContext->hwctx;
-
 		//Assign runtime CUDA context to ffmpeg decoder
 		sts = cuCtxGetCurrent(&CUDAContext->cuda_ctx);
 		CHECK_STATUS(CUDAContext->cuda_ctx == nullptr);
@@ -40,6 +68,8 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 		sts = av_hwdevice_ctx_init(deviceReference);
 		CHECK_STATUS(sts);
 		decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
+		decoderContext->opaque = decoderContext;
+		decoderContext->get_format = getFormat;
 	}
 	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
 	CHECK_STATUS(sts);
