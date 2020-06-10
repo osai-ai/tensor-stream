@@ -9,7 +9,8 @@ Decoder::Decoder() {
 
 }
 
-AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmts) {
+AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmts)
+{
 	while (*pix_fmts != AV_PIX_FMT_NONE) {
 		if (*pix_fmts == AV_PIX_FMT_CUDA) {
 			AVHWFramesContext* framesContext = NULL;
@@ -20,7 +21,7 @@ AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmt
 			framesContext->sw_format = avctx->sw_pix_fmt;
 			framesContext->width = FFALIGN(avctx->coded_width, 32);
 			framesContext->height = FFALIGN(avctx->coded_height, 32);
-			framesContext->initial_pool_size = 5;//input.bufferDeep + 1;
+			framesContext->initial_pool_size = 6;//input.bufferDeep + 1;
 			int sts = av_hwframe_ctx_init(hwFramesRef);
 
 			decoderContext->hw_frames_ctx = av_buffer_ref(hwFramesRef);
