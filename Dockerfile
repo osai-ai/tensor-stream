@@ -17,7 +17,7 @@ RUN git clone -b sdk/8.2 --single-branch https://git.videolan.org/git/ffmpeg/nv-
     cd .. && rm -rf nv-codec-headers
 
 # Build ffmpeg with nvenc support
-RUN git clone --depth 1 -b release/4.2 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
+RUN git clone --depth 1 -b release/4.3 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
     cd FFmpeg &&\
     mkdir ffmpeg_build && cd ffmpeg_build &&\
     ../configure \
