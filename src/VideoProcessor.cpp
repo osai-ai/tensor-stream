@@ -71,6 +71,11 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 	return VREADER_OK;
 }
 
+template
+int VideoProcessor::DumpFrame(float* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
+template
+int VideoProcessor::DumpFrame(uint8_t* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
+
 int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, bool _enableDumps) {
 	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
@@ -88,9 +93,6 @@ int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, b
 
 int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& options, std::string consumerName) {
 	PUSH_RANGE("VideoProcessor::Convert", NVTXColors::YELLOW);
-	/*
-	Should decide which method call
-	*/
 	cudaStream_t stream;
 	int sts = VREADER_OK;
 	{
@@ -167,5 +169,10 @@ void VideoProcessor::Close() {
 	PUSH_RANGE("VideoProcessor::Close", NVTXColors::YELLOW);
 	if (isClosed)
 		return;
+
+	for (auto item : streamArr) {
+		cudaStreamDestroy(std::get<1>(item));
+	}
+
 	isClosed = true;
 }
