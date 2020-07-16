@@ -12,7 +12,7 @@ RUN apt-get update &&\
     rm -rf /var/cache/apt/archives/*
 
 # Build nvidia codec headers
-RUN git clone -b sdk/8.2 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
+RUN git clone -b sdk/9.1 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
     cd nv-codec-headers && make install &&\
     cd .. && rm -rf nv-codec-headers
 
