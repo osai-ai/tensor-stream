@@ -94,11 +94,6 @@ public:
 	int Analyze(AVPacket* package);
 
 	/*
-	Soft re-init of current Parser entity with new parameters.
-	*/
-	int Reset(ParserParameters& input);
-
-	/*
 	Close all existing handles, deallocate recources.
 	*/
 	void Close();

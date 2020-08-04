@@ -15,6 +15,9 @@ Class which allow start decoding process and get Pytorch tensors with post-proce
 */
 class TensorStream {
 public:
+	int cacheStream(std::string inputFile);
+
+	int resetPipeline(std::string inputFile);
 /** Initialization of TensorStream pipeline
  @param[in] inputFile Path to stream should be decoded
  @param[in] maxConsumers Allowed number of simultaneously working consumers
@@ -90,6 +93,7 @@ private:
 	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
+	std::map<std::string, std::shared_ptr<Parser> > parserArr;
 	std::shared_ptr<Parser> parser;
 	std::shared_ptr<Decoder> decoder;
 	std::shared_ptr<VideoProcessor> vpp;

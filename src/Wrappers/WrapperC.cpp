@@ -11,6 +11,20 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
+int TensorStream::resetPipeline(std::string inputFile) {
+	parser = parserArr[inputFile];
+	auto sts = decoder->Reset();
+	return sts;
+}
+
+int TensorStream::cacheStream(std::string inputFile) {
+	ParserParameters parserArgs = { inputFile, false };
+	auto sts = parser->Init(parserArgs, logger);
+	parserArr[inputFile] = parser;
+
+	return sts;
+}
+
 int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda, int threads) {
 	int sts = VREADER_OK;
 	shouldWork = true;
@@ -38,12 +52,20 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	av_log_set_callback(logCallback);
 	START_LOG_FUNCTION(std::string("Initializing() "));
 	LOG_VALUE(std::string("Chosen GPU: ") + std::to_string(currentCUDADevice), LogsLevel::LOW);
-	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { inputFile, false };
+	
 	START_LOG_BLOCK(std::string("parser->Init"));
-	sts = parser->Init(parserArgs, logger);
+	if (parserArr.find(inputFile) != parserArr.end())
+	{
+		ParserParameters parserArgs = { inputFile, false };
+		sts = parser->Init(parserArgs, logger);
+		parserArr[inputFile] = parser;
+	}
+	else {
+		parser = parserArr[inputFile];
+	}
+
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda, threads };

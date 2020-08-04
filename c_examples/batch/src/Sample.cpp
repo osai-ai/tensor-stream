@@ -37,8 +37,10 @@ int main() {
 		reader->enableNVTX();
 		int sts = VREADER_OK;
 		int initNumber = 10;
-
+		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4");
+		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
 		while (initNumber--) {
+
 			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 1);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
@@ -66,7 +68,9 @@ int main() {
 	std::vector<std::thread> threads{ 1 };
 	for (int i = 0; i < readers.size(); i++) {
 		std::vector<int> frames = { 125, 126, 127, 128, 129 };
-		threads[i] = std::thread([=]() { readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); });
+		threads[i] = std::thread([=]() { readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+										 readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
+										 readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); });
 	}
 	for (int i = 0; i < threads.size(); i++) {
 		threads[i].join();

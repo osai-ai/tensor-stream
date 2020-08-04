@@ -41,6 +41,8 @@ public:
 	*/
 	int Decode(AVPacket* pkt);
 
+	int Reset();
+
 	/*
 	Blocked call, returns whether already decoded frame from cache or latest decoded frame which hasn't been reported yet.
 	Arguments: 

@@ -37,6 +37,31 @@ AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmt
 	return AV_PIX_FMT_NONE;
 }
 
+int Decoder::Reset() {
+	auto sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
+	CHECK_STATUS(sts);
+	if (state._cuda) {
+		//CUDA device initialization
+		deviceReference = av_hwdevice_ctx_alloc(av_hwdevice_find_type_by_name("cuda"));
+
+		AVHWDeviceContext* deviceContext = (AVHWDeviceContext*)deviceReference->data;
+		AVCUDADeviceContext *CUDAContext = (AVCUDADeviceContext*)deviceContext->hwctx;
+		//Assign runtime CUDA context to ffmpeg decoder
+		sts = cuCtxGetCurrent(&CUDAContext->cuda_ctx);
+		CHECK_STATUS(CUDAContext->cuda_ctx == nullptr);
+		CHECK_STATUS(sts);
+		sts = av_hwdevice_ctx_init(deviceReference);
+		CHECK_STATUS(sts);
+		decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
+		decoderContext->opaque = decoderContext;
+		decoderContext->get_format = getFormat;
+	}
+	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	CHECK_STATUS(sts);
+
+	return sts;
+}
+
 int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	PUSH_RANGE("Decoder::Init", NVTXColors::RED);
 	state = input;
