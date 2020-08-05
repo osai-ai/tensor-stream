@@ -38,7 +38,7 @@ int main() {
 		int sts = VREADER_OK;
 		int initNumber = 10;
 		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4");
-		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
+		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4");
 		while (initNumber--) {
 
 			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 1);
@@ -64,13 +64,32 @@ int main() {
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
-	std::map<std::string, std::string> executionParameters = { {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + "1.yuv"} };
 	std::vector<std::thread> threads{ 1 };
 	for (int i = 0; i < readers.size(); i++) {
 		std::vector<int> frames = { 125, 126, 127, 128, 129 };
-		threads[i] = std::thread([=]() { readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
-										 readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
-										 readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); });
+		threads[i] = std::thread([=]() {
+			std::shared_ptr<FILE> dumpFile;
+			std::string fileName = "test.yuv";
+			if (!fileName.empty()) {
+				remove(fileName.c_str());
+				dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+			}
+			auto result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+			for (auto frame : result) {
+				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+				if (status < 0)
+					return;
+				cudaFree(frame);
+			}
+			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
+			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); 
+			for (auto frame : result) {
+				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+				if (status < 0)
+					return;
+				cudaFree(frame);
+			}
+		});
 	}
 	for (int i = 0; i < threads.size(); i++) {
 		threads[i].join();

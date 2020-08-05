@@ -12,16 +12,23 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 }
 
 int TensorStream::resetPipeline(std::string inputFile) {
-	parser = parserArr[inputFile];
-	auto sts = decoder->Reset();
+	int sts = VREADER_OK;
+	if (parserArr.find(inputFile) == parserArr.end())
+	{
+		ParserParameters parserArgs = { inputFile, false };
+		if (parser == nullptr)
+			parser = std::make_shared<Parser>();
+		sts = parser->Init(parserArgs, logger);
+		parserArr[inputFile] = parser;
+	}
+	sts = decoder->Reset(parser);
 	return sts;
 }
 
 int TensorStream::cacheStream(std::string inputFile) {
 	ParserParameters parserArgs = { inputFile, false };
-	auto sts = parser->Init(parserArgs, logger);
-	parserArr[inputFile] = parser;
-
+	parserArr[inputFile] = std::make_shared<Parser>();
+	auto sts = parserArr[inputFile]->Init(parserArgs, logger);
 	return sts;
 }
 
@@ -56,9 +63,11 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	vpp = std::make_shared<VideoProcessor>();
 	
 	START_LOG_BLOCK(std::string("parser->Init"));
-	if (parserArr.find(inputFile) != parserArr.end())
+	if (parserArr.find(inputFile) == parserArr.end())
 	{
 		ParserParameters parserArgs = { inputFile, false };
+		if (parser == nullptr)
+			parser = std::make_shared<Parser>();
 		sts = parser->Init(parserArgs, logger);
 		parserArr[inputFile] = parser;
 	}
@@ -342,31 +351,34 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 }
 
 int TensorStream::enableBatchOptimization() {
-	int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
-	CHECK_STATUS(sts);
-	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
-	AVFrame* decoded = av_frame_alloc();
-	std::vector<int> keyFrames;
-	while (keyFrames.size() < 2) {
-		sts = parser->readVideoFrame(readFrames);
-		if (sts == AVERROR_EOF) {
-			LOG_VALUE(std::string("Not enough frames to calculate GOP"), LogsLevel::LOW);
-			break;
+	int sts = VREADER_OK;
+	for (auto parser : parserArr) {
+		sts = av_seek_frame(parser.second->getFormatContext(), parser.second->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
+		CHECK_STATUS(sts);
+		std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
+		AVFrame* decoded = av_frame_alloc();
+		std::vector<int> keyFrames;
+		while (keyFrames.size() < 2) {
+			sts = parser.second->readVideoFrame(readFrames);
+			if (sts == AVERROR_EOF) {
+				LOG_VALUE(std::string("Not enough frames to calculate GOP"), LogsLevel::LOW);
+				break;
+			}
+			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+			if (sts == AVERROR(EAGAIN)) {
+				continue;
+			}
+			if (decoded->key_frame)
+				keyFrames.push_back(PTSToFrame(parser.second->getFormatContext()->streams[parser.second->getVideoIndex()], decoded->pts));
 		}
-		sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-		sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-		if (sts == AVERROR(EAGAIN)) {
-			continue;
-		}
-		if (decoded->key_frame)
-			keyFrames.push_back(PTSToFrame(parser->getFormatContext()->streams[parser->getVideoIndex()], decoded->pts));
+
+		if (sts != AVERROR_EOF)
+			gopSize = keyFrames[1] - keyFrames[0];
+
+		av_frame_free(&decoded);
+		delete readFrames.first;
 	}
-
-	if (sts != AVERROR_EOF)
-		gopSize = keyFrames[1] - keyFrames[0];
-
-	av_frame_free(&decoded);
-	delete readFrames.first;
 	return sts;
 }
 

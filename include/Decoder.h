@@ -41,7 +41,7 @@ public:
 	*/
 	int Decode(AVPacket* pkt);
 
-	int Reset();
+	int Reset(std::shared_ptr<Parser> parser);
 
 	/*
 	Blocked call, returns whether already decoded frame from cache or latest decoded frame which hasn't been reported yet.
@@ -58,6 +58,7 @@ public:
 	unsigned int getFrameIndex();
 	AVCodecContext* getDecoderContext();
 	int notifyConsumers();
+	DecoderParameters getDecoderParameters();
 private:
 	/*
 	It help understand whether allowed or not return frame. If some frame was reported to current consumer and no any new frames were decoded need to wait.
