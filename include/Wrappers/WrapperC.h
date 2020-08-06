@@ -87,10 +87,8 @@ public:
 
 	int getTimeout();
 	int getDelay();
-	int getGOP();
 private:
 	int processingLoop();
-	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
 	std::map<std::string, std::shared_ptr<Parser> > parserArr;

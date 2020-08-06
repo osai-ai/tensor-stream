@@ -27,6 +27,8 @@ void get_cycle_batch(TensorStream& reader, FrameParameters frameParameters, std:
 
 }
 
+//TODO: if decoder was SW but became HW and vice versa
+//
 int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
 	std::vector<std::shared_ptr<TensorStream> > readers{ 1 };
@@ -81,7 +83,7 @@ int main() {
 					return;
 				cudaFree(frame);
 			}
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_1s_100gop.mp4");
+			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4");
 			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); 
 			for (auto frame : result) {
 				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);

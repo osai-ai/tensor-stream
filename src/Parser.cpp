@@ -419,6 +419,14 @@ int Parser::Get(AVPacket* output) {
 	return VREADER_OK;
 }
 
+int Parser::getGopSize() {
+	return gopSize;
+}
+
+int Parser::setGopSize(int gopSize) {
+	this->gopSize = gopSize;
+	return VREADER_OK;
+}
 
 AVFormatContext* Parser::getFormatContext() {
 	return formatContext;

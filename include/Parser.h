@@ -107,7 +107,12 @@ public:
 	AVFormatContext* getFormatContext();
 	AVStream* getStreamHandle();
 	int getVideoIndex();
+	int getGopSize();
+	int setGopSize(int gopSize);
 private:
+	/*
+	*/
+	int gopSize = 32;
 	/*
 	State of Parser object it was initialized/reseted with.
 	*/

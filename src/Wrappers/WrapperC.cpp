@@ -21,6 +21,8 @@ int TensorStream::resetPipeline(std::string inputFile) {
 		sts = parser->Init(parserArgs, logger);
 		parserArr[inputFile] = parser;
 	}
+
+	parser = parserArr[inputFile];
 	sts = decoder->Reset(parser);
 	return sts;
 }
@@ -353,6 +355,8 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 int TensorStream::enableBatchOptimization() {
 	int sts = VREADER_OK;
 	for (auto parser : parserArr) {
+		sts = decoder->Reset(parser.second);
+
 		sts = av_seek_frame(parser.second->getFormatContext(), parser.second->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
 		CHECK_STATUS(sts);
 		std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
@@ -374,7 +378,7 @@ int TensorStream::enableBatchOptimization() {
 		}
 
 		if (sts != AVERROR_EOF)
-			gopSize = keyFrames[1] - keyFrames[0];
+			parser.second->setGopSize(keyFrames[1] - keyFrames[0]);
 
 		av_frame_free(&decoded);
 		delete readFrames.first;
@@ -419,8 +423,8 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				outputTuple.push_back(outputTuple[index]);
 				continue;
 			}
-			int multiplier = index[i] / gopSize;
-			int intraIndex = multiplier * gopSize;
+			int multiplier = index[i] / parser->getGopSize();
+			int intraIndex = multiplier * parser->getGopSize();
 			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
@@ -586,10 +590,6 @@ int TensorStream::dumpFrame(T* frame, FrameParameters frameParameters, std::shar
 	status = vpp->DumpFrame(frame, frameParameters, dumpFile);
 	END_LOG_FUNCTION(std::string("dumpFrame()"));
 	return status;
-}
-
-int TensorStream::getGOP() {
-	return gopSize;
 }
 
 int TensorStream::getDelay() {

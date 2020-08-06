@@ -42,9 +42,9 @@ DecoderParameters Decoder::getDecoderParameters() {
 }
 
 int Decoder::Reset(std::shared_ptr<Parser> parser) {
-	auto sts = avcodec_parameters_to_context(decoderContext, parser->getStreamHandle()->codecpar);
-	CHECK_STATUS(sts);
-	avcodec_flush_buffers(getDecoderContext());
+	Close();
+	state.parser = parser;
+	auto sts = Init(state, logger);
 	return sts;
 }
 
