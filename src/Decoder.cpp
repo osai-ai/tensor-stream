@@ -42,9 +42,19 @@ DecoderParameters Decoder::getDecoderParameters() {
 }
 
 int Decoder::Reset(std::shared_ptr<Parser> parser) {
-	Close();
+	int sts = VREADER_OK;
+	int threadCount = decoderContext->thread_count;
+	bool cuda = state._cuda;
+	avcodec_free_context(&decoderContext);
 	state.parser = parser;
-	auto sts = Init(state, logger);
+	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
+	if (cuda) {
+		decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
+		decoderContext->opaque = decoderContext;
+		decoderContext->get_format = getFormat;
+	}
+	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
 	return sts;
 }
 
@@ -100,7 +110,7 @@ void Decoder::Close() {
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
-	avcodec_close(decoderContext);
+	avcodec_free_context(&decoderContext);
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);

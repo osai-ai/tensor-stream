@@ -33,14 +33,16 @@ int main() {
 	auto cpuNumber = std::thread::hardware_concurrency();
 	std::vector<std::shared_ptr<TensorStream> > readers{ 1 };
 	int index = 1;
+	std::shared_ptr<StreamPool> streamPool = std::make_shared<StreamPool>();
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4");
 	for (auto& reader : readers) {
 		reader = std::make_shared<TensorStream>();
+		reader->addStreamPool(streamPool);
 		reader->enableLogs(-LOW);
 		reader->enableNVTX();
 		int sts = VREADER_OK;
 		int initNumber = 10;
-		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4");
-		sts = reader->cacheStream("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4");
 		while (initNumber--) {
 
 			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, 0, 0, FrameRateMode::NATIVE, 1, 1);
@@ -85,6 +87,14 @@ int main() {
 			}
 			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4");
 			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); 
+			for (auto frame : result) {
+				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+				if (status < 0)
+					return;
+				cudaFree(frame);
+			}
+			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4");
+			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
 			for (auto frame : result) {
 				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
 				if (status < 0)

@@ -10,12 +10,24 @@
 @{
 */
 
+class StreamPool {
+public:
+	std::shared_ptr<Parser> cacheStream(std::string inputFile);
+	std::shared_ptr<Parser> getParser(std::string inputFile);
+	std::map<std::string, std::shared_ptr<Parser> > getParsers();
+	std::shared_ptr<Logger> getLogger();
+	int setLogger(std::shared_ptr<Logger> logger);
+private:
+	std::shared_ptr<Logger> logger;
+	std::map<std::string, std::shared_ptr<Parser> > parserArr;
+};
+
 /**
 Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 */
 class TensorStream {
 public:
-	int cacheStream(std::string inputFile);
+	int addStreamPool(std::shared_ptr<StreamPool> streamPool);
 
 	int resetPipeline(std::string inputFile);
 /** Initialization of TensorStream pipeline
@@ -89,9 +101,10 @@ public:
 	int getDelay();
 private:
 	int processingLoop();
+	std::shared_ptr<StreamPool> streamPool = nullptr;
+
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
-	std::map<std::string, std::shared_ptr<Parser> > parserArr;
 	std::shared_ptr<Parser> parser;
 	std::shared_ptr<Decoder> decoder;
 	std::shared_ptr<VideoProcessor> vpp;

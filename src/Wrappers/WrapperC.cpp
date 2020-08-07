@@ -11,26 +11,57 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
+std::shared_ptr<Parser> StreamPool::cacheStream(std::string inputFile) {
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	ParserParameters parserArgs = { inputFile, false };
+	parserArr[inputFile] = std::make_shared<Parser>();
+	parserArr[inputFile]->Init(parserArgs, logger);
+	return parserArr[inputFile];
+}
+
+std::shared_ptr<Logger> StreamPool::getLogger() {
+	return logger;
+}
+
+int StreamPool::setLogger(std::shared_ptr<Logger> logger) {
+	this->logger = logger;
+	return VREADER_OK;
+}
+
+std::shared_ptr<Parser> StreamPool::getParser(std::string inputFile) {
+	if (parserArr.find(inputFile) != parserArr.end())
+		return parserArr[inputFile];
+	
+	return nullptr;
+}
+
+std::map<std::string, std::shared_ptr<Parser> > StreamPool::getParsers() {
+	return parserArr;
+}
+
+int TensorStream::addStreamPool(std::shared_ptr<StreamPool> streamPool) {
+	this->streamPool = streamPool;
+	logger = streamPool->getLogger();
+	return VREADER_OK;
+}
+
 int TensorStream::resetPipeline(std::string inputFile) {
 	int sts = VREADER_OK;
-	if (parserArr.find(inputFile) == parserArr.end())
-	{
+	if (streamPool) {
+		parser = streamPool->getParser(inputFile);
+		if (parser == nullptr)
+			parser = streamPool->cacheStream(inputFile);
+	}
+	else {
 		ParserParameters parserArgs = { inputFile, false };
 		if (parser == nullptr)
 			parser = std::make_shared<Parser>();
 		sts = parser->Init(parserArgs, logger);
-		parserArr[inputFile] = parser;
 	}
-
-	parser = parserArr[inputFile];
 	sts = decoder->Reset(parser);
-	return sts;
-}
-
-int TensorStream::cacheStream(std::string inputFile) {
-	ParserParameters parserArgs = { inputFile, false };
-	parserArr[inputFile] = std::make_shared<Parser>();
-	auto sts = parserArr[inputFile]->Init(parserArgs, logger);
 	return sts;
 }
 
@@ -65,16 +96,16 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	vpp = std::make_shared<VideoProcessor>();
 	
 	START_LOG_BLOCK(std::string("parser->Init"));
-	if (parserArr.find(inputFile) == parserArr.end())
-	{
+	if (streamPool == nullptr) {
 		ParserParameters parserArgs = { inputFile, false };
 		if (parser == nullptr)
 			parser = std::make_shared<Parser>();
 		sts = parser->Init(parserArgs, logger);
-		parserArr[inputFile] = parser;
 	}
 	else {
-		parser = parserArr[inputFile];
+		parser = streamPool->getParser(inputFile);
+		if (parser == nullptr)
+			parser = streamPool->cacheStream(inputFile);
 	}
 
 	CHECK_STATUS(sts);
@@ -354,6 +385,14 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 
 int TensorStream::enableBatchOptimization() {
 	int sts = VREADER_OK;
+	std::map<std::string, std::shared_ptr<Parser> > parserArr;
+	if (streamPool) {
+		parserArr = streamPool->getParsers();
+	}
+	else {
+		parserArr["default"] = parser;
+	}
+
 	for (auto parser : parserArr) {
 		sts = decoder->Reset(parser.second);
 
@@ -369,6 +408,7 @@ int TensorStream::enableBatchOptimization() {
 				break;
 			}
 			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+			CHECK_STATUS(sts);
 			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
 			if (sts == AVERROR(EAGAIN)) {
 				continue;
