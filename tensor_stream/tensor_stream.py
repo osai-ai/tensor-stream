@@ -147,6 +147,15 @@ class FrameParameters:
         return string
 
 
+class StreamPool:
+  def __init__(self):
+    self.stream_pool = TensorStream.StreamPool()
+
+  def cache_stream(self,
+                   stream_url):
+    self.stream_pool.cacheStream(stream_url)
+
+
 ## Class which allow start decoding process and get Pytorch tensors with post-processed frame data
 class TensorStreamConverter:
     ## Constructor of TensorStreamConverter class
@@ -181,6 +190,12 @@ class TensorStreamConverter:
         self.stream_url = stream_url
         self.framerate_mode = TensorStream.FrameRateMode(framerate_mode.value)
         self.set_timeout(timeout=timeout)
+
+    def add_stream_pool(self, stream_pool):
+        self.tensor_stream.addStreamPool(stream_pool)
+
+    def reset(self, stream_url):
+        self.tensor_stream.reset(stream_url)
 
     ## Initialization of C++ extension
     # @param[in] repeat_number Set how many times try to initialize pipeline in case of any issues

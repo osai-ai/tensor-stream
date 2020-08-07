@@ -12,7 +12,7 @@
 
 class StreamPool {
 public:
-	std::shared_ptr<Parser> cacheStream(std::string inputFile);
+	int cacheStream(std::string inputFile);
 	std::shared_ptr<Parser> getParser(std::string inputFile);
 	std::map<std::string, std::shared_ptr<Parser> > getParsers();
 	std::shared_ptr<Logger> getLogger();

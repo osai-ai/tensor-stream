@@ -6,6 +6,62 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
+int StreamPool::cacheStream(std::string inputFile) {
+	if (logger == nullptr) {
+		logger = std::make_shared<Logger>();
+		logger->initialize(LogsLevel::NONE);
+	}
+	ParserParameters parserArgs = { inputFile, false };
+	parserArr[inputFile] = std::make_shared<Parser>();
+	parserArr[inputFile]->Init(parserArgs, logger);
+	return VREADER_OK;
+}
+
+std::shared_ptr<Logger> StreamPool::getLogger() {
+	return logger;
+}
+
+int StreamPool::setLogger(std::shared_ptr<Logger> logger) {
+	this->logger = logger;
+	return VREADER_OK;
+}
+
+std::shared_ptr<Parser> StreamPool::getParser(std::string inputFile) {
+	if (parserArr.find(inputFile) != parserArr.end())
+		return parserArr[inputFile];
+
+	return nullptr;
+}
+
+std::map<std::string, std::shared_ptr<Parser> > StreamPool::getParsers() {
+	return parserArr;
+}
+
+int TensorStream::addStreamPool(std::shared_ptr<StreamPool> streamPool) {
+	this->streamPool = streamPool;
+	logger = streamPool->getLogger();
+	return VREADER_OK;
+}
+
+int TensorStream::resetPipeline(std::string inputFile) {
+	int sts = VREADER_OK;
+	if (streamPool) {
+		parser = streamPool->getParser(inputFile);
+		if (parser == nullptr) {
+			streamPool->cacheStream(inputFile);
+			parser = streamPool->getParser(inputFile);
+		}
+	}
+	else {
+		ParserParameters parserArgs = { inputFile, false };
+		if (parser == nullptr)
+			parser = std::make_shared<Parser>();
+		sts = parser->Init(parserArgs, logger);
+	}
+	sts = decoder->Reset(parser);
+	return sts;
+}
+
 int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRateMode, bool cuda, int threads) {
 	int sts = VREADER_OK;
 	shouldWork = true;
@@ -40,9 +96,20 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { inputFile, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
-	sts = parser->Init(parserArgs, logger);
+	if (streamPool == nullptr) {
+		ParserParameters parserArgs = { inputFile, false };
+		if (parser == nullptr)
+			parser = std::make_shared<Parser>();
+		sts = parser->Init(parserArgs, logger);
+	}
+	else {
+		parser = streamPool->getParser(inputFile);
+		if (parser == nullptr) {
+			streamPool->cacheStream(inputFile);
+			parser = streamPool->getParser(inputFile);
+		}
+	}
 	CHECK_STATUS(sts);
 	END_LOG_BLOCK(std::string("parser->Init"));
 	DecoderParameters decoderArgs = { parser, false, decoderBuffer, cuda, threads };
@@ -369,32 +436,45 @@ int PTSToFrame(AVStream* stream, uint64_t PTS) {
 	return frameIndex;
 }
 int TensorStream::enableBatchOptimization() {
-	int sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
-	CHECK_STATUS(sts);
-	avcodec_flush_buffers(decoder->getDecoderContext());
-	std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
-	AVFrame* decoded = av_frame_alloc();
-	std::vector<int> keyFrames;
-	while (keyFrames.size() < 2) {
-		sts = parser->readVideoFrame(readFrames);
-		if (sts == AVERROR_EOF) {
-			LOG_VALUE(std::string("Not enough frames to calculate GOP"), LogsLevel::LOW);
-			break;
-		}
-		sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
-		sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
-		if (sts == AVERROR(EAGAIN))
-			continue;
-		if (decoded->key_frame)
-			keyFrames.push_back(PTSToFrame(parser->getFormatContext()->streams[parser->getVideoIndex()], decoded->pts));
+	int sts = VREADER_OK;
+	std::map<std::string, std::shared_ptr<Parser> > parserArr;
+	if (streamPool) {
+		parserArr = streamPool->getParsers();
+	}
+	else {
+		parserArr["default"] = parser;
 	}
 
-	if (sts != AVERROR_EOF)
-		gopSize = keyFrames[1] - keyFrames[0];
+	for (auto parser : parserArr) {
+		sts = decoder->Reset(parser.second);
 
-	av_frame_free(&decoded);
-	delete readFrames.first;
-	
+		sts = av_seek_frame(parser.second->getFormatContext(), parser.second->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
+		CHECK_STATUS(sts);
+		std::pair<AVPacket*, bool> readFrames = { new AVPacket(), false };
+		AVFrame* decoded = av_frame_alloc();
+		std::vector<int> keyFrames;
+		while (keyFrames.size() < 2) {
+			sts = parser.second->readVideoFrame(readFrames);
+			if (sts == AVERROR_EOF) {
+				LOG_VALUE(std::string("Not enough frames to calculate GOP"), LogsLevel::LOW);
+				break;
+			}
+			sts = avcodec_send_packet(decoder->getDecoderContext(), readFrames.first);
+			CHECK_STATUS(sts);
+			sts = avcodec_receive_frame(decoder->getDecoderContext(), decoded);
+			if (sts == AVERROR(EAGAIN)) {
+				continue;
+			}
+			if (decoded->key_frame)
+				keyFrames.push_back(PTSToFrame(parser.second->getFormatContext()->streams[parser.second->getVideoIndex()], decoded->pts));
+		}
+
+		if (sts != AVERROR_EOF)
+			parser.second->setGopSize(keyFrames[1] - keyFrames[0]);
+
+		av_frame_free(&decoded);
+		delete readFrames.first;
+	}
 	return sts;
 }
 
@@ -434,8 +514,8 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 				outputTuple.push_back(outputTuple[index]);
 				continue;
 			}
-			int multiplier = index[i] / gopSize;
-			int intraIndex = multiplier * gopSize;
+			int multiplier = index[i] / parser->getGopSize();
+			int intraIndex = multiplier * parser->getGopSize();
 			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
 				/*
 				if (flushed)
@@ -713,6 +793,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::class_<TensorStream>(m, "TensorStream")
 		.def(py::init<>())
 		.def("init", &TensorStream::initPipeline)
+		.def("addStreamPool", &TensorStream::addStreamPool)
+		.def("reset", &TensorStream::resetPipeline)
 		.def("getPars", &TensorStream::getInitializedParams)
 		.def("start", &TensorStream::startProcessing, py::arg("cudaDevice") = defaultCUDADevice, py::call_guard<py::gil_scoped_release>())
 		.def("get", &TensorStream::getFrame, py::call_guard<py::gil_scoped_release>())
@@ -724,4 +806,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("close", &TensorStream::endProcessing)
 		.def("skipAnalyze", &TensorStream::skipAnalyzeStage)
 		.def("setTimeout", &TensorStream::setTimeout);
+
+	py::class_<StreamPool>(m, "StreamPool")
+		.def(py::init<>())
+		.def("cacheStream", &StreamPool::cacheStream);
 }

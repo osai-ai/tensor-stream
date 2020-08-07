@@ -11,7 +11,7 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-std::shared_ptr<Parser> StreamPool::cacheStream(std::string inputFile) {
+int StreamPool::cacheStream(std::string inputFile) {
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
@@ -19,7 +19,7 @@ std::shared_ptr<Parser> StreamPool::cacheStream(std::string inputFile) {
 	ParserParameters parserArgs = { inputFile, false };
 	parserArr[inputFile] = std::make_shared<Parser>();
 	parserArr[inputFile]->Init(parserArgs, logger);
-	return parserArr[inputFile];
+	return VREADER_OK;
 }
 
 std::shared_ptr<Logger> StreamPool::getLogger() {
@@ -52,8 +52,10 @@ int TensorStream::resetPipeline(std::string inputFile) {
 	int sts = VREADER_OK;
 	if (streamPool) {
 		parser = streamPool->getParser(inputFile);
-		if (parser == nullptr)
-			parser = streamPool->cacheStream(inputFile);
+		if (parser == nullptr) {
+			streamPool->cacheStream(inputFile);
+			parser = streamPool->getParser(inputFile);
+		}
 	}
 	else {
 		ParserParameters parserArgs = { inputFile, false };
@@ -104,8 +106,10 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	}
 	else {
 		parser = streamPool->getParser(inputFile);
-		if (parser == nullptr)
-			parser = streamPool->cacheStream(inputFile);
+		if (parser == nullptr) {
+			streamPool->cacheStream(inputFile);
+			parser = streamPool->getParser(inputFile);
+		}
 	}
 
 	CHECK_STATUS(sts);

@@ -25,8 +25,22 @@
 #include "Decoder.h"
 #include "VideoProcessor.h"
 
+class StreamPool {
+public:
+	int cacheStream(std::string inputFile);
+	std::shared_ptr<Parser> getParser(std::string inputFile);
+	std::map<std::string, std::shared_ptr<Parser> > getParsers();
+	std::shared_ptr<Logger> getLogger();
+	int setLogger(std::shared_ptr<Logger> logger);
+private:
+	std::shared_ptr<Logger> logger;
+	std::map<std::string, std::shared_ptr<Parser> > parserArr;
+};
+
 class TensorStream {
 public:
+int addStreamPool(std::shared_ptr<StreamPool> streamPool);
+int resetPipeline(std::string inputFile);
 	int initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRate, bool cuda, int threads);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing(int cudaDevice = 0);
@@ -42,6 +56,7 @@ public:
 	int enableBatchOptimization();
 private:
 	int processingLoop();
+	std::shared_ptr<StreamPool> streamPool = nullptr;
 	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;
