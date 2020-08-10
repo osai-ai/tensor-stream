@@ -83,28 +83,49 @@ def consumer(reader, args):
                   'normalization': args.normalize,
                   'planes_pos': Planes[args.planes],
                   'resize_type': ResizeType[args.resize_type]}
-
+    print(args.batch)
+    reader.reset("D:/Work/argus-tensor-stream/tests/resources/1.mp4")
     result = reader.read_absolute(batch=args.batch, **parameters)
     if args.output:
         for i in range(0, result.shape[0]):
             reader.dump(result[i], args.output, **parameters)
 
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4")
-
+    reader.reset("D:/Work/argus-tensor-stream/tests/resources/2.mp4")
     result = reader.read_absolute(batch=args.batch, **parameters)
     if args.output:
         for i in range(0, result.shape[0]):
             reader.dump(result[i], args.output, **parameters)
 
+    reader.reset("D:/Work/argus-tensor-stream/tests/resources/3.mp4")
+    result = reader.read_absolute(batch=args.batch, **parameters)
+    if args.output:
+        for i in range(0, result.shape[0]):
+            reader.dump(result[i], args.output, **parameters)
+
+    reader.reset("D:/Work/argus-tensor-stream/tests/resources/4.mp4")
+    result = reader.read_absolute(batch=args.batch, **parameters)
+    if args.output:
+        for i in range(0, result.shape[0]):
+            reader.dump(result[i], args.output, **parameters)
+
+    reader.reset("D:/Work/argus-tensor-stream/tests/resources/5.mp4")
+    result = reader.read_absolute(batch=args.batch, **parameters)
+    if args.output:
+        for i in range(0, result.shape[0]):
+            reader.dump(result[i], args.output, **parameters)
 
 if __name__ == '__main__':
     args = parse_arguments()
 
     stream_pool = StreamPool()
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/basler_004.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/1.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/2.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/3.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/4.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/5.mp4")
     #Note: max_consumers and buffer_size should be zero, otherwise for each instance additional memory will be allocated
-    reader = TensorStreamConverter("D:/Work/argus-tensor-stream/tests/resources/tennis_2s.mp4", 0, args.cuda_device, 0, cuda=not args.sw)
+    reader = TensorStreamConverter("D:/Work/argus-tensor-stream/tests/resources/1.mp4", 0, args.cuda_device, 0, cuda=not args.sw)
+    reader.add_stream_pool(stream_pool)
     # To log initialize stage, logs should be defined before initialize call
     reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
 

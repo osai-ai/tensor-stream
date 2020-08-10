@@ -39,8 +39,8 @@ private:
 
 class TensorStream {
 public:
-int addStreamPool(std::shared_ptr<StreamPool> streamPool);
-int resetPipeline(std::string inputFile);
+	int addStreamPool(std::shared_ptr<StreamPool> streamPool);
+	int resetPipeline(std::string inputFile);
 	int initPipeline(std::string inputFile, uint8_t maxConsumers, uint8_t cudaDevice, uint8_t decoderBuffer, FrameRateMode frameRate, bool cuda, int threads);
 	std::map<std::string, int> getInitializedParams();
 	int startProcessing(int cudaDevice = 0);
@@ -56,7 +56,7 @@ int resetPipeline(std::string inputFile);
 	int enableBatchOptimization();
 private:
 	int processingLoop();
-	std::shared_ptr<StreamPool> streamPool = nullptr;
+	std::shared_ptr<StreamPool> streamPool;
 	int gopSize = 32;
 	std::mutex syncDecoded;
 	std::mutex syncRGB;

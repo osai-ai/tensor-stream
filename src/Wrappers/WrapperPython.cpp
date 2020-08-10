@@ -497,6 +497,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	bool flushed = false;
 	uint64_t currentPTS;
+	int previousFrame = -1;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	//TODO: in case of SW decoder if required frame is very close to I frame, we should set not big number of threads otherwise we will stuck at feeding decoder with
 	//frames because it uses frame parallel decoding not slice
@@ -516,7 +517,7 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 			}
 			int multiplier = index[i] / parser->getGopSize();
 			int intraIndex = multiplier * parser->getGopSize();
-			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
+			if (i == 0 || flushed || pts < outputDTS[previousFrame] || intraIndex > PTSToFrame(videoStream, outputDTS[previousFrame])) {
 				/*
 				if (flushed)
 					flushed = false;
@@ -599,7 +600,9 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 		sts = vpp->Convert(decoded, processedFrame, frameParameters);
 		CHECK_STATUS_THROW(sts);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
-
+		
+		previousFrame++;
+				
 		{
 			PUSH_RANGE("convertFromBlob", NVTXColors::RED);
 			START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -790,6 +793,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.value("BLOCKING", FrameRateMode::BLOCKING)
 		.export_values();
 
+	py::class_<StreamPool, std::shared_ptr<StreamPool>>(m, "StreamPool")
+		.def(py::init<>())
+		.def("cacheStream", &StreamPool::cacheStream);
+
 	py::class_<TensorStream>(m, "TensorStream")
 		.def(py::init<>())
 		.def("init", &TensorStream::initPipeline)
@@ -806,8 +813,4 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 		.def("close", &TensorStream::endProcessing)
 		.def("skipAnalyze", &TensorStream::skipAnalyzeStage)
 		.def("setTimeout", &TensorStream::setTimeout);
-
-	py::class_<StreamPool>(m, "StreamPool")
-		.def(py::init<>())
-		.def("cacheStream", &StreamPool::cacheStream);
 }

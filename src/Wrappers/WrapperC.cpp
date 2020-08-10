@@ -450,6 +450,7 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 	LOG_VALUE("Batch size: " + std::to_string(index.size()), LogsLevel::HIGH);
 	bool flushed = false;
 	uint64_t currentPTS;
+	int previousFrame = -1;
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
 	//TODO: in case of SW decoder if required frame is very close to I frame, we should set not big number of threads otherwise we will stuck at feeding decoder with
 	//frames because it uses frame parallel decoding not slice
@@ -467,9 +468,10 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 				outputTuple.push_back(outputTuple[index]);
 				continue;
 			}
+
 			int multiplier = index[i] / parser->getGopSize();
 			int intraIndex = multiplier * parser->getGopSize();
-			if (i == 0 || flushed || pts < outputDTS.back() || intraIndex > PTSToFrame(videoStream, outputDTS.back())) {
+			if (i == 0 || flushed || pts < outputDTS[previousFrame] || intraIndex > PTSToFrame(videoStream, outputDTS[previousFrame])) {
 				//seek to desired frame
 				sts = av_seek_frame(parser->getFormatContext(), parser->getVideoIndex(), pts, AVSEEK_FLAG_BACKWARD);
 			}
@@ -549,6 +551,10 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 		CHECK_STATUS_THROW(sts);
 		outputTuple.push_back((T*)processedFrame->opaque);
 		END_LOG_BLOCK(std::string("vpp->Convert"));
+
+		//We increment previousFrame after all checks. So if element already exist we should calculate distance between current one and element
+		//added before this duplicate
+		previousFrame++;
 	}
 
 	av_frame_free(&decoded);

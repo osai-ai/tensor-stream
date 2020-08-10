@@ -192,7 +192,7 @@ class TensorStreamConverter:
         self.set_timeout(timeout=timeout)
 
     def add_stream_pool(self, stream_pool):
-        self.tensor_stream.addStreamPool(stream_pool)
+      self.tensor_stream.addStreamPool(stream_pool.stream_pool)
 
     def reset(self, stream_url):
         self.tensor_stream.reset(stream_url)
