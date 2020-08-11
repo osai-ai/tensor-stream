@@ -75,7 +75,7 @@ def parse_arguments():
 
     return parser.parse_args()
 
-def consumer(reader, args):
+def feed_stream(reader, path, args):
     parameters = {'pixel_format': FourCC[args.fourcc],
                   'width': args.width,
                   'height': args.height,
@@ -83,36 +83,26 @@ def consumer(reader, args):
                   'normalization': args.normalize,
                   'planes_pos': Planes[args.planes],
                   'resize_type': ResizeType[args.resize_type]}
-    print(args.batch)
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/1.mp4")
+    reader.reset(path)
     result = reader.read_absolute(batch=args.batch, **parameters)
     if args.output:
         for i in range(0, result.shape[0]):
             reader.dump(result[i], args.output, **parameters)
 
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/2.mp4")
-    result = reader.read_absolute(batch=args.batch, **parameters)
-    if args.output:
-        for i in range(0, result.shape[0]):
-            reader.dump(result[i], args.output, **parameters)
+def consumer(reader, args):
+    for i in range(0, 100):
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/1.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/2.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/3.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/4.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/5.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/6.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/7.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/8.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/9.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/10.mp4", args)
+        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/11.mp4", args)
 
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/3.mp4")
-    result = reader.read_absolute(batch=args.batch, **parameters)
-    if args.output:
-        for i in range(0, result.shape[0]):
-            reader.dump(result[i], args.output, **parameters)
-
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/4.mp4")
-    result = reader.read_absolute(batch=args.batch, **parameters)
-    if args.output:
-        for i in range(0, result.shape[0]):
-            reader.dump(result[i], args.output, **parameters)
-
-    reader.reset("D:/Work/argus-tensor-stream/tests/resources/5.mp4")
-    result = reader.read_absolute(batch=args.batch, **parameters)
-    if args.output:
-        for i in range(0, result.shape[0]):
-            reader.dump(result[i], args.output, **parameters)
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -123,6 +113,12 @@ if __name__ == '__main__':
     stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/3.mp4")
     stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/4.mp4")
     stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/5.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/6.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/7.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/8.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/9.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/10.mp4")
+    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/11.mp4")
     #Note: max_consumers and buffer_size should be zero, otherwise for each instance additional memory will be allocated
     reader = TensorStreamConverter("D:/Work/argus-tensor-stream/tests/resources/1.mp4", 0, args.cuda_device, 0, cuda=not args.sw)
     reader.add_stream_pool(stream_pool)

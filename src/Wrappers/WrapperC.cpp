@@ -51,19 +51,27 @@ int TensorStream::addStreamPool(std::shared_ptr<StreamPool> streamPool) {
 int TensorStream::resetPipeline(std::string inputFile) {
 	int sts = VREADER_OK;
 	if (streamPool) {
-		parser = streamPool->getParser(inputFile);
-		if (parser == nullptr) {
+		auto localParser = streamPool->getParser(inputFile);
+		if (localParser == nullptr) {
 			streamPool->cacheStream(inputFile);
-			parser = streamPool->getParser(inputFile);
+			localParser = streamPool->getParser(inputFile);
+		} 
+		if (localParser != parser) {
+			parser = localParser;
+			sts = decoder->Reset(parser);
 		}
-	}
-	else {
+	} else {
 		ParserParameters parserArgs = { inputFile, false };
+		if (parser) {
+			parser->Close();
+			parser = nullptr;
+		}
+
 		if (parser == nullptr)
 			parser = std::make_shared<Parser>();
 		sts = parser->Init(parserArgs, logger);
+		sts = decoder->Reset(parser);
 	}
-	sts = decoder->Reset(parser);
 	return sts;
 }
 
@@ -398,7 +406,7 @@ int TensorStream::enableBatchOptimization() {
 	}
 
 	for (auto parser : parserArr) {
-		sts = decoder->Reset(parser.second);
+		sts = resetPipeline(parser.first);
 
 		sts = av_seek_frame(parser.second->getFormatContext(), parser.second->getVideoIndex(), 0, AVSEEK_FLAG_BACKWARD);
 		CHECK_STATUS(sts);

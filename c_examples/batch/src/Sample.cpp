@@ -41,6 +41,12 @@ int main() {
 	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/3.mp4");
 	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/4.mp4");
 	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/5.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/6.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/7.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/8.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/9.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/10.mp4");
+	streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/11.mp4");
 	cudaMemGetInfo(&memFreeAfter, &memTotal);
 	std::cout << "Memory: " << (memFreeBefore - memFreeAfter) / 1024 / 1024 << std::endl;
 	for (auto& reader : readers) {
@@ -78,52 +84,124 @@ int main() {
 	std::vector<std::thread> threads{ 1 };
 	for (int i = 0; i < readers.size(); i++) {
 		threads[i] = std::thread([=]() {
-			std::shared_ptr<FILE> dumpFile;
-			std::string fileName = "test.yuv";
-			if (!fileName.empty()) {
-				remove(fileName.c_str());
-				dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
-			}
-			std::vector<int> frames = { 0, 100, 200, 120, 100, 101, 102, 103, 104, 105, 106, 10, 9, 10, 11 };
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/1.mp4");
-			auto result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
-			for (auto frame : result) {
-				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
-				if (status < 0)
-					return;
-				cudaFree(frame);
-			}
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/2.mp4");
-			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters); 
-			for (auto frame : result) {
-				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
-				if (status < 0)
-					return;
-				cudaFree(frame);
-			}
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/3.mp4");
-			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
-			for (auto frame : result) {
-				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
-				if (status < 0)
-					return;
-				cudaFree(frame);
-			}
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/4.mp4");
-			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
-			for (auto frame : result) {
-				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
-				if (status < 0)
-					return;
-				cudaFree(frame);
-			}
-			readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/5.mp4");
-			result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
-			for (auto frame : result) {
-				int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
-				if (status < 0)
-					return;
-				cudaFree(frame);
+			for (int j = 0; j < 10; j++) {
+				std::shared_ptr<FILE> dumpFile;
+				std::string fileName = "test.yuv";
+				if (!fileName.empty()) {
+					remove(fileName.c_str());
+					dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
+				}
+				std::vector<int> frames = { 0, 100, 200, 120, 100, 101, 102, 103, 104, 105, 106, 10, 9, 10, 11 };
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/1.mp4");
+				auto result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/2.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/3.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/4.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/5.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/6.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/7.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/8.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/9.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/10.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
+				readers[i]->resetPipeline("D:/Work/argus-tensor-stream/tests/resources/11.mp4");
+				result = readers[i]->getFrameAbsolute<unsigned char>(frames, frameParameters);
+				for (auto frame : result) {
+					int status = readers[i]->dumpFrame<unsigned char>((unsigned char*)frame, frameParameters, dumpFile);
+					if (status < 0)
+						return;
+				}
+				for (auto frame : result) {
+					cudaFree(frame);
+				}
 			}
 		});
 	}
