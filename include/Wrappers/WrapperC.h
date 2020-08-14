@@ -14,7 +14,6 @@ class StreamPool {
 public:
 	int cacheStream(std::string inputFile);
 	std::shared_ptr<Parser> getParser(std::string inputFile);
-	std::vector<std::string> getStreams();
 	std::map<std::string, std::shared_ptr<Parser> > getParsers();
 	std::shared_ptr<Logger> getLogger();
 	int setLogger(std::shared_ptr<Logger> logger);

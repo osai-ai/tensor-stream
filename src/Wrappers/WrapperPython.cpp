@@ -6,15 +6,6 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
-std::vector<std::string> StreamPool::getStreams() {
-	std::vector<std::string> streamPaths;
-	for (auto const& element : parserArr) {
-		streamPaths.push_back(element.first);
-	}
-
-	return streamPaths;
-}
-
 int StreamPool::cacheStream(std::string inputFile) {
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
