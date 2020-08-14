@@ -6,6 +6,15 @@ void logCallback(void *ptr, int level, const char *fmt, va_list vargs) {
 		return;
 }
 
+std::vector<std::string> StreamPool::getStreams() {
+	std::vector<std::string> streamPaths;
+	for (auto const& element : parserArr) {
+		streamPaths.push_back(element.first);
+	}
+
+	return streamPaths;
+}
+
 int StreamPool::cacheStream(std::string inputFile) {
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
@@ -57,15 +66,12 @@ int TensorStream::resetPipeline(std::string inputFile) {
 		}
 	} else {
 		ParserParameters parserArgs = { inputFile, false };
-		if (parser) {
+		std::string name = parser->getFormatContext()->filename;
+		if (name != inputFile) {
 			parser->Close();
-			parser = nullptr;
+			sts = parser->Init(parserArgs, logger);
+			sts = decoder->Reset(parser);
 		}
-
-		if (parser == nullptr)
-			parser = std::make_shared<Parser>();
-		sts = parser->Init(parserArgs, logger);
-		sts = decoder->Reset(parser);
 	}
 	return sts;
 }
@@ -450,7 +456,8 @@ int TensorStream::enableBatchOptimization() {
 		parserArr = streamPool->getParsers();
 	}
 	else {
-		parserArr["default"] = parser;
+		std::string name = parser->getFormatContext()->filename;
+		parserArr[name] = parser;
 	}
 
 	for (auto parser : parserArr) {
