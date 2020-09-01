@@ -53,6 +53,8 @@ RUN git clone https://github.com/doxygen/doxygen.git &&\
     make install &&\
     cd ../.. && rm -rf doxygen
 
+RUN apt-get update && apt-get install libsdl2-dev libsdl2-2.0-0 -y
+
 COPY . /app
 WORKDIR /app
 

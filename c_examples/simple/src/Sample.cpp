@@ -18,7 +18,7 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 		for (int i = 0; i < frames; i++) {
 			auto result = reader.getFrame<unsigned char>(executionParameters["name"], { std::atoi(executionParameters["delay"].c_str()) }, frameParameters);
-			uint8_t* resultCPU = new uint8_t[dstWidth * dstHeight * 1.5];
+			uint8_t* resultCPU = new uint8_t[(int)(dstWidth * dstHeight * 1.5)];
 			int sts = cudaMemcpy(resultCPU, std::get<0>(result), sizeof(uint8_t) * dstWidth * dstHeight * 1.5, cudaMemcpyDeviceToHost);
 			{
 
