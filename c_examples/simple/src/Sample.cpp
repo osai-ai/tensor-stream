@@ -18,7 +18,6 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 		for (int i = 0; i < frames; i++) {
 			auto result = reader.getFrame<unsigned char>(executionParameters["name"], { std::atoi(executionParameters["delay"].c_str()) }, frameParameters);
-			/*
 			uint8_t* resultCPU = new uint8_t[dstWidth * dstHeight * 1.5];
 			int sts = cudaMemcpy(resultCPU, std::get<0>(result), sizeof(uint8_t) * dstWidth * dstHeight * 1.5, cudaMemcpyDeviceToHost);
 			{
@@ -30,7 +29,6 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 				SDL_RenderPresent(renderer);
 
 			}
-			*/
 			cudaFree(std::get<0>(result));
 		}
 	}
@@ -52,7 +50,7 @@ int main() {
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://streaming.sportlevel.com/relay/Aebohpho3aetae6efifa", 5, 0, 5, FrameRateMode::NATIVE);
+		sts = reader.initPipeline("rtmp://streaming.sportlevel.com/relay/playerlpch2", 5, 0, 5, FrameRateMode::NATIVE);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
