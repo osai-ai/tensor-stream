@@ -44,8 +44,8 @@ int main() {
 		renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 		bmp = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, dstWidth, dstHeight);
 	}
-	reader.enableLogs(HIGH);
-	reader.enableNVTX();
+	//reader.enableLogs(HIGH);
+	//reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
 

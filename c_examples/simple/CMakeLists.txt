@@ -13,13 +13,24 @@ FILE(GLOB_RECURSE APP_SOURCE "src/*.c*")
 source_group("src" FILES ${APP_SOURCE})
 
 find_package(TensorStream REQUIRED)
+
 include_directories(${TensorStream_INCLUDE_DIRS})
-include_directories("D:\\Work\\external\\SDL\\include")
+
+if (UNIX)
+	find_package(SDL2 REQUIRED)
+	include_directories(${SDL2_INCLUDE_DIRS})
+else()
+	include_directories("D:\\Work\\external\\SDL\\include")
+endif()
 
 add_executable(${PROJECT_NAME} ${APP_SOURCE})
-
 target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} "D:\\Work\\external\\SDL\\build\\Release\\SDL2.lib" "D:\\Work\\external\\SDL\\build\\Release\\SDL2main.lib")
+if (UNIX)
+	target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARIES})
+else()
+	target_link_libraries(${PROJECT_NAME} "D:\\Work\\external\\SDL\\build\\Release\\SDL2.lib" "D:\\Work\\external\\SDL\\build\\Release\\SDL2main.lib")
+endif()
+
 
 if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
