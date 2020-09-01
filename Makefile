@@ -38,3 +38,15 @@ run-dev:
 		--name=$(DOCKER_NAME) \
 		$(DOCKER_NAME) \
 		bash
+run-dev-x11:
+	docker run --rm -it \
+		$(GPUS_OPTION) \
+		-v /tmp/.X11-unix:/tmp/.X11-unix \
+		-v $(HOME)/.Xauthority:/root/.Xauthority \
+		-e DISPLAY=$(shell echo ${DISPLAY}) \
+		--net=host \
+		--ipc=host \
+		-v $(shell pwd):/app \
+		--name=$(DOCKER_NAME) \
+		${DOCKER_NAME} \
+		bash
