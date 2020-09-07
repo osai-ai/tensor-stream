@@ -6,6 +6,7 @@
 TensorStream reader;
 SDL_Texture* bmp;
 SDL_Renderer* renderer;
+SDL_Event event;
 
 int dstWidth = 1920;
 int dstHeight = 1080;
@@ -20,15 +21,23 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 			auto result = reader.getFrame<unsigned char>(executionParameters["name"], { std::atoi(executionParameters["delay"].c_str()) }, frameParameters);
 			uint8_t* resultCPU = new uint8_t[(int)(dstWidth * dstHeight * 1.5)];
 			int sts = cudaMemcpy(resultCPU, std::get<0>(result), sizeof(uint8_t) * dstWidth * dstHeight * 1.5, cudaMemcpyDeviceToHost);
+			/*
 			{
+
+				if (SDL_PollEvent(&event)) {
+					if (event.type == SDL_QUIT) {
+						SDL_Quit();
+						return;
+					}
+				}
 
 				SDL_UpdateTexture(bmp, NULL, resultCPU, dstWidth);
 
 				SDL_RenderClear(renderer);
 				SDL_RenderCopy(renderer, bmp, NULL, NULL);
 				SDL_RenderPresent(renderer);
-
 			}
+			*/
 			cudaFree(std::get<0>(result));
 		}
 	}
@@ -38,13 +47,19 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 }
 
 int main() {
+	/*
 	{
 		SDL_Init(SDL_INIT_VIDEO);
-		SDL_Window * screen = SDL_CreateWindow("Testing..", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, dstWidth, dstHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+		atexit(SDL_Quit);
+		SDL_EventState(SDL_KEYDOWN, SDL_IGNORE);
+		SDL_EventState(SDL_KEYUP, SDL_IGNORE);
+
+		SDL_Window * screen = SDL_CreateWindow("Testing..", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
 		renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
 		bmp = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_NV12, SDL_TEXTUREACCESS_STREAMING, dstWidth, dstHeight);
 	}
-	//reader.enableLogs(HIGH);
+	*/
+	reader.enableLogs(HIGH);
 	//reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
@@ -67,8 +82,7 @@ int main() {
 	FrameParameters frameParameters = { resizeOptions, colorOptions };
 
 	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "500000"} };
-	std::thread get(get_cycle, frameParameters, executionParameters);
-	get.join();
+	get_cycle(frameParameters, executionParameters);
 	reader.endProcessing();
 	pipeline.join();
 	return 0;
