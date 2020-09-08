@@ -47,6 +47,7 @@ enum CloseLevel {
 enum FrameRateMode {
 	NATIVE, /**< Read at native stream frame rate */
 	NATIVE_SIMPLE, /**< Read at fixed stream frame rate */
+	NATIVE_LOW_DELAY, /**< The same as NATIVE, but drop internal parser buffer to minimize delay between read stream and TensorStream output */
 	FAST,   /**< Read frames as fast as possible */
 	BLOCKING /**< Read frame by frame without skipping (only local files) */
 };

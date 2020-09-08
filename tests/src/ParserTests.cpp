@@ -26,7 +26,7 @@ TEST(Parser_Init, WrongInputPath) {
 
 TEST(Parser_Init, CorrectInputPath) {
 	Parser parser;
-	ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", true };
+	ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", true, true };
 	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
 	EXPECT_EQ(parser.getWidth(), 1280);
 	EXPECT_EQ(parser.getHeight(), 720);

@@ -61,6 +61,60 @@ void checkCRC(std::map<std::string, std::string> parameters, uint64_t crc) {
 	ASSERT_EQ(remove(parameters["dumpName"].c_str()), 0);
 }
 
+TEST(Wrapper_Init, KeepBuffer) {
+	int64_t lowDelayTimeSpent;
+	{
+		TensorStream reader;
+		ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, NATIVE_LOW_DELAY), VREADER_OK);
+		std::thread pipeline(&TensorStream::startProcessing, &reader);
+		reader.enableLogs(-HIGH);
+		std::map<std::string, std::string> parameters = { {"name", "first"} };
+		std::thread getFirst([](std::map<std::string, std::string> parameters, TensorStream& reader, int64_t& time) {
+			for (int i = 0; i < 1; i++) {
+				try {
+					std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+					auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), FrameParameters());
+					EXPECT_NE(std::get<0>(result), nullptr);
+					EXPECT_EQ(std::get<1>(result), 1);
+					time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime).count();
+				}
+				catch (std::runtime_error e) {
+					break;
+				}
+			}
+		}, parameters, std::ref(reader), std::ref(lowDelayTimeSpent));
+		getFirst.join();
+		reader.endProcessing();
+		pipeline.join();
+	}
+	int64_t nativeTimeSpent;
+	{
+		TensorStream reader;
+		ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, NATIVE), VREADER_OK);
+		std::thread pipeline(&TensorStream::startProcessing, &reader);
+		reader.enableLogs(-HIGH);
+		std::map<std::string, std::string> parameters = { {"name", "first"} };
+		std::thread getFirst([](std::map<std::string, std::string> parameters, TensorStream& reader, int64_t& time) {
+			for (int i = 0; i < 1; i++) {
+				try {
+					std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+					auto result = reader.getFrame<uint8_t>(parameters["name"], std::atoi(parameters["delay"].c_str()), FrameParameters());
+					EXPECT_NE(std::get<0>(result), nullptr);
+					EXPECT_EQ(std::get<1>(result), 1);
+					time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime).count();
+				}
+				catch (std::runtime_error e) {
+					break;
+				}
+			}
+		}, parameters, std::ref(reader), std::ref(nativeTimeSpent));
+		getFirst.join();
+		reader.endProcessing();
+		pipeline.join();
+	}
+	EXPECT_GT(lowDelayTimeSpent, 2 * nativeTimeSpent);
+}
+
 TEST(Wrapper_Init, SetTimeout) {
 	const int checkTimeout = 2000;
 	TensorStream reader;

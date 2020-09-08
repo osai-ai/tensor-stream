@@ -13,8 +13,8 @@ extern "C"
 Structure with initialization/reset parameters.
 */
 struct ParserParameters {
-	ParserParameters(std::string _inputFile = "", bool _enableDumps = false) :
-		inputFile(_inputFile), enableDumps(_enableDumps) {
+	ParserParameters(std::string _inputFile = "", bool _keepBuffer = true, bool _enableDumps = false) :
+		inputFile(_inputFile), keepBuffer(_keepBuffer), enableDumps(_enableDumps) {
 
 	}
 
@@ -22,6 +22,7 @@ struct ParserParameters {
 	Path to input file, no matter where it's placed: remotely or locally.
 	*/
 	std::string inputFile;
+	bool keepBuffer;
 	bool enableDumps;
 };
 

@@ -308,6 +308,8 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	AVDictionary *opts = 0;
 	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
 	formatContext = avformat_alloc_context();
+	if (input.keepBuffer == false)
+		formatContext->flags = AVFMT_FLAG_NOBUFFER;
 	const AVIOInterruptCB intCallback = { interruptCallback, formatContext };
 	formatContext->interrupt_callback = intCallback;
 	latestFrameTimestamp = std::chrono::system_clock::now();

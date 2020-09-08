@@ -40,7 +40,12 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { inputFile, false };
+	bool keepBuffer = true;
+	if (frameRateMode == NATIVE_LOW_DELAY) {
+		keepBuffer = false;
+		this->frameRate = frameRate;
+	}
+	ParserParameters parserArgs = { inputFile, keepBuffer, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
