@@ -10,4 +10,4 @@ from tensor_stream.tensor_stream import (
     FrameParameters
 )
 
-__version__ = '0.4.2'
+__version__ = '0.4.3'
