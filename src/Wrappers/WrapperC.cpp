@@ -43,7 +43,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	bool keepBuffer = true;
 	if (frameRateMode == NATIVE_LOW_DELAY) {
 		keepBuffer = false;
-		this->frameRate = frameRate;
+		this->frameRateMode = NATIVE;
 	}
 	ParserParameters parserArgs = { inputFile, keepBuffer, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
@@ -181,7 +181,7 @@ int TensorStream::processingLoop() {
 			}
 
 			frameDTS -= startDTS.first;
-			
+
 			frameDTS = frameDTS * DTSToMsCoeff;
 			if (!startTime.second) {
 				startTime.first = std::chrono::high_resolution_clock::now();

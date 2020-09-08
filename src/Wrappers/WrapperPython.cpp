@@ -42,7 +42,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	bool keepBuffer = true;
 	if (frameRateMode == NATIVE_LOW_DELAY) {
 		keepBuffer = false;
-		this->frameRate = frameRate;
+		this->frameRateMode = NATIVE;
 	}
 	ParserParameters parserArgs = { inputFile, keepBuffer, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
@@ -309,7 +309,7 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	int sts = VREADER_OK;
 	if (vpp == nullptr)
 		throw std::runtime_error(std::to_string(VREADER_ERROR));
-	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName); 
+	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
