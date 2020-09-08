@@ -11,7 +11,6 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	shouldWork = true;
 	skipAnalyze = false;
 	this->frameRateMode = frameRateMode;
-	std::cout << frameRateMode << std::endl;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
