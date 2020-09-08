@@ -11,6 +11,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	shouldWork = true;
 	skipAnalyze = false;
 	this->frameRateMode = frameRateMode;
+	std::cout << frameRateMode << std::endl;
 	if (logger == nullptr) {
 		logger = std::make_shared<Logger>();
 		logger->initialize(LogsLevel::NONE);
@@ -504,6 +505,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::enum_<FrameRateMode>(m, "FrameRateMode")
 		.value("NATIVE", FrameRateMode::NATIVE)
 		.value("NATIVE_SIMPLE", FrameRateMode::NATIVE_SIMPLE)
+		.value("NATIVE_LOW_DELAY", FrameRateMode::NATIVE_LOW_DELAY)
 		.value("FAST", FrameRateMode::FAST)
 		.value("BLOCKING", FrameRateMode::BLOCKING)
 		.export_values();
