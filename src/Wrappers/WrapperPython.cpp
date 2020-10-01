@@ -517,13 +517,15 @@ at::Tensor TensorStream::getFrameAbsolute(std::vector<int> index, FrameParameter
 			auto elemIterator = std::find(outputDTS.begin(), outputDTS.end(), pts);
 			if (elemIterator != outputDTS.end()) {
 				int index = std::distance(outputDTS.begin(), elemIterator);
-				outputDTS.push_back(outputDTS[index]);
+				//outputDTS.push_back(outputDTS[index]);
 				outputTuple.push_back(outputTuple[index]);
 				continue;
 			}
 			int multiplier = index[i] / parser->getGopSize();
 			int intraIndex = multiplier * parser->getGopSize();
 			if (i == 0 || flushed || pts < outputDTS[previousFrame] || intraIndex > PTSToFrame(videoStream, outputDTS[previousFrame])) {
+				if (flushed)
+					flushed = false;
 				/*
 				if (flushed)
 					flushed = false;

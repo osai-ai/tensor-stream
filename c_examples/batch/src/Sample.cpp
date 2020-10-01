@@ -49,33 +49,25 @@ int main() {
 	int index = 0;
 	for (auto& reader : readers) {
 		reader = std::make_shared<TensorStream>();
-		/*
 		std::shared_ptr<StreamPool> streamPool = std::make_shared<StreamPool>();
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/1.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/2.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/3.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/4.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/5.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/6.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/7.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/8.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/9.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/10.mp4");
-		streamPool->cacheStream("D:/Work/argus-tensor-stream/tests/resources/11.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/1.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/2.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/3.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/4.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/5.mp4");
+		streamPool->cacheStream("D:/Work/Data/TensorStream/6.mp4");
 		reader->addStreamPool(streamPool);
-		*/
 		reader->enableLogs(-LOW);
 		reader->enableNVTX();
 		int sts = VREADER_OK;
 		int initNumber = 10;
 		while (initNumber--) {
-			sts = reader->initPipeline("D:/Work/argus-tensor-stream/tests/resources/1.mp4", 0, 0, 0, FrameRateMode::NATIVE, index % 2, 0);
+			sts = reader->initPipeline("D:/Work/Data/TensorStream/1.mp4", 0, 0, 0, FrameRateMode::NATIVE, 0, 0);
 			if (sts != VREADER_OK)
 				reader->endProcessing();
 			else
 				break;
 		}
-
 		reader->enableBatchOptimization();
 		reader->skipAnalyzeStage();
 		CHECK_STATUS(sts);
@@ -92,7 +84,7 @@ int main() {
 	ResizeOptions resizeOptions = { dstWidth, dstHeight };
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = { resizeOptions, colorOptions, cropOptions };
-	std::vector<std::thread> threads{ 2 };
+	std::vector<std::thread> threads{ 3 };
 	for (int i = 0; i < readers.size(); i++) {
 		threads[i] = std::thread([=]() {
 			std::shared_ptr<FILE> dumpFile;
@@ -102,18 +94,13 @@ int main() {
 				dumpFile = std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose);
 			}
 
-			std::vector<int> frames = { 0, 100, 200, 120, 100, 101 };
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/1.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/2.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/3.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/4.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/5.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/6.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/7.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/8.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/9.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/10.mp4", frameParameters, dumpFile);
-			processStream(readers[i], frames, "D:/Work/argus-tensor-stream/tests/resources/11.mp4", frameParameters, dumpFile);
+			std::vector<int> frames = { 0, 100, 10, 60, 100, 101, 10, 50, 0, 20, 60, 120, 20, 30, 150, 0, 23, 10, 23, 123, 20, 31, 11, 1, 130, 23, 68, 20 };
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/1.mp4", frameParameters, dumpFile);
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/2.mp4", frameParameters, dumpFile);
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/3.mp4", frameParameters, dumpFile);
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/4.mp4", frameParameters, dumpFile);
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/5.mp4", frameParameters, dumpFile);
+			processStream(readers[i], frames, "D:/Work/Data/TensorStream/6.mp4", frameParameters, dumpFile);
 		});
 	}
 	for (int i = 0; i < threads.size(); i++) {

@@ -45,9 +45,9 @@ int Decoder::Reset(std::shared_ptr<Parser> parser) {
 	int sts = VREADER_OK;
 	int threadCount = decoderContext->thread_count;
 	bool cuda = state._cuda;
-	avcodec_free_context(&decoderContext);
+	//avcodec_free_context(&decoderContext);
 	state.parser = parser;
-	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	//decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
 	decoderContext->thread_count = threadCount;
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	if (cuda) {
