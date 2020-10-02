@@ -114,7 +114,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 	if (input->format == AV_PIX_FMT_YUV420P) {
 		AVFrame* convertedFrame = av_frame_alloc();
 		convertSWToHW(input, convertedFrame, prop.maxThreadsPerBlock, &stream);
-		av_frame_unref(input);
+		if (input)
+			av_frame_unref(input);
 		input = convertedFrame;
 	}
 
@@ -157,20 +158,28 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 		sts = colorConversionKernel<unsigned char>(resize || crop ? output : input, output, options.color, prop.maxThreadsPerBlock, &stream);
 	//
 
+	CHECK_STATUS(sts);
 	if (resize || crop) {
 		//need to free allocated in resize memory for Y and UV
 		cudaError err = cudaFree(output->data[0]);
 		CHECK_STATUS(err);
+		output->data[0] = nullptr;
+
 		err = cudaFree(output->data[1]);
 		CHECK_STATUS(err);
+		output->data[1] = nullptr;
 	}
 	output->format = AV_PIX_FMT_NV12;
 	//if memory was allocated manually need to deallocate it manually too
 	if (input->format == AV_PIX_FMT_YUV420P) {
 		sts = cudaFree(input->data[0]);
+		CHECK_STATUS(sts);
+		input->data[0] = nullptr;
+
 		sts = cudaFree(input->data[1]);
+		CHECK_STATUS(sts);
+		input->data[1] = nullptr;
 	}
-	av_frame_unref(input);
 	if (enableDumps) {
 		std::string fileName = std::string("Processed_") + consumerName + std::string(".yuv");
 		std::shared_ptr<FILE> dumpFile(std::shared_ptr<FILE>(fopen(fileName.c_str(), "ab"), std::fclose));
@@ -183,6 +192,8 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 				DumpFrame(static_cast<unsigned char*>(output->opaque), options, dumpFile);
 		}
 	}
+
+	av_frame_unref(input);
 	return sts;
 }
 

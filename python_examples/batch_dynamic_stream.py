@@ -85,52 +85,54 @@ def feed_stream(reader, path, args):
                   'resize_type': ResizeType[args.resize_type]}
     reader.reset(path)
     result = reader.read_absolute(batch=args.batch, **parameters)
-    if args.output:
-        for i in range(0, result.shape[0]):
-            reader.dump(result[i], args.output, **parameters)
+
+    #if args.output:
+    #    for i in range(0, result.shape[0]):
+    #        reader.dump(result[i], args.output, **parameters)
 
 def consumer(reader, args):
     for i in range(0, 100):
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/1.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/2.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/3.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/4.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/5.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/6.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/7.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/8.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/9.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/10.mp4", args)
-        feed_stream(reader, "D:/Work/argus-tensor-stream/tests/resources/11.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/1.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/2.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/3.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/4.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/5.mp4", args)
+        feed_stream(reader, "D:/Work/Data/TensorStream/6.mp4", args)
 
 
 if __name__ == '__main__':
     args = parse_arguments()
+    readers = []
+    for i in range(0, 6):
+        cuda = 0
+        if i < 3:
+            cuda = 1
 
-    stream_pool = StreamPool()
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/1.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/2.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/3.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/4.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/5.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/6.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/7.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/8.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/9.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/10.mp4")
-    stream_pool.cache_stream("D:/Work/argus-tensor-stream/tests/resources/11.mp4")
-    #Note: max_consumers and buffer_size should be zero, otherwise for each instance additional memory will be allocated
-    reader = TensorStreamConverter("D:/Work/argus-tensor-stream/tests/resources/1.mp4", 0, args.cuda_device, 0, cuda=not args.sw)
-    reader.add_stream_pool(stream_pool)
-    # To log initialize stage, logs should be defined before initialize call
-    reader.enable_logs(LogsLevel[args.verbose], LogsType[args.verbose_destination])
+        stream_pool = StreamPool()
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/1.mp4")
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/2.mp4")
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/3.mp4")
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/4.mp4")
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/5.mp4")
+        stream_pool.cache_stream("D:/Work/Data/TensorStream/6.mp4")
+        #Note: max_consumers and buffer_size should be zero, otherwise for each instance additional memory will be allocated
+        reader = TensorStreamConverter("D:/Work/Data/TensorStream/1.mp4", 0, args.cuda_device, 0, cuda=cuda, threads=0)
+        reader.add_stream_pool(stream_pool)
+        # To log initialize stage, logs should be defined before initialize call
+        reader.enable_logs(LogsLevel.LOW, LogsType.CONSOLE)
 
-    if args.nvtx:
-        reader.enable_nvtx()
 
-    reader.initialize(repeat_number=20)
-    reader.enable_batch_optimization()
+        reader.initialize(repeat_number=20)
+        reader.enable_batch_optimization()
+        readers.append(reader)
 
-    consumer(reader, args)
+    threads = []
+    for i in range(0, len(readers)):
+        threads.append(Thread(target=consumer, args=(readers[i],args, )))
+        threads[i].start()
+
+    for i in range(0, len(readers)):
+        threads[i].join()
+        readers[i].stop()
 
     reader.stop()

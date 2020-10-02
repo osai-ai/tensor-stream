@@ -470,11 +470,15 @@ std::vector<T*> TensorStream::getFrameAbsolute(std::vector<int> index, FramePara
 			auto elemIterator = std::find(outputDTS.begin(), outputDTS.end(), pts);
 			if (elemIterator != outputDTS.end()) {
 				int index = std::distance(outputDTS.begin(), elemIterator);
-				//outputDTS.push_back(outputDTS[index]);
-				outputTuple.push_back(outputTuple[index]);
+				float channels = channelsByFourCC(frameParameters.color.dstFourCC);
+				T* duplicate = nullptr;
+				auto err = cudaMalloc(&duplicate, processedFrame->width * processedFrame->height * channels * sizeof(T));
+				CHECK_STATUS_THROW(err);
+				err = cudaMemcpy(duplicate, outputTuple[index], processedFrame->width * processedFrame->height * channels * sizeof(T), cudaMemcpyDeviceToDevice);
+				CHECK_STATUS_THROW(err);
+				outputTuple.push_back(duplicate);
 				continue;
 			}
-
 			int multiplier = index[i] / parser->getGopSize();
 			int intraIndex = multiplier * parser->getGopSize();
 			if (i == 0 || flushed || pts < outputDTS[previousFrame] || intraIndex > PTSToFrame(videoStream, outputDTS[previousFrame])) {
