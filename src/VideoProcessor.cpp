@@ -71,6 +71,11 @@ int VideoProcessor::DumpFrame(T* output, FrameParameters options, std::shared_pt
 	return VREADER_OK;
 }
 
+template
+int VideoProcessor::DumpFrame(float* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
+template
+int VideoProcessor::DumpFrame(uint8_t* output, FrameParameters options, std::shared_ptr<FILE> dumpFile);
+
 int VideoProcessor::Init(std::shared_ptr<Logger> logger, uint8_t maxConsumers, bool _enableDumps) {
 	PUSH_RANGE("VideoProcessor::Init", NVTXColors::YELLOW);
 	enableDumps = _enableDumps;
@@ -118,7 +123,6 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 			av_frame_unref(input);
 		input = convertedFrame;
 	}
-
 	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
 	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);
 	bool crop = false;
