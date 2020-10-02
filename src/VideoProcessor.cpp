@@ -117,11 +117,21 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 
 	//first of all if decoder is SW need to convert YUV420P to NV12
 	if (input->format == AV_PIX_FMT_YUV420P) {
-		AVFrame* convertedFrame = av_frame_alloc();
-		convertSWToHW(input, convertedFrame, prop.maxThreadsPerBlock, &stream);
-		if (input)
+		uint8_t* Y;
+		uint8_t* UV;
+		int width = input->width;
+		int height = input->height;
+		auto format = input->format;
+		convertSWToHW(input, &Y, &UV, prop.maxThreadsPerBlock, &stream);
+		if (input) {
 			av_frame_unref(input);
-		input = convertedFrame;
+		}
+
+		input->data[0] = Y;
+		input->data[1] = UV;
+		input->width = width;
+		input->height = height;
+		input->format = format;
 	}
 	int cropWidth = std::get<0>(options.crop.rightBottomCorner) - std::get<0>(options.crop.leftTopCorner);
 	int cropHeight = std::get<1>(options.crop.rightBottomCorner) - std::get<1>(options.crop.leftTopCorner);

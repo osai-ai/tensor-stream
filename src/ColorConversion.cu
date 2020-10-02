@@ -290,7 +290,7 @@ __global__ void YUV420PToNV12(uint8_t* srcU, uint8_t* srcV, uint8_t* destUV, int
 	}
 }
 
-int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream) {
+int convertSWToHW(AVFrame* src, uint8_t** dstY, uint8_t** dstUV, int maxThreadsPerBlock, cudaStream_t* stream) {
 	cudaError err = cudaSuccess;
 	int width = src->width;
 	int height = src->height;
@@ -320,12 +320,16 @@ int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream
 
 	cudaFree(U);
 	cudaFree(V);
-	dst->data[0] = Y;
-	dst->data[1] = UV;
+
+	*dstY = Y;
+	*dstUV = UV;
+	//dst->data[0] = Y;
+	//dst->data[1] = UV;
+	/*
 	dst->width = width;
 	dst->height = height;
 	dst->format = src->format;
-
+	*/
 	return VREADER_OK;
 }
 

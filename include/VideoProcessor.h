@@ -114,7 +114,7 @@ int resizeKernel(AVFrame* src, AVFrame* dst, bool crop, ResizeOptions resize, in
 
 int cropHost(AVFrame* src, AVFrame* dst, CropOptions crop, int maxThreadsPerBlock, cudaStream_t * stream);
 
-int convertSWToHW(AVFrame* src, AVFrame* dst, int maxThreadsPerBlock, cudaStream_t* stream);
+int convertSWToHW(AVFrame* src, uint8_t** dstY, uint8_t** dstUV, int maxThreadsPerBlock, cudaStream_t* stream);
 
 float channelsByFourCC(FourCC fourCC);
 float channelsByFourCC(std::string fourCC);
