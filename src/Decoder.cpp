@@ -97,14 +97,17 @@ AVCodecContext* Decoder::getDecoderContext() {
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
 	//element in map will be created after trying to call it
-	if (!consumerStatus[consumerName]) {
+	if (consumerStatus.find(consumerName) == consumerStatus.end()) {
 		consumerStatus[consumerName] = false;
+		//if some frames have been read already we can return last frame from buffer and don't wait for the new one
+		if (currentFrame > 0)
+			consumerStatus[consumerName] = true;
 	}
 	
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (isFinished == false)
-			while (!consumerStatus[consumerName]) 
+			while (!consumerStatus[consumerName])
 				consumerSync.wait(locker);
 
 		if (isFinished)

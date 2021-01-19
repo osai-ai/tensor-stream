@@ -119,7 +119,7 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 			numberReady++;
 		}
 	}
-	if (numberReady == blockingStatuses.size()) {
+	if (numberReady != 0 && numberReady == blockingStatuses.size()) {
 		//return statuses back to unfinished
 		for (auto &item : blockingStatuses) {
 			item.second = false;

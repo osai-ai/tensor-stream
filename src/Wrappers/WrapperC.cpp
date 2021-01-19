@@ -119,7 +119,7 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 			numberReady++;
 		}
 	}
-	if (numberReady == blockingStatuses.size()) {
+	if (numberReady != 0 && numberReady == blockingStatuses.size()) {
 		//return statuses back to unfinished
 		for (auto &item : blockingStatuses) {
 			item.second = false;
@@ -250,7 +250,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 		//Critical section because we check map size in processingLoop()
 		std::unique_lock<std::mutex> locker(blockingSync);
 		//this will be executed only once at the start
-		if (!blockingStatuses[consumerName]) {
+		if (blockingStatuses.find(consumerName) == blockingStatuses.end()) {
 			blockingStatuses[consumerName] = false;
 		}
 	}
