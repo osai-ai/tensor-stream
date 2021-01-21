@@ -28,7 +28,6 @@ RUN git clone --depth 1 -b release/4.3 --single-branch https://github.com/FFmpeg
     --disable-doc \
     --extra-cflags=-I/usr/local/cuda/include \
     --extra-ldflags=-L/usr/local/cuda/lib64 \
-    --enable-gpl \
     --extra-libs=-lpthread \
     --nvccflags="-gencode arch=compute_75,code=sm_75" &&\
     make -j$(nproc) && make install && ldconfig &&\
