@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
 project(TensorStream LANGUAGES CXX CUDA)
-set (CMAKE_CXX_STANDARD 20)
-
-if (UNIX)
-    cmake_policy(SET CMP0072 NEW)
-endif()
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
@@ -18,6 +13,9 @@ endfunction()
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
 
 #affects all projects, add folder "include" to include section in VS
 include_directories("include")
