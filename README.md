@@ -57,8 +57,8 @@ It is convenient to use TensorStream in Docker containers. The provided [Dockerf
 #### TensorStream source code
 
 ```
-git clone -b master --single-branch https://github.com/Fonbet/argus-tensor-stream.git
-cd argus-tensor-stream
+git clone -b master --single-branch https://github.com/osai-ai/tensor-stream.git
+cd tensor-stream
 ```
 
 #### C++ extension for Python
@@ -76,9 +76,9 @@ set VS150COMNTOOLS="Path to Visual Studio vcvarsall.bat folder"
 call "%VS150COMNTOOLS%\vcvarsall.bat" x64 -vcvars_ver=14.11
 python setup.py install
 ```
-To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is required
+### Building C++ library:
 
-#### C++ library:
+To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is required
 
 On Linux:
 ```
@@ -108,7 +108,7 @@ pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor
 pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.5.0/linux/tensor_stream-0.4.0-cp36-cp36m-linux_x86_64.whl
 ```
 
-#### Building examples and tests
+### Building examples and tests
 Examples for Python and C++ can be found in [c_examples](c_examples) and [python_examples](python_examples) folders.  Tests for C++ can be found in [tests](tests) folder.
 #### Python example
 Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
@@ -150,7 +150,7 @@ docker run --gpus=all -ti tensorstream bash
 
 ## Usage
 
-### Samples
+### Python examples
 
 1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
 > **Note:** You can pass **--help** to get the list of all available options, their description and default values
