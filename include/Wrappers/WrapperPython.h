@@ -3,7 +3,7 @@
 #ifdef _DEBUG
 #undef _DEBUG
 #include <torch/extension.h>
-#include <THC/THC.h>
+//#include <THC/THC.h>
 #include <ATen/ATen.h>
 #if (__linux__)
 #include <pybind11/pybind11.h>
@@ -12,7 +12,7 @@
 #define _DEBUG
 #else
 #include <torch/extension.h>
-#include <THC/THC.h>
+//#include <THC/THC.h>
 #include <ATen/ATen.h>
 #if (__linux__)
 #include <pybind11/pybind11.h>
