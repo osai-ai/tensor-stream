@@ -76,9 +76,9 @@ set VS150COMNTOOLS="Path to Visual Studio vcvarsall.bat folder"
 call "%VS150COMNTOOLS%\vcvarsall.bat" x64 -vcvars_ver=14.11
 python setup.py install
 ```
-### Building C++ library:
-
 To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is required
+
+#### C++ library:
 
 On Linux:
 ```
