@@ -1,11 +1,12 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:11.3.1-cudnn8-devel-ubuntu20.04
+ENV TZ=Europe/Kiev
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update &&\
     apt-get -y install build-essential yasm nasm cmake unzip git wget \
     sysstat libtcmalloc-minimal4 pkgconf autoconf libtool flex bison \
     python3 python3-pip python3-dev python3-setuptools &&\
     ln -s /usr/bin/python3 /usr/bin/python &&\
-    ln -s /usr/bin/pip3 /usr/bin/pip &&\
     apt-get clean &&\
     apt-get autoremove &&\
     rm -rf /var/lib/apt/lists/* &&\
@@ -45,6 +46,7 @@ RUN pip3 install --no-cache-dir \
     twine==1.13.0 \
     awscli==1.16.194 \
     numpy==1.16.4 \
+	cmake==3.18 \
     packaging
 
 ARG TORCH_VERSION
