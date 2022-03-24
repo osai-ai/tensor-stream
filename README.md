@@ -105,7 +105,6 @@ pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor
 ```
 pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.5.0/linux/tensor_stream-0.4.0-cp36-cp36m-linux_x86_64.whl
 ```
-- **CUDA 11:**
 
 ### Building examples and tests
 Examples for Python and C++ can be found in [c_examples](c_examples) and [python_examples](python_examples) folders.  Tests for C++ can be found in [tests](tests) folder.
