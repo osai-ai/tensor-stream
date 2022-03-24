@@ -51,7 +51,7 @@ RUN pip3 install --no-cache-dir \
 
 ARG TORCH_VERSION
 # Install PyTorch
-RUN pip3 install --no-cache-dir torch==$TORCH_VERSION
+RUN pip3 install --no-cache-dir torch==$TORCH_VERSION --extra-index-url https://download.pytorch.org/whl/cu113
 
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\
