@@ -44,7 +44,7 @@ while need_predictions:
 ## Install TensorStream
 
 ### Dependencies
-* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 10.0 or above
+* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 11.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
 * [PyTorch](https://github.com/pytorch/pytorch) 1.9.0 or above to build C++ extension for Python
@@ -95,8 +95,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ### Binaries (Linux only)
 Extension for Python can be installed via pip:
 
-- **CUDA 9:**
-> **Warning:** CUDA 9 isn't supported by TensorStream anymore so new releases won't be built and distributed in binary format.
 - **CUDA 10:**
 TensorStream compiled with different versions of Pytorch:
 ```
