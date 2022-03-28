@@ -68,7 +68,7 @@ On Linux:
 python setup.py install
 ```
 
-On Windows:
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 set path=%path%;%FFMPEG_PATH%\bin
@@ -84,7 +84,7 @@ mkdir build
 cd build
 cmake ..
 ```
-On Windows:
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 mkdir build
@@ -113,14 +113,14 @@ cd python_examples
 python simple.py
 ```
 #### C++ example and unit tests
-On Linux
+On Linux:
 ```
 cd c_examples  # tests
 mkdir build
 cd build
 cmake -DCMAKE_PREFIX_PATH=$PWD/../../cmake ..
 ```
-On Windows
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 cd c_examples or tests
