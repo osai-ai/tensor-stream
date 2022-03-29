@@ -98,6 +98,7 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
+// Segmentation fault error
 /*
 //FourCC tests
 TEST_F(Python_Tests, FourCC_NV12) {
