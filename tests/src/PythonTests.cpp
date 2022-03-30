@@ -99,7 +99,6 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 }
 
 // Segmentation fault error
-/*
 //FourCC tests
 TEST_F(Python_Tests, FourCC_NV12) {
 	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "NV12", "PLANAR", "NEAREST", "0", 2957341121);
@@ -281,7 +280,6 @@ TEST_F(Python_Tests, Crop_NV12_Downscale_Center) {
 	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 320, 240, "120,60,960,540", 1, "RGB24", "MERGED", "AREA", "0", 1183295093);
 	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 320, 240, "120,60,960,540", 1, "RGB24", "MERGED", "AREA", "1", 1183295093);
 }
-*/
 
 void CRCTestFrameRate(std::string generalCmdLine, std::string input, int width, int height, int frameNumber, std::string dstFourCC, std::string frameRate, unsigned long crc, unsigned long crcLinux = 0) {
 	std::stringstream cmdLine;
@@ -311,7 +309,6 @@ void CRCTestFrameRate(std::string generalCmdLine, std::string input, int width, 
 	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
-/*
 //just test that frame rate option is passed to Python and output is valid
 //The correct way to check feature correctness is enable logs and find sleep/blocking sleep in case of Native and Blocking modes respectively
 TEST_F(Python_Tests, FrameRate_Native) {
@@ -325,7 +322,6 @@ TEST_F(Python_Tests, FrameRate_Fast) {
 TEST_F(Python_Tests, FrameRate_Blocking) {
 	CRCTestFrameRate(setupCmdLine, "tests/resources/bbb_720x480_RGB24_250.h264", 720, 480, 100, "RGB24", "BLOCKING", 2018747012);
 }
-*/
 
 void CRCBatchTest(std::string generalCmdLine, std::string input, int width, int height, std::string crop, std::string batch, std::string dstFourCC, std::string planes, std::string resize, std::string sw, unsigned long crc, unsigned long crcLinux = 0) {
 	std::stringstream cmdLine;
@@ -357,7 +353,6 @@ void CRCBatchTest(std::string generalCmdLine, std::string input, int width, int 
 	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
-/*
 //FourCC tests
 TEST_F(Python_Tests, Batch_FourCC_NV12) {
 	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "0,0,0,0", "0,100,200,120", "NV12", "PLANAR", "NEAREST", "0", 1386151708);
@@ -375,4 +370,3 @@ TEST_F(Python_Tests, Batch_Stress_FourCC_RGB24) {
 	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "0,0,0,0", "0,100,200,120,50,100,8,12,16,23,42,120,150,11,1,111,77,88,99,44,33,22",
 		"RGB24", "MERGED", "NEAREST", "1", 990539867);
 }
-*/

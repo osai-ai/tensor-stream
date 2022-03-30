@@ -723,7 +723,6 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 }
 
 // free(): invalid pointer error
-/*
 TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
 	//Test parameters
 	int dstWidth = 720;
@@ -746,10 +745,8 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
 	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
 	ASSERT_EQ(psnrBilinearSW, psnrBilinearHW);
 }
-*/
 
 // Segmentation fault error
-/*
 TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBilinear) {
 	//Test parameters
 	int dstWidth = 720;
@@ -864,10 +861,8 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledArea) {
 	ASSERT_EQ(psnrNearestSW, psnrNearestHW);
 	ASSERT_EQ(psnrAreaSW, psnrAreaHW);
 }
-*/
 
 // Tests failed because -1 value in calculations
-/*
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	//Test parameters
 	int dstWidth = 720;
@@ -1107,4 +1102,3 @@ TEST_F(VPP_Convert, PSNRForestTemplateRGBUpscaledArea) {
 	double psnrNearest = calculatePSNR(imagePath, dstWidth, dstHeight, resizeWidth, resizeHeight, resizeType, dstFourCC, 1);
 	EXPECT_NEAR(psnrNearest, 30.14, 0.01);
 }
-*/
