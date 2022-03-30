@@ -44,7 +44,7 @@ while need_predictions:
 ## Install TensorStream
 
 ### Dependencies
-* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 11.0 or above
+* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 10.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
 * [PyTorch](https://github.com/pytorch/pytorch) 1.9.0 or above to build C++ extension for Python
