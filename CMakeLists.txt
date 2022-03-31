@@ -72,6 +72,7 @@ if(WIN32)
 endif()
 
 add_library(${PROJECT_NAME} SHARED ${APP_HEADERS} ${APP_SOURCE})
+set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES "52;60;61;70;75;80;86")
 
 #CUDA libraries
 if (WIN32)

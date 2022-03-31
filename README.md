@@ -44,10 +44,10 @@ while need_predictions:
 ## Install TensorStream
 
 ### Dependencies
-* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 9.0 or above
+* [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 11.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [PyTorch](https://github.com/pytorch/pytorch) 1.1.0 or above to build C++ extension for Python
+* [PyTorch](https://github.com/pytorch/pytorch) 1.9.0 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 It is convenient to use TensorStream in Docker containers. The provided [Dockerfiles](#docker-image) is supplied to create an image with all the necessary dependencies.
@@ -57,8 +57,8 @@ It is convenient to use TensorStream in Docker containers. The provided [Dockerf
 #### TensorStream source code
 
 ```
-git clone -b master --single-branch https://github.com/Fonbet/argus-tensor-stream.git
-cd argus-tensor-stream
+git clone -b master --single-branch https://github.com/osai-ai/tensor-stream.git
+cd tensor-stream
 ```
 
 #### C++ extension for Python
@@ -68,7 +68,7 @@ On Linux:
 python setup.py install
 ```
 
-On Windows:
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 set path=%path%;%FFMPEG_PATH%\bin
@@ -76,8 +76,6 @@ set VS150COMNTOOLS="Path to Visual Studio vcvarsall.bat folder"
 call "%VS150COMNTOOLS%\vcvarsall.bat" x64 -vcvars_ver=14.11
 python setup.py install
 ```
-To build TensorStream on Windows, Visual Studio 2017 14.11 toolset is required
-
 #### C++ library:
 
 On Linux:
@@ -86,7 +84,7 @@ mkdir build
 cd build
 cmake ..
 ```
-On Windows:
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 mkdir build
@@ -97,8 +95,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T v141,version=14.11 ..
 ### Binaries (Linux only)
 Extension for Python can be installed via pip:
 
-- **CUDA 9:**
-> **Warning:** CUDA 9 isn't supported by TensorStream anymore so new releases won't be built and distributed in binary format.
 - **CUDA 10:**
 TensorStream compiled with different versions of Pytorch:
 ```
@@ -108,7 +104,7 @@ pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.4.0/linux/tensor
 pip install https://tensorstream.argus-ai.com/wheel/cu10/torch1.5.0/linux/tensor_stream-0.4.0-cp36-cp36m-linux_x86_64.whl
 ```
 
-#### Building examples and tests
+### Building examples and tests
 Examples for Python and C++ can be found in [c_examples](c_examples) and [python_examples](python_examples) folders.  Tests for C++ can be found in [tests](tests) folder.
 #### Python example
 Can be executed via Python after TensorStream [C++ extension for Python](#c-extension-for-python) installation.
@@ -117,14 +113,14 @@ cd python_examples
 python simple.py
 ```
 #### C++ example and unit tests
-On Linux
+On Linux:
 ```
 cd c_examples  # tests
 mkdir build
 cd build
 cmake -DCMAKE_PREFIX_PATH=$PWD/../../cmake ..
 ```
-On Windows
+On Windows (using Visual Studio 2017 14.11 toolset as example):
 ```
 set FFMPEG_PATH="Path to FFmpeg install folder"
 cd c_examples or tests
@@ -136,7 +132,7 @@ cmake -DCMAKE_PREFIX_PATH=%cd%\..\..\cmake -G "Visual Studio 15 2017 Win64" -T v
 ## Docker image
 To build TensorStream need to pass Pytorch version via TORCH_VERSION argument:
 ```
-docker build --build-arg TORCH_VERSION=1.5.0 -t tensorstream .
+docker build --build-arg TORCH_VERSION=1.9.0 -t tensorstream .
 ```
 Run with a bash command line and follow the [installation guide](#install-tensorstream)
 ```
@@ -150,7 +146,7 @@ docker run --gpus=all -ti tensorstream bash
 
 ## Usage
 
-### Samples
+### Python examples
 
 1. Simple [example](python_examples/simple.py) demonstrates RTMP to PyTorch tensor conversion. Let's consider some usage scenarios:
 > **Note:** You can pass **--help** to get the list of all available options, their description and default values
