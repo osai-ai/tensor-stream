@@ -860,7 +860,6 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledArea) {
 	ASSERT_EQ(psnrAreaSW, psnrAreaHW);
 }
 
-// Tests failed because -1 value in calculations
 TEST_F(VPP_Convert, PSNRTVTemplateRGBDownscaledComparison) {
 	//Test parameters
 	int dstWidth = 720;
