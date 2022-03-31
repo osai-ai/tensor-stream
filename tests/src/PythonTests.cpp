@@ -369,3 +369,4 @@ TEST_F(Python_Tests, Batch_Stress_FourCC_RGB24) {
 	CRCBatchTest(setupCmdLine, "tests/resources/tennis_2s.mp4", 1920, 1080, "0,0,0,0", "0,100,200,120,50,100,8,12,16,23,42,120,150,11,1,111,77,88,99,44,33,22",
 		"RGB24", "MERGED", "NEAREST", "1", 990539867);
 }
+
