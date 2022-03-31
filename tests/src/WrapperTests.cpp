@@ -814,8 +814,6 @@ TEST(Wrapper_Batch, PerformanceNeighborFrames) {
 	reader.endProcessing();
 }
 
-// !!! TensorStream.getGOP was removed from tensor-stream in <5366d8120d2968eee430133ee2948afc6ba12508>[working version of dynamic stream] commit on 6 Aug 2020
-/* 
 //performance with and w/o batch optimization
 TEST(Wrapper_Batch, PerformanceGOPOptimization) {
 	TensorStream reader;
@@ -838,7 +836,6 @@ TEST(Wrapper_Batch, PerformanceGOPOptimization) {
 	ASSERT_LT(executionTimeWith, executionTimeWithout / 1.5);
 	reader.endProcessing();
 }
-*/
 
 //this test should be at the end
 TEST(Wrapper_Init, OneThreadHang) {
