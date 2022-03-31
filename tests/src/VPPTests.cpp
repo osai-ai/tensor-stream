@@ -722,7 +722,6 @@ double calculatePSNR(std::string imagePath, int dstWidth, int dstHeight, int res
 	return psnr;
 }
 
-// free(): invalid pointer error
 TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
 	//Test parameters
 	int dstWidth = 720;
@@ -746,7 +745,6 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
 	ASSERT_EQ(psnrBilinearSW, psnrBilinearHW);
 }
 
-// Segmentation fault error
 TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBilinear) {
 	//Test parameters
 	int dstWidth = 720;

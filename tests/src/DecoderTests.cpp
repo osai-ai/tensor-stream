@@ -168,7 +168,6 @@ TEST(Decoder_Init_YUV444, SWSupportedPixelFormat) {
 	EXPECT_NE(result, VREADER_REPEAT);
 }
 
-// No CUDA in get_format() error
 //444 is unsupported in HW so only in SW
 TEST(Decoder_Init_YUV444, HWUnsupportedPixelFormat) {
 	av_log_set_callback([](void *ptr, int level, const char *fmt, va_list vargs) {

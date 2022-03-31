@@ -98,7 +98,6 @@ void fourCCTestNormalized(std::string generalCmdLine, std::string refPath, std::
 	ASSERT_EQ(remove(std::string(dumpFileName + ".yuv").c_str()), 0);
 }
 
-// Segmentation fault error
 //FourCC tests
 TEST_F(Python_Tests, FourCC_NV12) {
 	CRCTest(setupCmdLine, "tests/resources/bbb_1080x608_420_10.h264", 1080, 608, "0,0,0,0", 1, "NV12", "PLANAR", "NEAREST", "0", 2957341121);
