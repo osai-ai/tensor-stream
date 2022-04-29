@@ -165,6 +165,11 @@ int VideoProcessor::Convert(AVFrame* input, AVFrame* output, FrameParameters& op
 
 void VideoProcessor::Close() {
 	PUSH_RANGE("VideoProcessor::Close", NVTXColors::YELLOW);
+	cudaError err;
+	for (auto stream : streamArr) {
+		err = cudaStreamDestroy(stream.second);
+		CHECK_STATUS_THROW(err);
+	}
 	if (isClosed)
 		return;
 	isClosed = true;
