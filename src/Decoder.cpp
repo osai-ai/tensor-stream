@@ -49,7 +49,7 @@ void Decoder::Close() {
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
-	avcodec_close(decoderContext);
+	avcodec_free_context(&decoderContext);
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);
