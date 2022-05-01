@@ -305,16 +305,15 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	int sts = VREADER_OK;
 	this->logger = logger;
 	//packet_buffer - isn't empty
-	AVDictionary *opts = 0;
-	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
 	formatContext = avformat_alloc_context();
+	av_dict_set(&formatContext->metadata, "rtsp_transport", "tcp", 0);
 	if (input.keepBuffer == false)
 		formatContext->flags = AVFMT_FLAG_NOBUFFER;
 	const AVIOInterruptCB intCallback = { interruptCallback, formatContext };
 	formatContext->interrupt_callback = intCallback;
 	latestFrameTimestamp = std::chrono::system_clock::now();
 	formatContext->opaque = &latestFrameTimestamp;
-	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &opts);
+	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &formatContext->metadata);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
