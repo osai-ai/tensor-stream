@@ -135,6 +135,7 @@ int Decoder::Decode(AVPacket* pkt) {
 	int sts = VREADER_OK;
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		av_packet_unref(pkt);
 		return sts;
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
@@ -142,6 +143,7 @@ int Decoder::Decode(AVPacket* pkt) {
 
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);
+		av_packet_unref(pkt);
 		return sts;
 	}
 	//deallocate copy(!) of packet from Reader
