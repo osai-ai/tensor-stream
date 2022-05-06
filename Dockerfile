@@ -46,7 +46,6 @@ RUN pip3 install --no-cache-dir \
     twine==1.13.0 \
     awscli==1.16.194 \
     numpy==1.16.4 \
-    cmake==3.18 \
     packaging
 
 ARG TORCH_VERSION
