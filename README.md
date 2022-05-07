@@ -47,7 +47,7 @@ while need_predictions:
 * [NVIDIA CUDA](https://developer.nvidia.com/cuda-downloads) 11.0 or above
 * [FFmpeg](https://github.com/FFmpeg/FFmpeg) and FFmpeg version of headers required to interface with Nvidias codec APIs
 [nv-codec-headers](https://github.com/FFmpeg/nv-codec-headers)
-* [PyTorch](https://github.com/pytorch/pytorch) 1.9.0 or above to build C++ extension for Python
+* [PyTorch](https://github.com/pytorch/pytorch) 1.4.0 or above to build C++ extension for Python
 * [Python](https://www.python.org/) 3.6 or above to build C++ extension for Python
 
 It is convenient to use TensorStream in Docker containers. The provided [Dockerfiles](#docker-image) is supplied to create an image with all the necessary dependencies.
