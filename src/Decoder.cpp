@@ -49,7 +49,7 @@ void Decoder::Close() {
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
-	avcodec_close(decoderContext);
+	avcodec_free_context(&decoderContext);
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);
@@ -135,17 +135,17 @@ int Decoder::Decode(AVPacket* pkt) {
 	int sts = VREADER_OK;
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		av_packet_unref(pkt);
 		return sts;
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
 	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-
+	//deallocate copy(!) of packet from Reader
+	av_packet_unref(pkt);
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);
 		return sts;
 	}
-	//deallocate copy(!) of packet from Reader
-	av_packet_unref(pkt);
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {

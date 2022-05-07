@@ -315,6 +315,7 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	latestFrameTimestamp = std::chrono::system_clock::now();
 	formatContext->opaque = &latestFrameTimestamp;
 	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &opts);
+	av_dict_free(&opts);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
