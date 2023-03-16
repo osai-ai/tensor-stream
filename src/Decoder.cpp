@@ -14,7 +14,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	state = input;
 	int sts;
 	this->logger = logger;
-	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	decoderContext = avcodec_alloc_context3(state.parser->getCodecContext()->codec);
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	sts = cudaFree(0);
@@ -31,7 +31,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	sts = av_hwdevice_ctx_init(deviceReference);
 	CHECK_STATUS(sts);
 	decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
-	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state.parser->getCodecContext()->codec, NULL);
 	CHECK_STATUS(sts);
 
 	framesBuffer.resize(state.bufferDeep);

@@ -8,7 +8,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
-#include "nvToolsExt.h"
+#include <nvtx3/nvToolsExt.h>
 
 /** @addtogroup cppAPI
 @{ 
