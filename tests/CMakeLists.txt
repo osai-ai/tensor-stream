@@ -104,7 +104,7 @@ if (WIN32)
     target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
 else()
     target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
-    target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS}
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
 endif()
 
 #FFmpeg static libraries
