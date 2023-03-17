@@ -43,6 +43,9 @@ add_executable(${PROJECT_NAME} ${APP_SOURCE})
 
 target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
 
+if (UNIX)
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS}
+
 if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_directory ${TensorStream_DLL_PATH}/$(Configuration) ${CMAKE_BINARY_DIR}/$(Configuration)
