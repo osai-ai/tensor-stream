@@ -161,7 +161,8 @@ int Parser::Analyze(AVPacket* package) {
 	sts = av_bsf_init(bsfContext);
 	CHECK_STATUS(sts);
 	
-	sts = av_bsf_send_packet(bsfContext, package);
+	auto packageClone = av_packet_clone(package);
+	sts = av_bsf_send_packet(bsfContext, packageClone);
 	CHECK_STATUS(sts);
 	sts = av_bsf_receive_packet(bsfContext, NALu);
 	CHECK_STATUS(sts);
@@ -287,9 +288,7 @@ int Parser::Analyze(AVPacket* package) {
 		POC = pic_order_cnt_lsb;
 	}
 
-	av_freep(&NALu->data);
-	av_packet_free_side_data(NALu);
-	av_packet_free(&NALu);
+	av_packet_unref(NALu);
 	return errorBitstream;
 }
 
@@ -338,9 +337,11 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
 		CHECK_STATUS(sts);
-		AVStream * outStream = avformat_new_stream(dumpContext, encoderContext->codec);
+		AVStream * outStream = avformat_new_stream(dumpContext, nullptr);
 		sts = avcodec_parameters_from_context(outStream->codecpar, encoderContext);
 		CHECK_STATUS(sts);
+		if (dumpContext->oformat->flags & AVFMT_GLOBALHEADER)
+			encoderContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 		//Open output file
 		if (!(dumpContext->oformat->flags & AVFMT_NOFILE)) {
 			sts = avio_open(&dumpContext->pb, dumpName.c_str(), AVIO_FLAG_WRITE);
@@ -348,6 +349,7 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 		}
 		//Write file header
 		sts = avformat_write_header(dumpContext, NULL);
+		CHECK_STATUS(sts);
 	}
 	NALu = new AVPacket();
 	av_init_packet(NALu);
@@ -443,8 +445,14 @@ void Parser::Close() {
 	avformat_close_input(&formatContext);
 	
 	if (state.enableDumps) {
-		if (dumpContext && !(dumpContext->oformat->flags & AVFMT_NOFILE))
+		av_write_trailer(dumpContext);
+
+		for (int i = 0; i < dumpContext->nb_streams; i++) {
+			av_freep(&dumpContext->streams[i]);
+		}
+		if (dumpContext && !(dumpContext->oformat->flags & AVFMT_NOFILE)) {
 			avio_close(dumpContext->pb);
+		}
 		avformat_free_context(dumpContext);
 	}
 	av_packet_unref(lastFrame.first);
