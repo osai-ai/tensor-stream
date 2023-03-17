@@ -6,6 +6,9 @@ extern "C" {
 #include "libavutil/crc.h"
 }
 
+#undef min
+#undef max
+
 void getCycle(std::map<std::string, std::string> parameters, TensorStream& reader) {
 	try {
 		int width = std::atoi(parameters["width"].c_str());
@@ -65,7 +68,7 @@ TEST(Wrapper_Init, KeepBuffer) {
 	int64_t lowDelayTimeSpent;
 	{
 		TensorStream reader;
-		ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, NATIVE_LOW_DELAY), VREADER_OK);
+		ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, NATIVE_LOW_DELAY), VREADER_OK);
 		std::thread pipeline(&TensorStream::startProcessing, &reader);
 		reader.enableLogs(-HIGH);
 		std::map<std::string, std::string> parameters = { {"name", "first"} };
@@ -90,7 +93,7 @@ TEST(Wrapper_Init, KeepBuffer) {
 	int64_t nativeTimeSpent;
 	{
 		TensorStream reader;
-		ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, NATIVE), VREADER_OK);
+		ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, NATIVE), VREADER_OK);
 		std::thread pipeline(&TensorStream::startProcessing, &reader);
 		reader.enableLogs(-HIGH);
 		std::map<std::string, std::string> parameters = { {"name", "first"} };
@@ -317,7 +320,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 	TensorStream reader;
 	reader.skipAnalyzeStage();
 	//reader.enableLogs(-HIGH);
-	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_500.yuv"}*/ };
@@ -482,7 +485,7 @@ TEST(Wrapper_Init, FrameRateBlockingLocalSeveralThreads) {
 TEST(Wrapper_Init, FrameRateBlockingStream) {
 	TensorStream reader;
 	//reader.enableLogs(-HIGH);
-	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_250.yuv"}*/ };

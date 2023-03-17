@@ -26,12 +26,15 @@ TEST(Parser_Init, WrongInputPath) {
 
 TEST(Parser_Init, CorrectInputPath) {
 	Parser parser;
-	ParserParameters parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", true, true };
+	ParserParameters parserArgs = { "../resources/bunny.mp4", true, true };
 	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
 	EXPECT_EQ(parser.getWidth(), 1280);
 	EXPECT_EQ(parser.getHeight(), 720);
-	auto codec = parser.getFormatContext()->streams[parser.getVideoIndex()]->codec;
-	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 24);
+	auto stream = parser.getFormatContext()->streams[parser.getVideoIndex()];
+	EXPECT_EQ((int) (stream->r_frame_rate.num / stream->r_frame_rate.den), 24);
+	auto codec = parser.getCodecContext();
+	EXPECT_EQ(codec->framerate.num, 0);
+	EXPECT_EQ(codec->framerate.den, 1);
 	parser.Close();
 }
 
@@ -90,15 +93,17 @@ TEST(Parser_ReadGet, CheckDTS) {
 	auto frameDTS = frameToPTS(videoStream, 2);
 	EXPECT_EQ(timebaseDTS(videoStream, frameDTS), 80);
 	//
-	parserArgs = { "rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4" };
+	parserArgs = { "../resources/bunny.mp4" };
 	parser.Init(parserArgs, std::make_shared<Logger>());
 	//Read SPS/PPS/SEI + IDR frame
+	EXPECT_EQ(parser.Read(), VREADER_OK);
+	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
 	EXPECT_EQ(parser.Read(), VREADER_OK);
 	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
 	EXPECT_EQ(parsed.dts, 0);
 	EXPECT_EQ(parser.Read(), VREADER_OK);
 	EXPECT_EQ(parser.Get(&parsed), VREADER_OK);
-	EXPECT_EQ(parsed.dts, 41);
+	EXPECT_EQ(parsed.dts, 512);
 	frameDTS = frameToPTS(videoStream, 1);
 	EXPECT_EQ(timebaseDTS(videoStream, frameDTS), 40);
 }
