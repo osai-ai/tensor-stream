@@ -45,6 +45,7 @@ target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
 
 if (UNIX)
     target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
+endif()
 
 if (WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
