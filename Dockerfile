@@ -3,7 +3,7 @@ ENV TZ=Europe/Kiev
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update &&\
-    apt-get -y install build-essential yasm nasm cmake unzip git wget \
+    apt-get -y install build-essential yasm nasm unzip git wget \
     sysstat libtcmalloc-minimal4 pkgconf autoconf libtool flex bison \
     python3 python3-pip python3-dev python3-setuptools &&\
     ln -s /usr/bin/python3 /usr/bin/python &&\
@@ -11,6 +11,15 @@ RUN apt-get update &&\
     apt-get autoremove &&\
     rm -rf /var/lib/apt/lists/* &&\
     rm -rf /var/cache/apt/archives/*
+
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.0/cmake-3.26.0-Linux-x86_64.sh \
+      -q -O /tmp/cmake-install.sh \
+      && chmod u+x /tmp/cmake-install.sh \
+      && mkdir /usr/bin/cmake \
+      && /tmp/cmake-install.sh --skip-license --prefix=/usr/bin/cmake \
+      && rm /tmp/cmake-install.sh
+
+ENV PATH="/usr/bin/cmake/bin:${PATH}"
 
 # Build nvidia codec headers
 RUN git clone -b sdk/11.1 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\

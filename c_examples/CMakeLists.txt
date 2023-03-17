@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.26)
 project(Sample LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
     string(REGEX REPLACE "\"$" "" ${name} ${${name}})
@@ -11,10 +13,8 @@ endfunction()
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
-if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+if (UNIX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 endif()
 
 FILE(GLOB_RECURSE APP_SOURCE "src/*.c*")
