@@ -13,12 +13,12 @@ RUN apt-get update &&\
     rm -rf /var/cache/apt/archives/*
 
 # Build nvidia codec headers
-RUN git clone -b sdk/9.1 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
+RUN git clone -b sdk/11.3 --single-branch https://git.videolan.org/git/ffmpeg/nv-codec-headers.git &&\
     cd nv-codec-headers && make install &&\
     cd .. && rm -rf nv-codec-headers
 
 # Build ffmpeg with nvenc support
-RUN git clone --depth 1 -b release/4.3 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
+RUN git clone --depth 1 -b release/6.0 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
     cd FFmpeg &&\
     mkdir ffmpeg_build && cd ffmpeg_build &&\
     ../configure \
