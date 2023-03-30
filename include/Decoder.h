@@ -44,6 +44,11 @@ public:
 	int Decode(AVPacket* pkt);
 
 	/*
+	Send empty packet to enable drain mode.
+	*/
+	int Drain();
+
+	/*
 	Blocked call, returns whether already decoded frame from cache or latest decoded frame which hasn't been reported yet.
 	Arguments: 
 		int index: index of desired frame.
@@ -95,6 +100,7 @@ private:
 	*/
 	bool isClosed = true;
 	bool isFinished = false;
+	bool drain = false;
 	/*
 	Instance of Logger class
 	*/

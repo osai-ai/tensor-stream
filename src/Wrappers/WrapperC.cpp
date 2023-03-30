@@ -144,29 +144,39 @@ int TensorStream::processingLoop() {
 		END_LOG_BLOCK(std::string("parser->Read"));
 		if (sts == AVERROR(EAGAIN))
 			continue;
-		CHECK_STATUS(sts);
-		START_LOG_BLOCK(std::string("parser->Get"));
-		sts = parser->Get(parsed);
-		CHECK_STATUS(sts);
-		END_LOG_BLOCK(std::string("parser->Get"));
-		int64_t frameDTS = parsed->dts;
-		if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
-			frameDTS = int64_t(decoder->getFrameIndex()) * indexToDTSCoeff;
-		}
-		if (!skipAnalyze) {
-			START_LOG_BLOCK(std::string("parser->Analyze"));
-			//Parse package to find some syntax issues, don't handle errors returned from this function
-			sts = parser->Analyze(parsed);
-			END_LOG_BLOCK(std::string("parser->Analyze"));
-		}
-		START_LOG_BLOCK(std::string("decoder->Decode"));
-		sts = decoder->Decode(parsed);
-		END_LOG_BLOCK(std::string("decoder->Decode"));
-		//Need more data for decoding
-		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
-			continue;
-		CHECK_STATUS(sts);
 
+		int64_t frameDTS = 0;
+		if (sts != AVERROR_EOF) {
+			CHECK_STATUS(sts);
+			START_LOG_BLOCK(std::string("parser->Get"));
+			sts = parser->Get(parsed);
+			CHECK_STATUS(sts);
+			END_LOG_BLOCK(std::string("parser->Get"));
+			int64_t frameDTS = parsed->dts;
+			LOG_VALUE("Packet dts: " + std::to_string(parsed->dts) + " pts: " + std::to_string(parsed->pts), LogsLevel::LOW);
+			if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
+				frameDTS = int64_t(decoder->getFrameIndex()) * indexToDTSCoeff;
+			}
+			if (!skipAnalyze) {
+				START_LOG_BLOCK(std::string("parser->Analyze"));
+				//Parse package to find some syntax issues, don't handle errors returned from this function
+				sts = parser->Analyze(parsed);
+				END_LOG_BLOCK(std::string("parser->Analyze"));
+			}
+			START_LOG_BLOCK(std::string("decoder->Decode"));
+			sts = decoder->Decode(parsed);
+			END_LOG_BLOCK(std::string("decoder->Decode"));
+			//Need more data for decoding
+			if (sts == AVERROR(EAGAIN))
+				continue;
+			CHECK_STATUS(sts);
+		}
+		else {
+			START_LOG_BLOCK(std::string("decoder->Drain"));
+			sts = decoder->Drain();
+			END_LOG_BLOCK(std::string("decoder->Drain"));
+			CHECK_STATUS(sts);
+		}
 		START_LOG_BLOCK(std::string("sleep"));
 		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
 		int sleepTime = 0;
@@ -189,7 +199,7 @@ int TensorStream::processingLoop() {
 			}
 
 			int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime.first).count();
-			LOG_VALUE("Dts: " + std::to_string(frameDTS) + " now: " + std::to_string(now), LogsLevel::HIGH);
+			LOG_VALUE("Expected time: " + std::to_string(frameDTS) + " now: " + std::to_string(now), LogsLevel::HIGH);
 			if (frameDTS > now) {
 				sleepTime = frameDTS - now;
 			}
