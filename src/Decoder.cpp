@@ -44,10 +44,6 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	return sts;
 }
 
-bool Decoder::isDraining() {
-	return drain;
-}
-
 void Decoder::Close() {
 	PUSH_RANGE("Decoder::Close", NVTXColors::RED);
 	if (isClosed)
@@ -59,7 +55,6 @@ void Decoder::Close() {
 			av_frame_free(&item);
 	}
 	framesBuffer.clear();
-	drainBuffer.clear();
 	isClosed = true;
 }
 
@@ -99,14 +94,6 @@ AVCodecContext* Decoder::getDecoderContext() {
 	return decoderContext;
 }
 
-int Decoder::GetFrameDrain(AVFrame* outputFrame) {
-	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
-	//can decoder overrun us and start using the same frame? Need sync
-	av_frame_ref(outputFrame, drainBuffer.front());
-	drainBuffer.erase(drainBuffer.begin());
-	return currentFrame;
-}
-
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
 	//element in map will be created after trying to call it
@@ -143,57 +130,6 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 	return currentFrame;
 }
 
-int Decoder::Drain() {
-	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
-	int sts = VREADER_OK;
-	if (drain == false) {
-		drain = true;
-		sts = avcodec_send_packet(decoderContext, nullptr);
-		if (sts < 0) {
-			return sts;
-		}
-	}
-
-	AVFrame* decodedFrame = av_frame_alloc();
-	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-	CHECK_STATUS(sts);
-	auto sideData = av_frame_get_side_data(decodedFrame, AV_FRAME_DATA_SEI_UNREGISTERED);
-	if (sideData) {
-		uint8_t* data = sideData->data;
-		uint8_t result[16];
-		memcpy(&result, &data[16], 16);
-		std::string time = "SEI ";
-		for (int i = 0; i < 16; i++) {
-			time += result[i];
-		}
-		LOG_VALUE(time, LogsLevel::LOW);
-	}
-	drainBuffer.push_back(decodedFrame);
-	//Frame changed, consumers can take it
-	currentFrame++;
-	if (state.enableDumps) {
-		AVFrame* NV12Frame = av_frame_alloc();
-		NV12Frame->format = AV_PIX_FMT_NV12;
-
-		if (decodedFrame->format == AV_PIX_FMT_CUDA) {
-			sts = av_hwframe_transfer_data(NV12Frame, decodedFrame, 0);
-			if (sts < 0) {
-				av_frame_unref(NV12Frame);
-				return sts;
-			}
-		}
-
-		sts = av_frame_copy_props(NV12Frame, decodedFrame);
-		if (sts < 0) {
-			av_frame_unref(NV12Frame);
-			return sts;
-		}
-		saveNV12(NV12Frame, dumpFrame.get());
-		av_frame_unref(NV12Frame);
-	}
-	return sts;
-}
-
 int Decoder::Decode(AVPacket* pkt) {
 	PUSH_RANGE("Decoder::Decode", NVTXColors::RED);
 	int sts = VREADER_OK;
@@ -206,20 +142,9 @@ int Decoder::Decode(AVPacket* pkt) {
 	sts = avcodec_receive_frame(decoderContext, decodedFrame);
 	//deallocate copy(!) of packet from Reader
 	av_packet_unref(pkt);
-	if (sts == AVERROR(EAGAIN)) {
+	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);
 		return sts;
-	}
-	auto sideData = av_frame_get_side_data(decodedFrame, AV_FRAME_DATA_SEI_UNREGISTERED);
-	if (sideData) {
-		uint8_t* data = sideData->data;
-		uint8_t result[16];
-		memcpy(&result, &data[16], 16);
-		std::string time = "SEI ";
-		for (int i = 0; i < 16; i++) {
-			time += result[i];
-		}
-		LOG_VALUE(time, LogsLevel::LOW);
 	}
 	{
 		std::unique_lock<std::mutex> locker(sync);

@@ -33,6 +33,7 @@ void getCycle(std::map<std::string, std::string> parameters, TensorStream& reade
 				if (status < 0)
 					return;
 			}
+
 		}
 	}
 	catch (std::runtime_error e) {
@@ -147,8 +148,7 @@ TEST(Wrapper_Init, OneThread) {
 //several threads
 TEST(Wrapper_Init, MultipleThreads) {
 	TensorStream reader;
-	reader.enableLogs(HIGH);
-	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 10), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bbb_1080x608_420_10.h264", 5, 0, 5), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parametersFirst = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "10"}, {"dumpName", "bbb_dumpFirst.yuv"} };

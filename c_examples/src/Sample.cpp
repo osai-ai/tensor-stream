@@ -45,13 +45,13 @@ void get_cycle(FrameParameters frameParameters, std::map<std::string, std::strin
 
 int main()
 {
-	reader.enableLogs(-LOW);
+	reader.enableLogs(-MEDIUM);
 	reader.enableNVTX();
 	int sts = VREADER_OK;
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("BalanceTest-BalanceSingleDigitRecording.flv", 5, 0, 1, FrameRateMode::BLOCKING);
+		sts = reader.initPipeline("test.flv", 5, 0, 5);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
@@ -60,7 +60,7 @@ int main()
 
 	reader.skipAnalyzeStage();
 	CHECK_STATUS(sts);
-	std::thread pipeline([] { reader.startProcessing(); reader.drain(); });
+	std::thread pipeline([] { reader.startProcessing(); });
 	int dstWidth = 720;
 	int dstHeight = 480;
 	std::tuple<int, int> cropTopLeft = { 0, 0 };
@@ -72,11 +72,11 @@ int main()
 	CropOptions cropOptions = { cropTopLeft, cropBotRight };
 	FrameParameters frameParameters = {resizeOptions, colorOptions, cropOptions};
 
-	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "250"}, 
-															   {"dumpName", "720x480_1.yuv"} };
+	std::map<std::string, std::string> executionParameters = { {"name", "first"}, {"delay", "0"}, {"frames", "50"}, 
+															   {"dumpName", std::to_string(std::get<0>(cropBotRight) - std::get<0>(cropTopLeft)) + "x" + std::to_string(std::get<1>(cropBotRight) - std::get<1>(cropTopLeft)) + ".yuv"} };
 	std::thread get(get_cycle, frameParameters, executionParameters);
 	get.join();
-	pipeline.join();
 	reader.endProcessing();
+	pipeline.join();
 	return 0;
 }

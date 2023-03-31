@@ -144,14 +144,12 @@ int TensorStream::processingLoop() {
 		END_LOG_BLOCK(std::string("parser->Read"));
 		if (sts == AVERROR(EAGAIN))
 			continue;
-
 		CHECK_STATUS(sts);
 		START_LOG_BLOCK(std::string("parser->Get"));
 		sts = parser->Get(parsed);
 		CHECK_STATUS(sts);
 		END_LOG_BLOCK(std::string("parser->Get"));
 		int64_t frameDTS = parsed->dts;
-		LOG_VALUE("Packet dts: " + std::to_string(parsed->dts) + " pts: " + std::to_string(parsed->pts), LogsLevel::LOW);
 		if (frameDTS == AV_NOPTS_VALUE && frameRateMode == FrameRateMode::NATIVE) {
 			frameDTS = int64_t(decoder->getFrameIndex()) * indexToDTSCoeff;
 		}
@@ -165,9 +163,10 @@ int TensorStream::processingLoop() {
 		sts = decoder->Decode(parsed);
 		END_LOG_BLOCK(std::string("decoder->Decode"));
 		//Need more data for decoding
-		if (sts == AVERROR(EAGAIN))
+		if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF)
 			continue;
 		CHECK_STATUS(sts);
+
 		START_LOG_BLOCK(std::string("sleep"));
 		PUSH_RANGE("TensorStream::Sleep", NVTXColors::PURPLE);
 		int sleepTime = 0;
@@ -190,7 +189,7 @@ int TensorStream::processingLoop() {
 			}
 
 			int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTime.first).count();
-			LOG_VALUE("Expected time: " + std::to_string(frameDTS) + " now: " + std::to_string(now), LogsLevel::HIGH);
+			LOG_VALUE("Dts: " + std::to_string(frameDTS) + " now: " + std::to_string(now), LogsLevel::HIGH);
 			if (frameDTS > now) {
 				sleepTime = frameDTS - now;
 			}
@@ -227,15 +226,6 @@ int TensorStream::processingLoop() {
 		END_LOG_FUNCTION(std::string("Processing() ") + std::to_string(decoder->getFrameIndex()) + std::string(" frame"));
 	}
 	return sts;
-}
-
-void TensorStream::drain() {
-	int sts = VREADER_OK;
-	START_LOG_BLOCK(std::string("TensorStream->Drain"));
-	while (sts != AVERROR_EOF) {
-		sts = decoder->Drain();
-	}
-	END_LOG_BLOCK(std::string("TensorStream->Drain"));
 }
 
 int TensorStream::startProcessing() {
@@ -290,11 +280,8 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 	while (indexFrame == VREADER_REPEAT) {
 		if (decoder == nullptr)
 			throw std::runtime_error(std::to_string(VREADER_ERROR));
-		
-		if (decoder->isDraining())
-			indexFrame = decoder->GetFrameDrain(decoded);
-		else
-			indexFrame = decoder->GetFrame(index, consumerName, decoded);
+
+		indexFrame = decoder->GetFrame(index, consumerName, decoded);
 	}
 	END_LOG_BLOCK(std::string("decoder->GetFrame"));
 	START_LOG_BLOCK(std::string("vpp->Convert"));

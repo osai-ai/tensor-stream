@@ -44,21 +44,12 @@ public:
 	int Decode(AVPacket* pkt);
 
 	/*
-	Send empty packet to enable drain mode.
-	*/
-	int Drain();
-
-	/*
 	Blocked call, returns whether already decoded frame from cache or latest decoded frame which hasn't been reported yet.
 	Arguments: 
 		int index: index of desired frame.
 			Return: bufferDepth + index - 1 index.
 	*/
 	int GetFrame(int index, std::string consumerName, AVFrame* outputFrame);
-
-	int GetFrameDrain(AVFrame* outputFrame);
-
-	bool isDraining();
 
 	/*
 	Close all existing handles, deallocate recources.
@@ -77,7 +68,6 @@ private:
 	Buffer stores already decoded frames in CUDA memory (frame index can be found in container)
 	*/
 	std::vector<AVFrame* > framesBuffer;
-	std::vector<AVFrame* > drainBuffer;
 	/*
 	Index of latest decoded frame.
 	*/
@@ -105,7 +95,6 @@ private:
 	*/
 	bool isClosed = true;
 	bool isFinished = false;
-	bool drain = false;
 	/*
 	Instance of Logger class
 	*/
