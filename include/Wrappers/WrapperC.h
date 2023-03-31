@@ -36,6 +36,8 @@ public:
 */
 	int startProcessing();
 
+	void drain();
+
 /** Get decoded and post-processed frame. Pixel format can be either float or uint8_t depending on @ref normalization
  @param[in] consumerName Consumer unique ID
  @param[in] index Specify which frame should be read from decoded buffer. Can take values in range [-@ref decoderBuffer, 0]

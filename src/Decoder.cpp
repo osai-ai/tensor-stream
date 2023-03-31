@@ -44,6 +44,10 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	return sts;
 }
 
+bool Decoder::isDraining() {
+	return drain;
+}
+
 void Decoder::Close() {
 	PUSH_RANGE("Decoder::Close", NVTXColors::RED);
 	if (isClosed)
@@ -55,6 +59,7 @@ void Decoder::Close() {
 			av_frame_free(&item);
 	}
 	framesBuffer.clear();
+	drainBuffer.clear();
 	isClosed = true;
 }
 
@@ -94,14 +99,16 @@ AVCodecContext* Decoder::getDecoderContext() {
 	return decoderContext;
 }
 
+int Decoder::GetFrameDrain(AVFrame* outputFrame) {
+	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
+	//can decoder overrun us and start using the same frame? Need sync
+	av_frame_ref(outputFrame, drainBuffer.front());
+	drainBuffer.erase(drainBuffer.begin());
+	return currentFrame;
+}
+
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
-	{
-		std::unique_lock<std::mutex> locker(sync);
-		if (isFinished && framesBuffer.size() == 0)
-			throw std::runtime_error("Decoding finished");
-	}
-
 	//element in map will be created after trying to call it
 	if (consumerStatus.find(consumerName) == consumerStatus.end()) {
 		consumerStatus[consumerName] = false;
@@ -116,7 +123,7 @@ int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame)
 			while (!consumerStatus[consumerName])
 				consumerSync.wait(locker);
 
-		if (isFinished && framesBuffer.size() == 0)
+		if (isFinished)
 			throw std::runtime_error("Decoding finished");
 
 		if (consumerStatus[consumerName] == true) {
@@ -161,20 +168,9 @@ int Decoder::Drain() {
 		}
 		LOG_VALUE(time, LogsLevel::LOW);
 	}
-	{
-		std::unique_lock<std::mutex> locker(sync);
-		if (framesBuffer[(currentFrame) % state.bufferDeep]) {
-			av_frame_free(&framesBuffer[(currentFrame) % state.bufferDeep]);
-		}
-		framesBuffer[(currentFrame) % state.bufferDeep] = decodedFrame;
-		//Frame changed, consumers can take it
-		currentFrame++;
-
-		for (auto& item : consumerStatus) {
-			item.second = true;
-		}
-		consumerSync.notify_all();
-	}
+	drainBuffer.push_back(decodedFrame);
+	//Frame changed, consumers can take it
+	currentFrame++;
 	if (state.enableDumps) {
 		AVFrame* NV12Frame = av_frame_alloc();
 		NV12Frame->format = AV_PIX_FMT_NV12;

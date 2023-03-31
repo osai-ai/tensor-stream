@@ -21,8 +21,6 @@ public:
 			std::cout << "Set FFMPEG_PATH environment variable" << std::endl;
 			ASSERT_EQ(0, 1);
 		}
-		setupCmdLine += " > nul 2>&1 && set CMAKE_GENERATOR_TOOLSET_VERSION=14.11";
-		setupCmdLine += " > nul 2>&1 && for /f \"usebackq tokens=*\" %i in (`\"%ProgramFiles(x86)%\\Microsoft Visual Studio\\Installer\\vswhere\.exe\" -version [15^,16^) -products * -latest -property installationPath`) do call \"%i\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 -vcvars_ver=%CMAKE_GENERATOR_TOOLSET_VERSION%";
 		setupCmdLine += " > nul 2>&1 && python setup.py install";
 #endif
 		
