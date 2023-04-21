@@ -55,7 +55,7 @@ int Decoder::Reset(std::shared_ptr<Parser> parser) {
 		decoderContext->opaque = decoderContext;
 		decoderContext->get_format = getFormat;
 	}
-	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state.parser->getCodecContext()->codec, NULL);
 	return sts;
 }
 
@@ -64,7 +64,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	state = input;
 	int sts;
 	this->logger = logger;
-	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	decoderContext = avcodec_alloc_context3(state.parser->getCodecContext()->codec);
 	decoderContext->thread_count = input._threads;
 	//useless in GPU mode and in CPU if no slices in stream (surprise!)
 	//decoderContext->thread_type = FF_THREAD_SLICE;
@@ -93,7 +93,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 		decoderContext->opaque = decoderContext;
 		decoderContext->get_format = getFormat;
 	}
-	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state.parser->getCodecContext()->codec, NULL);
 	CHECK_STATUS(sts);
 
 	framesBuffer.resize(state.bufferDeep);

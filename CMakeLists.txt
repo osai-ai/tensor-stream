@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.26)
 project(TensorStream LANGUAGES CXX CUDA)
 
 function(strip_quotes_slash name)
@@ -17,6 +17,7 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT $
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
 
+find_package(CUDAToolkit REQUIRED)
 
 #affects all projects, add folder "include" to include section in VS
 include_directories("include")
@@ -31,21 +32,6 @@ FILE(GLOB APP_HEADERS "include/*.h*")
 FILE(GLOB WRAPPER_HEADER include/Wrappers/WrapperC.h* include/Wrappers/WrapperCommon.h*)
 list(APPEND APP_HEADERS ${WRAPPER_HEADER})
 source_group("include" FILES ${APP_HEADERS})
-
-#NVTX includes
-if (WIN32)
-    set(NVTOOLSEXT_PATH $ENV{NVTOOLSEXT_PATH})
-    if (${NVTOOLSEXT_PATH})
-        strip_quotes_slash(NVTOOLSEXT_PATH)
-    endif()
-    message(STATUS ${NVTOOLSEXT_PATH})
-    if (NOT "${NVTOOLSEXT_PATH}/include" STREQUAL "/include")
-        include_directories(${NVTOOLSEXT_PATH}/include)
-        message(STATUS "NVTX headers found ${NVTOOLSEXT_PATH}/include")
-    else()
-        MESSAGE(SEND_ERROR "Can't find NVTX headers")
-    endif()
-endif()
 
 #FFmpeg includes
 if (WIN32)
@@ -63,9 +49,7 @@ if (WIN32)
     endif()
 endif()
 
-if (UNIX)
-    include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-endif()
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 ###############################
 if(WIN32)
 	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -84,19 +68,6 @@ else()
     target_link_libraries(${PROJECT_NAME} ${CUDA_COMMON} ${CUDA_COMMON_RT})
 endif()
 
-
-###############################
-#Copy external includes to build folder
-if (WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/include)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${FFMPEG_PATH}/include ${CMAKE_BINARY_DIR}/include
-        COMMENT "Copying external includes")
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${NVTOOLSEXT_PATH}/include ${CMAKE_BINARY_DIR}/include
-        COMMENT "Copying external includes")
-endif()
-
 ###############################
 #FFmpeg libraries
 if (UNIX)
@@ -105,27 +76,12 @@ if (UNIX)
     find_library(FFMPEG_AVFORMAT avformat)
 else()
     find_library(FFMPEG_AVCODEC avcodec ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
-    FILE(GLOB_RECURSE FFMPEG_AVCODEC_DLL ${FFMPEG_PATH}/bin/avcodec*.dll)
     find_library(FFMPEG_AVUTIL avutil ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
-    FILE(GLOB_RECURSE FFMPEG_AVUTIL_DLL ${FFMPEG_PATH}/bin/avutil*.dll)
     find_library(FFMPEG_AVFORMAT avformat ${FFMPEG_PATH}/lib ${FFMPEG_PATH}/bin)
-    FILE(GLOB_RECURSE FFMPEG_AVFORMAT_DLL ${FFMPEG_PATH}/bin/avformat*.dll)
-    FILE(GLOB_RECURSE SWRESAMPLE_DLL ${FFMPEG_PATH}/bin/swresample*.dll)
+    FILE(GLOB_RECURSE FFMPEG_DLL ${FFMPEG_PATH}/bin/*.dll)
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVCODEC_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
-        COMMENT "Copying dependent DLL")
-    
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVFORMAT_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
-        COMMENT "Copying dependent DLL")
-    
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_AVUTIL_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
-        COMMENT "Copying dependent DLL")
-
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${SWRESAMPLE_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${FFMPEG_DLL} "${CMAKE_BINARY_DIR}/$(Configuration)/"
         COMMENT "Copying dependent DLL")
 endif()
 
@@ -136,34 +92,6 @@ else()
         message(FATAL_ERROR "Add path to FFmpeg folder to FFMPEG_PATH environment variable")
     else()
         message(FATAL_ERROR "Add path to FFmpeg folder to CMAKE_PREFIX_PATH")
-    endif()
-endif()
-###############################
-
-#NVTX static libraries
-if (WIN32)
-    if (NOT "${NVTOOLSEXT_PATH}/lib/x64" STREQUAL "/lib/x64")
-        FILE(GLOB_RECURSE NVTX_LIBS ${NVTOOLSEXT_PATH}/lib/x64/*.lib)
-        message(STATUS "NVTX static libraries found ${NVTX_LIBS}")
-    else()
-        MESSAGE(SEND_ERROR "Can't find NVTX static libraries")
-    endif()
-else()
-    find_library(NVTX_LIBS nvToolsExt PATHS ${CMAKE_CUDA_HOST_IMPLICIT_LINK_DIRECTORIES})
-endif()
-target_link_libraries(${PROJECT_NAME} ${NVTX_LIBS})
-###############################
-
-#NVTX dynamic libraries
-if (WIN32)
-    if (NOT "${NVTOOLSEXT_PATH}/bin/x64" STREQUAL "/bin/x64")
-        FILE(GLOB_RECURSE NVTX_DLLS "${NVTOOLSEXT_PATH}/bin/x64/*.dll")
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${NVTX_DLLS} "${CMAKE_BINARY_DIR}/$(Configuration)/"
-            COMMENT "Copying dependent DLL")
-        message(STATUS "NVTX dynamic libraries found ${NVTX_DLLS}")
-    else()
-        MESSAGE(SEND_ERROR "Can't find NVTX dynamic libraries")
     endif()
 endif()
 ###############################

@@ -6,6 +6,10 @@
 #include <condition_variable>
 #include "Common.h"
 
+extern "C" {
+#include "libavcodec/avcodec.h"
+}
+
 /*
 Structure with initialization/reset parameters.
 */

@@ -154,7 +154,16 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
 	int errorBitstream = AnalyzeErrors::NONE;
-	av_bitstream_filter_filter(bitstreamFilter, formatContext->streams[videoIndex]->codec, NULL, &NALu->data, &NALu->size, package->data, package->size, 0);
+	auto sts = avcodec_parameters_from_context(bsfContext->par_in, encoderContext);
+	CHECK_STATUS(sts);
+	bsfContext->time_base_in = encoderContext->time_base;
+	sts = av_bsf_init(bsfContext);
+	CHECK_STATUS(sts);
+
+	sts = av_bsf_send_packet(bsfContext, package);
+	CHECK_STATUS(sts);
+	sts = av_bsf_receive_packet(bsfContext, NALu);
+	CHECK_STATUS(sts);
 	//content in package is already in h264 format, so no need to do mp4->h264 conversion
 	if (NALu->data == nullptr) {
 		NALu->data = package->data;
@@ -279,7 +288,7 @@ int Parser::Analyze(AVPacket* package) {
 
 	av_freep(&NALu->data);
 	av_packet_free_side_data(NALu);
-	av_free_packet(NALu);
+	av_packet_free(&NALu);
 	return errorBitstream;
 }
 
@@ -317,16 +326,16 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
-	AVCodec* codec;
+	const AVCodec* codec;
 	videoIndex = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
 	videoStream = formatContext->streams[videoIndex];
-	videoStream->codec->codec = codec;
+	encoderContext->codec = codec;
 	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
 		CHECK_STATUS(sts);
-		AVStream * outStream = avformat_new_stream(dumpContext, videoStream->codec->codec);
-		sts = avcodec_copy_context(outStream->codec, videoStream->codec);
+		AVStream * outStream = avformat_new_stream(dumpContext, encoderContext->codec);
+		sts = avcodec_parameters_from_context(outStream->codecpar, encoderContext);
 		CHECK_STATUS(sts);
 		//Open output file
 		if (!(dumpContext->oformat->flags & AVFMT_NOFILE)) {
@@ -339,7 +348,9 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	NALu = new AVPacket();
 	av_init_packet(NALu);
 
-	bitstreamFilter = av_bitstream_filter_init("h264_mp4toannexb");
+	bitstreamFilter = av_bsf_get_by_name("h264_mp4toannexb");
+	sts = av_bsf_alloc(bitstreamFilter, &bsfContext);
+	CHECK_STATUS(sts);
 
 	lastFrame = std::make_pair(new AVPacket(), false);
 	isClosed = false;
@@ -347,11 +358,11 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 }
 
 int Parser::getWidth() {
-	return videoStream->codec->width;
+	return videoStream->codecpar->width;
 }
 
 int Parser::getHeight() {
-	return videoStream->codec->height;
+	return videoStream->codecpar->height;
 }
 
 int Parser::getVideoIndex() {
@@ -432,6 +443,10 @@ AVFormatContext* Parser::getFormatContext() {
 	return formatContext;
 }
 
+AVCodecContext* Parser::getCodecContext() {
+	return encoderContext;
+}
+
 AVStream* Parser::getStreamHandle() {
 	return videoStream;
 }
@@ -440,7 +455,7 @@ void Parser::Close() {
 	PUSH_RANGE("Parser::Close", NVTXColors::AQUA);
 	if (isClosed)
 		return;
-	av_bitstream_filter_close(bitstreamFilter);
+	av_bsf_free(&bsfContext);
 	avformat_close_input(&formatContext);
 	
 	if (state.enableDumps) {

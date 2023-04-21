@@ -4,9 +4,15 @@
 #include <vector>
 #include <memory>
 
-extern "C"
-{
+extern "C" {
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext_cuda.h>
+#include <libavutil/opt.h>
+#include <libavutil/time.h>
+#include <libswscale/swscale.h>
+
+#include "libavcodec/avcodec.h"
+#include "libavcodec/bsf.h"
 }
 
 /*
@@ -105,6 +111,7 @@ public:
 	Get input format context. Needed for internal interactions.
 	*/
 	AVFormatContext* getFormatContext();
+	AVCodecContext* getCodecContext();
 	AVStream* getStreamHandle();
 	int getVideoIndex();
 	int getGopSize();
@@ -130,6 +137,10 @@ private:
 	*/
 	AVFormatContext *formatContext = nullptr;
 	/*
+	Encoder context
+	*/
+	AVCodecContext* encoderContext = nullptr;
+	/*
 	Video stream in container. Contains info about codec, etc
 	*/
 	AVStream * videoStream = nullptr;
@@ -153,7 +164,8 @@ private:
 	/*
 	Bitstream filter for converting mp4->h264
 	*/
-	AVBitStreamFilterContext* bitstreamFilter;
+	const AVBitStreamFilter* bitstreamFilter;
+	AVBSFContext* bsfContext;
 	AVPacket* NALu;
 	/*
 	Instance of Logger class
