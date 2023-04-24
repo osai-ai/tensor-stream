@@ -133,7 +133,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-	frameRate = std::pair<int, int>(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
+	frameRate = std::pair<int, int>(parser->getCodecContext()->framerate.den, parser->getCodecContext()->framerate.num);
 	if (!frameRate.second) {
 		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"), LogsLevel::LOW);
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);

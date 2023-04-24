@@ -820,7 +820,7 @@ TEST(Wrapper_Batch, PerformanceGOPOptimization) {
 	ASSERT_EQ(reader.initPipeline("../resources/tennis_1s_100gop.mp4", 0, 0, 0), VREADER_OK);
 	//it will jump to the nearest "intra" which is incorrect if GOP size wasn't set, so he will start decoding from 0
 	//if set GOP it will continue decoding from 100
-	std::vector<int> frames = { reader.getGOP() * 3 - 1, reader.getGOP() * 3 + 1 };
+	std::vector<int> frames = { 100 * 3 - 1, 100 * 3 + 1 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
 	std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 	getCycleBatch(parameters, frames, std::ref(reader));

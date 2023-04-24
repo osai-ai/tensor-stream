@@ -30,8 +30,8 @@ TEST(Parser_Init, CorrectInputPath) {
 	EXPECT_EQ(parser.Init(parserArgs, std::make_shared<Logger>()), VREADER_OK);
 	EXPECT_EQ(parser.getWidth(), 1280);
 	EXPECT_EQ(parser.getHeight(), 720);
-	auto codec = parser.getFormatContext()->streams[parser.getVideoIndex()]->codec;
-	EXPECT_EQ((int) (codec->framerate.num / codec->framerate.den), 24);
+	auto stream = parser.getFormatContext()->streams[parser.getVideoIndex()];
+	EXPECT_EQ((int) (stream->r_frame_rate.num / stream->r_frame_rate.den), 24);
 	parser.Close();
 }
 

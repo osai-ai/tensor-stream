@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.26)
 project(Tests LANGUAGES CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 20)
 
 function(strip_quotes_slash name)
     string(REGEX REPLACE "\\\\" "/" ${name} ${${name}})
@@ -12,9 +14,6 @@ endfunction()
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++11")
 
 # Download and unpack googletest at configure time
 configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
@@ -107,6 +106,7 @@ if (WIN32)
     target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
 else()
     target_link_libraries(${PROJECT_NAME} ${TensorStream_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} ${CMAKE_DL_LIBS})
 endif()
 
 #FFmpeg static libraries
