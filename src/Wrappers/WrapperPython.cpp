@@ -57,7 +57,7 @@ int TensorStream::resetPipeline(std::string inputFile) {
 		}
 	} else {
 		ParserParameters parserArgs = { inputFile, false };
-		std::string name = parser->getFormatContext()->filename;
+		std::string name = parser->getFormatContext()->url;
 		if (name != inputFile) {
 			parser->Close();
 			sts = parser->Init(parserArgs, logger);
@@ -447,7 +447,7 @@ int TensorStream::enableBatchOptimization() {
 		parserArr = streamPool->getParsers();
 	}
 	else {
-		std::string name = parser->getFormatContext()->filename;
+		std::string name = parser->getFormatContext()->url;
 		parserArr[name] = parser;
 	}
 
