@@ -43,7 +43,15 @@ RUN git clone --depth 1 -b release/6.0 --single-branch https://github.com/FFmpeg
      --extra-ldflags=-L/usr/local/cuda/lib64 \
      --enable-gpl \
      --extra-libs=-lpthread \
-     --nvccflags="-gencode arch=compute_75,code=sm_75" &&\
+     --nvccflags="-arch=sm_60 \
+ -gencode=arch=compute_60,code=sm_60 \
+ -gencode=arch=compute_61,code=sm_61 \
+ -gencode=arch=compute_70,code=sm_70 \
+ -gencode=arch=compute_75,code=sm_75 \
+ -gencode=arch=compute_80,code=sm_80 \
+ -gencode=arch=compute_86,code=sm_86 \
+ -gencode=arch=compute_89,code=sm_89 \
+ -gencode=arch=compute_89,code=compute_89" &&\
      make -j$(nproc) && make install && ldconfig &&\
      cd ../.. && rm -rf FFmpeg
 
