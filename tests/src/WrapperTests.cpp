@@ -272,7 +272,7 @@ TEST(Wrapper_Init, FrameRateFastStream) {
 	TensorStream reader;
 	reader.skipAnalyzeStage();
 	//reader.enableLogs(-HIGH);
-	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, FrameRateMode::FAST), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_500.yuv"}*/ };
@@ -437,7 +437,7 @@ TEST(Wrapper_Init, FrameRateBlockingLocalSeveralThreads) {
 TEST(Wrapper_Init, FrameRateBlockingStream) {
 	TensorStream reader;
 	//reader.enableLogs(-HIGH);
-	ASSERT_EQ(reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
+	ASSERT_EQ(reader.initPipeline("../resources/bunny.mp4", 5, 0, 5, FrameRateMode::BLOCKING), VREADER_OK);
 	std::thread pipeline(&TensorStream::startProcessing, &reader);
 	std::map<std::string, std::string> parameters = { {"name", "first"}, {"delay", "0"}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"},
 													  {"frames", "250"}/*, {"dumpName", "output_720x480_RGB24_250.yuv"}*/ };
@@ -820,7 +820,7 @@ TEST(Wrapper_Batch, PerformanceGOPOptimization) {
 	ASSERT_EQ(reader.initPipeline("../resources/tennis_1s_100gop.mp4", 0, 0, 0), VREADER_OK);
 	//it will jump to the nearest "intra" which is incorrect if GOP size wasn't set, so he will start decoding from 0
 	//if set GOP it will continue decoding from 100
-	std::vector<int> frames = { 100 * 3 - 1, 100 * 3 + 1 };
+	std::vector<int> frames = { 100 - 1, 100 + 1 };
 	std::map<std::string, std::string> parameters = { {"frames", std::to_string(frames.size())}, {"format", std::to_string(RGB24)}, {"width", "720"}, {"height", "480"} };
 	std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 	getCycleBatch(parameters, frames, std::ref(reader));

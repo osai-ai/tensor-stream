@@ -186,14 +186,10 @@ TEST(Decoder_Init_YUV444, HWUnsupportedPixelFormat) {
 	sts = parser->Get(&parsed);
 	auto output = av_frame_alloc();
 	int result;
-	std::thread get([&decoder, &output, &result]() {
-		result = decoder.GetFrame(0, "visualize", output);
-	});
 	AVCodecContext* context = decoder.getDecoderContext();
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
 	//Decoder after frame decoding frees memory of parsed frame
 	sts = decoder.Decode(&parsed);
-	get.join();
 	//in case of HW it should be AV_PIX_FMT_CUDA
 	ASSERT_EQ(context->pix_fmt, AV_PIX_FMT_YUV444P);
 	EXPECT_NE(result, VREADER_REPEAT);

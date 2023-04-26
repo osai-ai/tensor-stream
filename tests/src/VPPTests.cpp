@@ -728,7 +728,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBilinear) {
 	int dstHeight = 480;
 	int resizeWidth = 480;
 	int resizeHeight = 360;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;
@@ -751,7 +751,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBilinear) {
 	int dstHeight = 480;
 	int resizeWidth = 1920;
 	int resizeHeight = 1080;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;
@@ -774,7 +774,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledBicubic) {
 	int dstHeight = 480;
 	int resizeWidth = 480;
 	int resizeHeight = 360;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;
@@ -797,7 +797,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledBicubic) {
 	int dstHeight = 480;
 	int resizeWidth = 1920;
 	int resizeHeight = 1080;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;
@@ -820,7 +820,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBDownscaledArea) {
 	int dstHeight = 480;
 	int resizeWidth = 480;
 	int resizeHeight = 360;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;
@@ -843,7 +843,7 @@ TEST_F(VPP_Convert, PSNRSWvsHWComparisonRGBUpscaledArea) {
 	int dstHeight = 480;
 	int resizeWidth = 1920;
 	int resizeHeight = 1080;
-	std::string imagePath = "D:/Work/argus-tensor-stream/tests/resources/billiard_1920x1080_420_100.h264";
+	std::string imagePath = "../resources/billiard_1920x1080_420_100.h264";
 	FourCC dstFourCC = RGB24;
 	//----------------
 	ResizeType resizeType = NEAREST;

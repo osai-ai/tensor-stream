@@ -18,7 +18,11 @@ AVPixelFormat getFormat(AVCodecContext *avctx, const enum AVPixelFormat *pix_fmt
 			AVBufferRef *hwFramesRef = av_hwframe_ctx_alloc(decoderContext->hw_device_ctx);
 			framesContext = (AVHWFramesContext *)(hwFramesRef->data);
 			framesContext->format = AV_PIX_FMT_CUDA;
-			framesContext->sw_format = avctx->sw_pix_fmt;
+			AVPixelFormat format = avctx->sw_pix_fmt;
+			if (format == AV_PIX_FMT_YUV420P)
+				format = AV_PIX_FMT_NV12;
+			framesContext->sw_format = format;
+			framesContext->sw_format = AV_PIX_FMT_NV12;
 			framesContext->width = FFALIGN(avctx->coded_width, 32);
 			framesContext->height = FFALIGN(avctx->coded_height, 32);
 			framesContext->initial_pool_size = 6;//input.bufferDeep + 1;
@@ -197,6 +201,7 @@ int Decoder::Decode(AVPacket* pkt) {
 		sts = avcodec_send_packet(decoderContext, pkt);
 	}
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		av_packet_unref(pkt);
 		return sts;
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
