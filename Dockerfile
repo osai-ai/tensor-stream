@@ -28,28 +28,30 @@ RUN git clone -b sdk/11.1 --single-branch https://git.videolan.org/git/ffmpeg/nv
 
 # Build ffmpeg with nvenc support
 RUN git clone --depth 1 -b release/6.0 --single-branch https://github.com/FFmpeg/FFmpeg.git &&\
-    cd FFmpeg &&\
-    mkdir ffmpeg_build && cd ffmpeg_build &&\
-    ../configure \
-    --enable-cuda \
-    --enable-cuvid \
-    --enable-shared \
-    --disable-static \
-    --disable-doc \
-    --extra-cflags=-I/usr/local/cuda/include \
-    --extra-ldflags=-L/usr/local/cuda/lib64 \
-    --extra-libs=-lpthread \
-    --nvccflags="-arch=sm_52 \
-                 -gencode=arch=compute_52,code=sm_52 \
-                 -gencode=arch=compute_60,code=sm_60 \
-                 -gencode=arch=compute_61,code=sm_61 \
-                 -gencode=arch=compute_70,code=sm_70 \
-                 -gencode=arch=compute_75,code=sm_75 \
-                 -gencode=arch=compute_80,code=sm_80 \
-                 -gencode=arch=compute_86,code=sm_86 \
-                 -gencode=arch=compute_86,code=compute_86" &&\
-    make -j$(nproc) && make install && ldconfig &&\
-    cd ../.. && rm -rf FFmpeg
+     cd FFmpeg &&\
+     mkdir ffmpeg_build && cd ffmpeg_build &&\
+     ../configure \
+     --enable-cuda \
+     --enable-cuvid \
+     --enable-libx264 \
+     --enable-shared \
+     --disable-static \
+     --disable-doc \
+     --extra-cflags=-I/usr/local/cuda/include \
+     --extra-ldflags=-L/usr/local/cuda/lib64 \
+     --enable-gpl \
+     --extra-libs=-lpthread \
+     --nvccflags="-arch=sm_60 \
+                  -gencode=arch=compute_60,code=sm_60 \
+                  -gencode=arch=compute_61,code=sm_61 \
+                  -gencode=arch=compute_70,code=sm_70 \
+                  -gencode=arch=compute_75,code=sm_75 \
+                  -gencode=arch=compute_80,code=sm_80 \
+                  -gencode=arch=compute_86,code=sm_86 \
+                  -gencode=arch=compute_89,code=sm_89 \
+                  -gencode=arch=compute_89,code=compute_89" &&\
+     make -j$(nproc) && make install && ldconfig &&\
+     cd ../.. && rm -rf FFmpeg
 
 RUN pip3 install --no-cache-dir \
     twine==1.13.0 \
