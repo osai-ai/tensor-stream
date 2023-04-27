@@ -51,7 +51,7 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("test.flv", 5, 0, 5);
+		sts = reader.initPipeline("bug.mp4", 5, 0, 5);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else
