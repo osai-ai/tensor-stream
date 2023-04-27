@@ -40,7 +40,12 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { inputFile, false };
+	bool keepBuffer = true;
+	if (frameRateMode == NATIVE_LOW_DELAY) {
+		keepBuffer = false;
+		this->frameRateMode = NATIVE;
+	}
+	ParserParameters parserArgs = { inputFile, keepBuffer, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
@@ -61,7 +66,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-	frameRate = std::pair<int, int>(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
+	frameRate = std::pair<int, int>(parser->getCodecContext()->framerate.den, parser->getCodecContext()->framerate.num);
 	if (!frameRate.second) {
 		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"), LogsLevel::LOW);
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
@@ -114,7 +119,7 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 			numberReady++;
 		}
 	}
-	if (numberReady == blockingStatuses.size()) {
+	if (numberReady != 0 && numberReady == blockingStatuses.size()) {
 		//return statuses back to unfinished
 		for (auto &item : blockingStatuses) {
 			item.second = false;
@@ -176,7 +181,7 @@ int TensorStream::processingLoop() {
 			}
 
 			frameDTS -= startDTS.first;
-			
+
 			frameDTS = frameDTS * DTSToMsCoeff;
 			if (!startTime.second) {
 				startTime.first = std::chrono::high_resolution_clock::now();
@@ -245,7 +250,7 @@ std::tuple<T*, int> TensorStream::getFrame(std::string consumerName, int index, 
 		//Critical section because we check map size in processingLoop()
 		std::unique_lock<std::mutex> locker(blockingSync);
 		//this will be executed only once at the start
-		if (!blockingStatuses[consumerName]) {
+		if (blockingStatuses.find(consumerName) == blockingStatuses.end()) {
 			blockingStatuses[consumerName] = false;
 		}
 	}

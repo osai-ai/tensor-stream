@@ -39,7 +39,12 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 	parser = std::make_shared<Parser>();
 	decoder = std::make_shared<Decoder>();
 	vpp = std::make_shared<VideoProcessor>();
-	ParserParameters parserArgs = { inputFile, false };
+	bool keepBuffer = true;
+	if (frameRateMode == NATIVE_LOW_DELAY) {
+		keepBuffer = false;
+		this->frameRateMode = NATIVE;
+	}
+	ParserParameters parserArgs = { inputFile, keepBuffer, false };
 	START_LOG_BLOCK(std::string("parser->Init"));
 	sts = parser->Init(parserArgs, logger);
 	CHECK_STATUS(sts);
@@ -60,7 +65,7 @@ int TensorStream::initPipeline(std::string inputFile, uint8_t maxConsumers, uint
 		processedArr.push_back(std::make_pair(std::string("empty"), av_frame_alloc()));
 	}
 	auto videoStream = parser->getFormatContext()->streams[parser->getVideoIndex()];
-	frameRate = std::pair<int, int>(videoStream->codec->framerate.den, videoStream->codec->framerate.num);
+	frameRate = std::pair<int, int>(parser->getCodecContext()->framerate.den, parser->getCodecContext()->framerate.num);
 	if (!frameRate.second) {
 		LOG_VALUE(std::string("Frame rate in bitstream hasn't been found, using guessed value"), LogsLevel::LOW);
 		frameRate = std::pair<int, int>(videoStream->r_frame_rate.den, videoStream->r_frame_rate.num);
@@ -114,7 +119,7 @@ int checkGetComplete(std::map<std::string, bool>& blockingStatuses) {
 			numberReady++;
 		}
 	}
-	if (numberReady == blockingStatuses.size()) {
+	if (numberReady != 0 && numberReady == blockingStatuses.size()) {
 		//return statuses back to unfinished
 		for (auto &item : blockingStatuses) {
 			item.second = false;
@@ -304,7 +309,7 @@ std::tuple<at::Tensor, int> TensorStream::getFrame(std::string consumerName, int
 	int sts = VREADER_OK;
 	if (vpp == nullptr)
 		throw std::runtime_error(std::to_string(VREADER_ERROR));
-	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName); 
+	sts = vpp->Convert(decoded, processedFrame, frameParameters, consumerName);
 	CHECK_STATUS_THROW(sts);
 	END_LOG_BLOCK(std::string("vpp->Convert"));
 	START_LOG_BLOCK(std::string("tensor->ConvertFromBlob"));
@@ -499,6 +504,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 	py::enum_<FrameRateMode>(m, "FrameRateMode")
 		.value("NATIVE", FrameRateMode::NATIVE)
 		.value("NATIVE_SIMPLE", FrameRateMode::NATIVE_SIMPLE)
+		.value("NATIVE_LOW_DELAY", FrameRateMode::NATIVE_LOW_DELAY)
 		.value("FAST", FrameRateMode::FAST)
 		.value("BLOCKING", FrameRateMode::BLOCKING)
 		.export_values();

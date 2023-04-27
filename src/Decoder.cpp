@@ -14,7 +14,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	state = input;
 	int sts;
 	this->logger = logger;
-	decoderContext = avcodec_alloc_context3(state.parser->getStreamHandle()->codec->codec);
+	decoderContext = avcodec_alloc_context3(state.parser->getCodecContext()->codec);
 	sts = avcodec_parameters_to_context(decoderContext, state.parser->getStreamHandle()->codecpar);
 	CHECK_STATUS(sts);
 	sts = cudaFree(0);
@@ -31,7 +31,7 @@ int Decoder::Init(DecoderParameters& input, std::shared_ptr<Logger> logger) {
 	sts = av_hwdevice_ctx_init(deviceReference);
 	CHECK_STATUS(sts);
 	decoderContext->hw_device_ctx = av_buffer_ref(deviceReference);
-	sts = avcodec_open2(decoderContext, state.parser->getStreamHandle()->codec->codec, NULL);
+	sts = avcodec_open2(decoderContext, state.parser->getCodecContext()->codec, NULL);
 	CHECK_STATUS(sts);
 
 	framesBuffer.resize(state.bufferDeep);
@@ -49,7 +49,7 @@ void Decoder::Close() {
 	if (isClosed)
 		return;
 	av_buffer_unref(&deviceReference);
-	avcodec_close(decoderContext);
+	avcodec_free_context(&decoderContext);
 	for (auto item : framesBuffer) {
 		if (item != nullptr)
 			av_frame_free(&item);
@@ -97,14 +97,17 @@ AVCodecContext* Decoder::getDecoderContext() {
 int Decoder::GetFrame(int index, std::string consumerName, AVFrame* outputFrame) {
 	PUSH_RANGE("Decoder::GetFrame", NVTXColors::RED);
 	//element in map will be created after trying to call it
-	if (!consumerStatus[consumerName]) {
+	if (consumerStatus.find(consumerName) == consumerStatus.end()) {
 		consumerStatus[consumerName] = false;
+		//if some frames have been read already we can return last frame from buffer and don't wait for the new one
+		if (currentFrame > 0)
+			consumerStatus[consumerName] = true;
 	}
 	
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (isFinished == false)
-			while (!consumerStatus[consumerName]) 
+			while (!consumerStatus[consumerName])
 				consumerSync.wait(locker);
 
 		if (isFinished)
@@ -132,17 +135,17 @@ int Decoder::Decode(AVPacket* pkt) {
 	int sts = VREADER_OK;
 	sts = avcodec_send_packet(decoderContext, pkt);
 	if (sts < 0 || sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
+		av_packet_unref(pkt);
 		return sts;
 	}
 	AVFrame* decodedFrame = av_frame_alloc();
 	sts = avcodec_receive_frame(decoderContext, decodedFrame);
-
+	//deallocate copy(!) of packet from Reader
+	av_packet_unref(pkt);
 	if (sts == AVERROR(EAGAIN) || sts == AVERROR_EOF) {
 		av_frame_free(&decodedFrame);
 		return sts;
 	}
-	//deallocate copy(!) of packet from Reader
-	av_packet_unref(pkt);
 	{
 		std::unique_lock<std::mutex> locker(sync);
 		if (framesBuffer[(currentFrame) % state.bufferDeep]) {

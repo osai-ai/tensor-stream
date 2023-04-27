@@ -1,5 +1,5 @@
 #include "WrapperC.h"
-#include <experimental/filesystem> //C++17 
+#include <filesystem> //C++17 
 
 TensorStream reader;
 
@@ -51,7 +51,7 @@ int main()
 	int initNumber = 10;
 
 	while (initNumber--) {
-		sts = reader.initPipeline("rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4", 5, 0, 5);
+		sts = reader.initPipeline("bug.mp4", 5, 0, 5);
 		if (sts != VREADER_OK)
 			reader.endProcessing();
 		else

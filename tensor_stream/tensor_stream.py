@@ -89,10 +89,12 @@ class FrameRate(Enum):
     NATIVE = 0
     ## Read at fixed stream frame rate
     NATIVE_SIMPLE = 1
+    ## The same as NATIVE, but drop internal parser buffer to minimize delay between read stream and TensorStream output
+    NATIVE_LOW_DELAY = 2
     ## Read frames as fast as possible
-    FAST = 2
+    FAST = 3
     ## Read frame by frame without skipping (only local files)
-    BLOCKING = 3
+    BLOCKING = 4
 
 
 ## Class that stores frame parameters

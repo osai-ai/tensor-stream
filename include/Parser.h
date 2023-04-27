@@ -4,17 +4,23 @@
 #include <vector>
 #include <memory>
 
-extern "C"
-{
+extern "C" {
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext_cuda.h>
+#include <libavutil/opt.h>
+#include <libavutil/time.h>
+#include <libswscale/swscale.h>
+
+#include "libavcodec/avcodec.h"
+#include "libavcodec/bsf.h"
 }
 
 /*
 Structure with initialization/reset parameters.
 */
 struct ParserParameters {
-	ParserParameters(std::string _inputFile = "", bool _enableDumps = false) :
-		inputFile(_inputFile), enableDumps(_enableDumps) {
+	ParserParameters(std::string _inputFile = "", bool _keepBuffer = true, bool _enableDumps = false) :
+		inputFile(_inputFile), keepBuffer(_keepBuffer), enableDumps(_enableDumps) {
 
 	}
 
@@ -22,6 +28,7 @@ struct ParserParameters {
 	Path to input file, no matter where it's placed: remotely or locally.
 	*/
 	std::string inputFile;
+	bool keepBuffer;
 	bool enableDumps;
 };
 
@@ -108,6 +115,7 @@ public:
 	Get input format context. Needed for internal interactions.
 	*/
 	AVFormatContext* getFormatContext();
+	AVCodecContext* getCodecContext();
 	AVStream* getStreamHandle();
 	int getVideoIndex();
 private:
@@ -127,6 +135,10 @@ private:
 	FFmpeg internal stuff, input file context, contains iterator which allow read frames one by one without pointing to frame's number.
 	*/
 	AVFormatContext *formatContext = nullptr;
+	/*
+	Encoder context
+	*/
+	AVCodecContext *encoderContext = nullptr;
 	/*
 	Video stream in container. Contains info about codec, etc
 	*/
@@ -151,7 +163,8 @@ private:
 	/*
 	Bitstream filter for converting mp4->h264
 	*/
-	AVBitStreamFilterContext* bitstreamFilter;
+	const AVBitStreamFilter* bitstreamFilter;
+	AVBSFContext* bsfContext;
 	AVPacket* NALu;
 	/*
 	Instance of Logger class

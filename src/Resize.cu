@@ -159,8 +159,8 @@ __device__ int calculateBicubicPolynomInterpolation(unsigned char* data, float x
 
 __device__ int calculateAreaInterpolation(unsigned char* data, int startIndex, float scaleX, float scaleY, int linesize, int stride, float* patternX, float* patternY) {
 	float colorSum = 0;
-	int rScaleX = ceil(scaleX);
-	int rScaleY = ceil(scaleY);
+	int rScaleX = ceilf(scaleX);
+	int rScaleY = ceilf(scaleY);
 	float divide = 0;
 	for (int i = 0; i < rScaleY; i++) {
 		for (int j = 0; j < rScaleX; j++) {
@@ -189,8 +189,8 @@ __global__ void resizeNV12DownscaleAreaKernel(unsigned char* inputY, unsigned ch
 		//float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		//float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
 
-		int x = floor(xF);
-		int y = floor(yF);
+		int x = floorf(xF);
+		int y = floorf(yF);
 		
 		int index = y * srcLinesizeY + x; //index in source image
 		int patternIndexX = j % patternXSize;
@@ -217,19 +217,19 @@ __global__ void resizeNV12UpscaleAreaKernel(unsigned char* inputY, unsigned char
 	unsigned int j = blockIdx.x * blockDim.x + threadIdx.x; //coordinate of pixel (x) in destination image
 
 	if (i < dstHeight && j < dstWidth) {
-		int x = floor(xRatio * j); //it's coordinate of pixel in source image
+		int x = floorf(xRatio * j); //it's coordinate of pixel in source image
 		float xFloat = (j + 1) - (x + 1) / xRatio;
 		if (xFloat <= 0)
 			xFloat = 0;
 		else
-			xFloat = xFloat - floor(xFloat);
+			xFloat = xFloat - floorf(xFloat);
 
-		int y = floor(yRatio * i); //it's coordinate of pixel in source image
+		int y = floorf(yRatio * i); //it's coordinate of pixel in source image
 		float yFloat = (i + 1) - (y + 1) / yRatio;
 		if (yFloat <= 0)
 			yFloat = 0;
 		else
-			yFloat = yFloat - floor(yFloat);
+			yFloat = yFloat - floorf(yFloat);
 
 		outputY[i * dstWidth + j] = calculateBillinearInterpolation(inputY, x, y, 1, 1, srcLinesizeY, srcWidth, srcHeight, xFloat, yFloat);
 		if (i < dstHeight / 2 && j < dstWidth / 2) {
@@ -275,8 +275,8 @@ __global__ void resizeNV12BilinearKernel(unsigned char* inputY, unsigned char* i
 	if (i < dstHeight && j < dstWidth) {
 		float yF = (float)((i + 0.5f) * yRatio - 0.5f); //it's coordinate of pixel in source image
 		float xF = (float)((j + 0.5f) * xRatio - 0.5f); //it's coordinate of pixel in source image
-		int x = floor(xF);
-		int y = floor(yF);
+		int x = floorf(xF);
+		int y = floorf(yF);
 		float weightX = xF - x;
 		float weightY = yF - y;
 		

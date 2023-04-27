@@ -154,7 +154,18 @@ int Parser::Analyze(AVPacket* package) {
 		SLICE_NOT_IDR = 1
 	} NALType = UNKNOWN;
 	int errorBitstream = AnalyzeErrors::NONE;
-	av_bitstream_filter_filter(bitstreamFilter, formatContext->streams[videoIndex]->codec, NULL, &NALu->data, &NALu->size, package->data, package->size, 0);
+
+	auto sts = avcodec_parameters_from_context(bsfContext->par_in, encoderContext);
+	CHECK_STATUS(sts);
+	bsfContext->time_base_in = encoderContext->time_base;
+	sts = av_bsf_init(bsfContext);
+	CHECK_STATUS(sts);
+	
+	auto packageClone = av_packet_clone(package);
+	sts = av_bsf_send_packet(bsfContext, packageClone);
+	CHECK_STATUS(sts);
+	sts = av_bsf_receive_packet(bsfContext, NALu);
+	CHECK_STATUS(sts);
 	//content in package is already in h264 format, so no need to do mp4->h264 conversion
 	if (NALu->data == nullptr) {
 		NALu->data = package->data;
@@ -277,9 +288,7 @@ int Parser::Analyze(AVPacket* package) {
 		POC = pic_order_cnt_lsb;
 	}
 
-	av_freep(&NALu->data);
-	av_packet_free_side_data(NALu);
-	av_free_packet(NALu);
+	av_packet_unref(NALu);
 	return errorBitstream;
 }
 
@@ -308,23 +317,31 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 	AVDictionary *opts = 0;
 	av_dict_set(&opts, "rtsp_transport", "tcp", 0);
 	formatContext = avformat_alloc_context();
+	if (input.keepBuffer == false)
+		formatContext->flags = AVFMT_FLAG_NOBUFFER;
 	const AVIOInterruptCB intCallback = { interruptCallback, formatContext };
 	formatContext->interrupt_callback = intCallback;
+	latestFrameTimestamp = std::chrono::system_clock::now();
+	formatContext->opaque = &latestFrameTimestamp;
 	sts = avformat_open_input(&formatContext, state.inputFile.c_str(), 0, &opts);
+	av_dict_free(&opts);
 	CHECK_STATUS(sts);
 	sts = avformat_find_stream_info(formatContext, 0);
 	CHECK_STATUS(sts);
-	AVCodec* codec;
+	const AVCodec* codec;
 	videoIndex = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
 	videoStream = formatContext->streams[videoIndex];
-	videoStream->codec->codec = codec;
+	encoderContext = avcodec_alloc_context3(codec);
+	sts = avcodec_parameters_to_context(encoderContext, formatContext->streams[videoIndex]->codecpar);
 	if (state.enableDumps) {
 		std::string dumpName = "bitstream.h264";
 		sts = avformat_alloc_output_context2(&dumpContext, NULL, NULL, dumpName.c_str());
 		CHECK_STATUS(sts);
-		AVStream * outStream = avformat_new_stream(dumpContext, videoStream->codec->codec);
-		sts = avcodec_copy_context(outStream->codec, videoStream->codec);
+		AVStream * outStream = avformat_new_stream(dumpContext, nullptr);
+		sts = avcodec_parameters_from_context(outStream->codecpar, encoderContext);
 		CHECK_STATUS(sts);
+		if (dumpContext->oformat->flags & AVFMT_GLOBALHEADER)
+			encoderContext->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 		//Open output file
 		if (!(dumpContext->oformat->flags & AVFMT_NOFILE)) {
 			sts = avio_open(&dumpContext->pb, dumpName.c_str(), AVIO_FLAG_WRITE);
@@ -332,23 +349,25 @@ int Parser::Init(ParserParameters& input, std::shared_ptr<Logger> logger) {
 		}
 		//Write file header
 		sts = avformat_write_header(dumpContext, NULL);
+		CHECK_STATUS(sts);
 	}
 	NALu = new AVPacket();
 	av_init_packet(NALu);
 
-	bitstreamFilter = av_bitstream_filter_init("h264_mp4toannexb");
-
+	bitstreamFilter = av_bsf_get_by_name("h264_mp4toannexb");
+	sts = av_bsf_alloc(bitstreamFilter, &bsfContext);
+	CHECK_STATUS(sts);
 	lastFrame = std::make_pair(new AVPacket(), false);
 	isClosed = false;
 	return sts;
 }
 
 int Parser::getWidth() {
-	return videoStream->codec->width;
+	return videoStream->codecpar->width;
 }
 
 int Parser::getHeight() {
-	return videoStream->codec->height;
+	return videoStream->codecpar->height;
 }
 
 int Parser::getVideoIndex() {
@@ -406,6 +425,10 @@ int Parser::Get(AVPacket* output) {
 }
 
 
+AVCodecContext* Parser::getCodecContext() {
+	return encoderContext;
+}
+
 AVFormatContext* Parser::getFormatContext() {
 	return formatContext;
 }
@@ -418,12 +441,18 @@ void Parser::Close() {
 	PUSH_RANGE("Parser::Close", NVTXColors::AQUA);
 	if (isClosed)
 		return;
-	av_bitstream_filter_close(bitstreamFilter);
+	av_bsf_free(&bsfContext);
 	avformat_close_input(&formatContext);
 	
 	if (state.enableDumps) {
-		if (dumpContext && !(dumpContext->oformat->flags & AVFMT_NOFILE))
+		av_write_trailer(dumpContext);
+
+		for (int i = 0; i < dumpContext->nb_streams; i++) {
+			av_freep(&dumpContext->streams[i]);
+		}
+		if (dumpContext && !(dumpContext->oformat->flags & AVFMT_NOFILE)) {
 			avio_close(dumpContext->pb);
+		}
 		avformat_free_context(dumpContext);
 	}
 	av_packet_unref(lastFrame.first);
