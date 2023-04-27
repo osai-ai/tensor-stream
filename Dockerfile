@@ -33,13 +33,11 @@ RUN git clone --depth 1 -b release/6.0 --single-branch https://github.com/FFmpeg
      ../configure \
      --enable-cuda \
      --enable-cuvid \
-     --enable-libx264 \
      --enable-shared \
      --disable-static \
      --disable-doc \
      --extra-cflags=-I/usr/local/cuda/include \
      --extra-ldflags=-L/usr/local/cuda/lib64 \
-     --enable-gpl \
      --extra-libs=-lpthread \
      --nvccflags="-arch=sm_60 \
                   -gencode=arch=compute_60,code=sm_60 \
