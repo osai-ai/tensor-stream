@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.3.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 ENV TZ=Europe/Kiev
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -56,13 +56,13 @@ RUN git clone --depth 1 -b release/6.0 --single-branch https://github.com/FFmpeg
      cd ../.. && rm -rf FFmpeg
 
 RUN pip3 install --no-cache-dir \
-    twine==1.13.0 \
-    awscli==1.16.194 \
-    numpy==1.16.4 \
+    twine \
+    awscli \
+    numpy \
     packaging
 ARG TORCH_VERSION
 # Install PyTorch
-RUN pip3 install --no-cache-dir torch==$TORCH_VERSION --extra-index-url https://download.pytorch.org/whl/cu113
+RUN pip3 install --no-cache-dir torch==$TORCH_VERSION --extra-index-url https://download.pytorch.org/whl/cu118
 RUN git clone https://github.com/doxygen/doxygen.git &&\
     cd doxygen &&\
     git checkout dc89ac0 &&\
