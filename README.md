@@ -201,7 +201,7 @@ Real-time video style transfer example: [fast-neural-style](python_examples/fast
 
 ## Documentation
 
-Documentation is in Doxygen, can be build manually.
+Documentation is in Doxygen, can be built manually.
 
 ## License
 
