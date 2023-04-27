@@ -10,7 +10,7 @@ Input frames from an RTMP stream are converted to Tensors and passed to a traine
 
 ## Requirements
 
-* TensorStream and the [dependencies](https://github.com/Fonbet/argus-tensor-stream#dependencies).
+* TensorStream and the [dependencies](https://github.com/osai-ai/tensor-stream#dependencies).
 
 ## Usage
 
@@ -32,7 +32,7 @@ python neural_style.py -m </path/to/saved-model.pth> -i </path/to/input-file-or-
 
  - You can stream result video to a local address and open it in VLC or another player:
 ```
-python neural_style.py -i rtmp://37.228.119.44:1935/vod/big_buck_bunny.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth -w 808 -h 456
+python neural_style.py -i tests/resources/bunny.mp4 -o udp://127.0.0.1:1234 -m ./saved_models/candy.pth -w 808 -h 456
 ```
 for example, you can use MPlayer to view the results:
 ```

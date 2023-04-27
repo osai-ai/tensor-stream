@@ -201,7 +201,7 @@ Real-time video style transfer example: [fast-neural-style](python_examples/fast
 
 ## Documentation
 
-Documentation for Python and C++ API can be found on the [site](https://tensorstream.argus-ai.com/).
+Documentation is in Doxygen, can be build manually.
 
 ## License
 
